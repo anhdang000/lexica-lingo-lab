@@ -9,8 +9,9 @@ import { Book, Plus, Tag, Clock, Dumbbell, BookOpen, Search } from 'lucide-react
 import TabNav from '@/components/TabNav';
 import TopicInputForm from '@/components/library/TopicInputForm';
 import TopicList from '@/components/library/TopicList';
-import VocabularyList from '@/components/library/VocabularyList';
+import CollectionList from '@/components/library/CollectionList';
 import RecommendedVocabulary from '@/components/library/RecommendedVocabulary';
+import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Temporary mock data - in a real app would come from database
@@ -24,16 +25,13 @@ const mockTopics = [
 
 // Organization/sorting options
 const sortOptions = [
-  { id: 'user', label: 'User Topics', icon: <Tag className="h-4 w-4" /> },
-  { id: 'ai', label: 'AI Categories', icon: <Book className="h-4 w-4" /> },
-  { id: 'date', label: 'Add Date', icon: <Clock className="h-4 w-4" /> },
-  { id: 'most-reviewed', label: 'Most Reviewed', icon: <Dumbbell className="h-4 w-4" /> },
-  { id: 'least-reviewed', label: 'Least Reviewed', icon: <BookOpen className="h-4 w-4" /> },
+  { id: 'ai', label: 'Topic by AI', icon: <Sparkles className="h-4 w-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-transparent bg-clip-text" /> },
+  { id: 'collection', label: 'Collection', icon: <Book className="h-4 w-4" /> },
 ];
 
 const Library: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<string>('user');
+  const [sortBy, setSortBy] = useState<string>('ai');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   // Simulated function to handle AI generating a topic
@@ -52,7 +50,7 @@ const Library: React.FC = () => {
       <TabNav />
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-        {/* Left column - Topics */}
+        {/* Left column - Topics and Topic Input */}
         <div className="md:col-span-1 space-y-6">
           <Card>
             <CardHeader className="pb-3">
@@ -72,11 +70,21 @@ const Library: React.FC = () => {
             </CardFooter>
           </Card>
           
-          <TopicList 
-            topics={mockTopics} 
-            selectedTopic={selectedTopic}
-            onSelectTopic={setSelectedTopic}
-          />
+          {/* Recommended Vocabulary moved to left column */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Plus className="h-4 w-4 text-green-500" />
+                Recommended Vocabulary
+              </CardTitle>
+              <CardDescription>
+                Based on your current topics and learning progress
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RecommendedVocabulary onAddToLibrary={handleAddToLibrary} />
+            </CardContent>
+          </Card>
         </div>
         
         {/* Right column - Vocabulary content */}
@@ -121,26 +129,30 @@ const Library: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <VocabularyList 
-                topicId={selectedTopic} 
+              <CollectionList 
                 searchQuery={searchQuery}
                 sortBy={sortBy}
               />
             </CardContent>
           </Card>
           
+          {/* Topic list integrated below main view */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Plus className="h-4 w-4 text-green-500" />
-                Recommended Vocabulary
+                <Tag className="h-4 w-4 text-amber-500" />
+                Topic List
               </CardTitle>
               <CardDescription>
-                Based on your current topics and learning progress
+                Select a topic to filter your vocabulary
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <RecommendedVocabulary onAddToLibrary={handleAddToLibrary} />
+              <TopicList 
+                topics={mockTopics} 
+                selectedTopic={selectedTopic}
+                onSelectTopic={setSelectedTopic}
+              />
             </CardContent>
           </Card>
         </div>
