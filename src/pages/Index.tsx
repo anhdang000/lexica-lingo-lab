@@ -27,7 +27,7 @@ const Index = () => {
           {/* Main Content Area */}
           <div className="lg:col-span-8 flex flex-col gap-6 order-2 lg:order-1">
             <h1 className="text-4xl font-extrabold text-gray-800 dark:text-white">
-              Expand your <span className="text-amber-500">vocabulary</span> with AI
+              Expand your <span className="text-amber-500">lexicon</span> with AI
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl">
               Input text, upload images, or enter URLs. Lexica analyzes your content and creates personalized vocabulary lists to help you learn new words.
