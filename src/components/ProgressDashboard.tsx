@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Fire, TrendingUp, CheckCircle2, BarChart3 } from 'lucide-react';
+import { Flame, TrendingUp, CheckCircle2, BarChart3 } from 'lucide-react';
 
 const ProgressDashboard: React.FC = () => {
   // Sample statistics for the dashboard
@@ -30,7 +30,7 @@ const ProgressDashboard: React.FC = () => {
                 {stats.streak}
               </span>
               <span className="rounded-full bg-amber-200/50 dark:bg-amber-800/30 p-2">
-                <Fire className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <Flame className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </span>
             </div>
             <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">Day Streak</p>
