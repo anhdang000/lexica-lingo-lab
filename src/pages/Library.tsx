@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -73,27 +72,6 @@ const Library: React.FC = () => {
             </CardFooter>
           </Card>
           
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-md">Organization</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {sortOptions.map(option => (
-                  <Button 
-                    key={option.id}
-                    variant={sortBy === option.id ? "default" : "ghost"}
-                    className={`w-full justify-start ${sortBy === option.id ? 'bg-cyan-500 hover:bg-cyan-600' : ''}`}
-                    onClick={() => setSortBy(option.id)}
-                  >
-                    {option.icon}
-                    <span className="ml-2">{option.label}</span>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          
           <TopicList 
             topics={mockTopics} 
             selectedTopic={selectedTopic}
@@ -105,21 +83,40 @@ const Library: React.FC = () => {
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <CardTitle className="text-xl">
-                  {selectedTopic ? 
-                    mockTopics.find(t => t.id === selectedTopic)?.name || 'Vocabulary' : 
-                    'All Vocabulary'}
-                </CardTitle>
-                <div className="relative w-full md:w-64">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search vocabulary..."
-                    className="w-full pl-8"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                  <CardTitle className="text-xl">
+                    {selectedTopic ? 
+                      mockTopics.find(t => t.id === selectedTopic)?.name || 'Vocabulary' : 
+                      'All Vocabulary'}
+                  </CardTitle>
+                  <div className="relative w-full md:w-64">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Search vocabulary..."
+                      className="w-full pl-8"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">Organized as</div>
+                  <div className="flex flex-wrap gap-2">
+                    {sortOptions.map(option => (
+                      <Button 
+                        key={option.id}
+                        variant={sortBy === option.id ? "default" : "secondary"}
+                        size="sm"
+                        className={`${sortBy === option.id ? 'bg-cyan-500 hover:bg-cyan-600' : ''}`}
+                        onClick={() => setSortBy(option.id)}
+                      >
+                        {option.icon}
+                        <span className="ml-2">{option.label}</span>
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardHeader>
