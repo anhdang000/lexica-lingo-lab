@@ -25,6 +25,8 @@ const App = () => (
           <Route path="/analysis" element={<div className="p-8">Analysis Page (Coming Soon)</div>} />
           <Route path="/library" element={<div className="p-8">Library Page (Coming Soon)</div>} />
           <Route path="/card/:id" element={<div className="p-8">Card Detail Page (Coming Soon)</div>} />
+          <Route path="/practice" element={<div className="p-8">Practice Page (Coming Soon)</div>} />
+          <Route path="/profile" element={<div className="p-8">Profile Page (Coming Soon)</div>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

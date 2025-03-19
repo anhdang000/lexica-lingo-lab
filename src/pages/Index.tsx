@@ -5,6 +5,8 @@ import WordOfDay from '@/components/WordOfDay';
 import RecentActivity from '@/components/RecentActivity';
 import ProgressDashboard from '@/components/ProgressDashboard';
 import DictionaryLookup from '@/components/DictionaryLookup';
+import TabNav from '@/components/TabNav';
+import Header from '@/components/Header';
 
 const Index = () => {
   // Sample data for WordOfDay component
@@ -18,7 +20,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-amber-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <main className="flex-grow container mx-auto px-4 py-8 max-w-7xl">
+      <Header />
+      <main className="flex-grow container mx-auto px-4 py-8 max-w-7xl mt-16">
+        <TabNav />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Main Content Area */}
           <div className="lg:col-span-8 flex flex-col gap-6 order-2 lg:order-1">
