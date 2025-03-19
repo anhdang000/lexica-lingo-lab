@@ -6,9 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import Library from "./pages/Library";
 // These pages will be implemented later
 // import Analysis from "./pages/Analysis";
-// import Library from "./pages/Library";
 // import CardDetail from "./pages/CardDetail";
 
 const queryClient = new QueryClient();
@@ -21,9 +21,9 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/library" element={<Library />} />
           {/* These routes will be implemented later */}
           <Route path="/analysis" element={<div className="p-8">Analysis Page (Coming Soon)</div>} />
-          <Route path="/library" element={<div className="p-8">Library Page (Coming Soon)</div>} />
           <Route path="/card/:id" element={<div className="p-8">Card Detail Page (Coming Soon)</div>} />
           <Route path="/practice" element={<div className="p-8">Practice Page (Coming Soon)</div>} />
           <Route path="/profile" element={<div className="p-8">Profile Page (Coming Soon)</div>} />
