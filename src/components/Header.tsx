@@ -2,16 +2,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { 
-  BookOpen,
-  Home,
-  FolderOpen,
-  LineChart,
-  Menu,
-  X,
-  User
-} from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import 'remixicon/fonts/remixicon.css';
 
 const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -23,10 +15,10 @@ const Header: React.FC = () => {
   };
 
   const navLinks = [
-    { name: 'Home', path: '/', icon: <Home className="w-5 h-5" /> },
-    { name: 'Dictionary', path: '/dictionary', icon: <BookOpen className="w-5 h-5" /> },
-    { name: 'Library', path: '/library', icon: <FolderOpen className="w-5 h-5" /> },
-    { name: 'Progress', path: '/progress', icon: <LineChart className="w-5 h-5" /> },
+    { name: 'Home', path: '/', icon: 'ri-home-line' },
+    { name: 'Dictionary', path: '/dictionary', icon: 'ri-book-line' },
+    { name: 'Library', path: '/library', icon: 'ri-folder-line' },
+    { name: 'Progress', path: '/progress', icon: 'ri-line-chart-line' },
   ];
 
   // Simplified version for mobile
@@ -44,9 +36,9 @@ const Header: React.FC = () => {
               className="p-2 rounded-md text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
             >
               {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
+                <i className="ri-close-line h-6 w-6"></i>
               ) : (
-                <Menu className="h-6 w-6" />
+                <i className="ri-menu-line h-6 w-6"></i>
               )}
             </button>
           </div>
@@ -66,7 +58,7 @@ const Header: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <div className="w-6 h-6 flex items-center justify-center">
-                  {link.icon}
+                  <i className={link.icon}></i>
                 </div>
                 <span className="ml-3">{link.name}</span>
               </Link>
@@ -74,8 +66,8 @@ const Header: React.FC = () => {
             
             <div className="p-4 border-t border-gray-100 dark:border-gray-700">
               <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User className="w-5 h-5 text-gray-500" />
+                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                  <i className="ri-user-line text-gray-500"></i>
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium">Guest User</p>
@@ -104,12 +96,12 @@ const Header: React.FC = () => {
             key={link.name}
             to={link.path}
             className={cn(
-              "flex items-center px-4 py-3 text-gray-600 dark:text-gray-200 rounded-lg mb-2 hover:bg-gray-50 dark:hover:bg-gray-700",
+              "flex items-center px-4 py-3 text-gray-600 dark:text-gray-200 rounded-button mb-2 hover:bg-gray-50 dark:hover:bg-gray-700",
               location.pathname === link.path && "text-primary dark:text-primary bg-light dark:bg-gray-700"
             )}
           >
             <div className="w-6 h-6 flex items-center justify-center">
-              {link.icon}
+              <i className={link.icon}></i>
             </div>
             <span className="ml-3">{link.name}</span>
           </Link>
@@ -118,8 +110,8 @@ const Header: React.FC = () => {
       
       <div className="p-6 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center">
-          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-            <User className="w-5 h-5 text-gray-500" />
+          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+            <i className="ri-user-line text-gray-500"></i>
           </div>
           <div className="ml-3">
             <p className="text-sm font-medium">Guest User</p>

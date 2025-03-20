@@ -132,4 +132,25 @@
   .word-card:hover {
     @apply -translate-y-1;
   }
+
+  /* Custom border radius for buttons */
+  .rounded-button {
+    @apply rounded-[8px];
+  }
+}
+
+/* Modal styles */
+.modal {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+}
+
+/* Loader animation */
+.loader {
+  @apply w-12 h-12 border-4 border-white border-b-primary rounded-full;
+  animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
