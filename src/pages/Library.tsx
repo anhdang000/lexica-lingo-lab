@@ -1,248 +1,381 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Book, Search, Sparkles, BookOpen, Plus, Tag, Grid3X3, Layout } from 'lucide-react';
-import { toast } from 'sonner';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogClose,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TabNav from '@/components/TabNav';
-import TopicInputForm from '@/components/library/TopicInputForm';
-import TopicList from '@/components/library/TopicList';
-import RecommendedVocabulary from '@/components/library/RecommendedVocabulary';
-import CollectionGallery from '@/components/library/CollectionGallery';
+import { 
+  Folder, 
+  Search, 
+  Plus, 
+  Upload, 
+  Tag, 
+  Book, 
+  Filter, 
+  ArrowDownAZ, 
+  Clock, 
+  Play, 
+  Pencil, 
+  MoreHorizontal,
+  X,
+  Volume2,
+  Star
+} from 'lucide-react';
+import { toast } from 'sonner';
+import CollectionCard from '@/components/library/CollectionCard';
+import VocabularyItem from '@/components/library/VocabularyItem';
+import CreateCollectionForm from '@/components/library/CreateCollectionForm';
+import ImportWordsForm from '@/components/library/ImportWordsForm';
 
-// Temporary mock data - in a real app would come from database
-const mockTopics = [
-  { id: '1', name: 'Business', count: 42, progress: 65 },
-  { id: '2', name: 'Technology', count: 38, progress: 40 },
-  { id: '3', name: 'Medicine', count: 56, progress: 25 },
-  { id: '4', name: 'Travel', count: 24, progress: 80 },
-  { id: '5', name: 'Academic', count: 31, progress: 10 },
-];
+// Mock vocabulary data
+const mockVocabulary = {
+  business: [
+    { word: "Acquisition", definition: "The purchase of one company by another", example: "The tech giant announced the acquisition of a promising startup." },
+    { word: "Revenue", definition: "Income generated from business activities", example: "The company's quarterly revenue exceeded expectations." },
+    { word: "Stakeholder", definition: "Person or entity with interest in a business", example: "The stakeholders met to discuss the company's future." }
+  ],
+  tech: [
+    { word: "Algorithm", definition: "A step-by-step procedure for solving a problem", example: "The search engine uses a complex algorithm to rank results." },
+    { word: "API", definition: "Application Programming Interface", example: "Developers use the API to integrate with our platform." },
+    { word: "Backend", definition: "Server-side of an application", example: "The backend processes all user requests." }
+  ],
+  academic: [
+    { word: "Hypothesis", definition: "A proposed explanation for a phenomenon", example: "The researchers developed a hypothesis about climate change." },
+    { word: "Methodology", definition: "System of methods used in research", example: "The study's methodology was peer-reviewed." },
+    { word: "Analysis", definition: "Detailed examination of elements", example: "The data analysis revealed interesting patterns." }
+  ]
+};
 
-// Mock collections for the gallery
+// Mock collections data
 const mockCollections = [
-  { id: '1', name: 'Business Terms', wordCount: 42, lastStudied: '2023-10-15', type: 'ai', progress: 65, imageUrl: '/placeholder.svg' },
-  { id: '2', name: 'Tech Vocabulary', wordCount: 38, lastStudied: '2023-10-20', type: 'ai', progress: 40, imageUrl: '/placeholder.svg' },
-  { id: '3', name: 'Medical Terms', wordCount: 56, lastStudied: '2023-10-18', type: 'ai', progress: 25, imageUrl: '/placeholder.svg' },
-  { id: '4', name: 'Travel Essentials', wordCount: 24, lastStudied: '2023-10-25', type: 'collection', progress: 80, imageUrl: '/placeholder.svg' },
-  { id: '5', name: 'Academic Writing', wordCount: 31, lastStudied: '2023-10-17', type: 'collection', progress: 10, imageUrl: '/placeholder.svg' },
-];
-
-// Mock vocabulary data for the collection details
-const mockVocabulary = [
-  { id: '1', word: 'Acquisition', definition: 'The act of acquiring something', collectionId: '1', lastReviewed: '2023-10-15', reviewCount: 5 },
-  { id: '2', word: 'Diversification', definition: 'The action of making diverse', collectionId: '1', lastReviewed: '2023-10-20', reviewCount: 3 },
-  { id: '3', word: 'Algorithm', definition: 'A process or set of rules to be followed in calculations', collectionId: '2', lastReviewed: '2023-10-18', reviewCount: 7 },
-  { id: '4', word: 'Cryptocurrency', definition: 'A digital currency using encryption techniques', collectionId: '2', lastReviewed: '2023-10-25', reviewCount: 2 },
-  { id: '5', word: 'Diagnostic', definition: 'Relating to the identification of a condition', collectionId: '3', lastReviewed: '2023-10-10', reviewCount: 6 },
-  { id: '6', word: 'Itinerary', definition: 'A planned route of a journey', collectionId: '4', lastReviewed: '2023-10-22', reviewCount: 4 },
-  { id: '7', word: 'Thesis', definition: 'A statement or theory put forward to be maintained or proved', collectionId: '5', lastReviewed: '2023-10-17', reviewCount: 1 },
+  { 
+    id: '1', 
+    name: 'Essential Business Terms', 
+    description: 'Key vocabulary for professional communication and business meetings',
+    category: 'business',
+    categoryColor: 'quaternary',
+    wordCount: 120,
+    lastStudied: '2h ago',
+    progress: 75
+  },
+  { 
+    id: '2', 
+    name: 'Tech Industry Vocabulary', 
+    description: 'Modern technology and software development terminology',
+    category: 'technology',
+    categoryColor: 'secondary',
+    wordCount: 85,
+    lastStudied: '1d ago',
+    progress: 45
+  },
+  { 
+    id: '3', 
+    name: 'Scientific Research Terms', 
+    description: 'Advanced vocabulary for academic papers and research',
+    category: 'academic',
+    categoryColor: 'primary',
+    wordCount: 150,
+    lastStudied: '5d ago',
+    progress: 30
+  }
 ];
 
 const Library: React.FC = () => {
-  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [organizationType, setOrganizationType] = useState<'ai' | 'collection'>('ai');
+  // State management
+  const [viewMode, setViewMode] = useState<'topics' | 'collections'>('topics');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
-  const [isCollectionDialogOpen, setIsCollectionDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   
-  // Handle adding a vocabulary to library
-  const handleAddToLibrary = (word: string) => {
-    toast.success(`"${word}" added to your library!`);
-  };
-
-  // Simulated function to handle AI generating a topic
-  const handleGenerateTopic = (prompt: string) => {
-    // In a real implementation, this would call an API
-    toast.success(`Topic "${prompt}" created successfully!`);
-  };
-
-  // Handle collection selection
-  const handleCollectionSelect = (collectionId: string) => {
-    setSelectedCollection(collectionId);
-    setIsCollectionDialogOpen(true);
-  };
-
   // Get the current collection's vocabulary
-  const currentCollectionVocabulary = selectedCollection
-    ? mockVocabulary.filter(item => item.collectionId === selectedCollection)
-    : [];
-
-  // Get the current collection details
-  const currentCollection = selectedCollection
-    ? mockCollections.find(collection => collection.id === selectedCollection)
+  const currentCollection = selectedCollection 
+    ? mockCollections.find(c => c.id === selectedCollection) 
     : null;
-
+  
+  const currentVocabulary = currentCollection 
+    ? mockVocabulary[currentCollection.category as keyof typeof mockVocabulary] || []
+    : [];
+  
+  // Filter collections based on search
+  const filteredCollections = mockCollections.filter(collection => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      collection.name.toLowerCase().includes(query) ||
+      collection.description.toLowerCase().includes(query)
+    );
+  });
+  
+  // Handle collection creation
+  const handleCreateCollection = (data: any) => {
+    // In a real app, this would call an API to create the collection
+    toast.success('Collection created successfully!');
+    setCreateDialogOpen(false);
+  };
+  
+  // Handle word import
+  const handleImportWords = (data: any) => {
+    // In a real app, this would call an API to import words
+    toast.success('Words imported successfully!');
+    setImportDialogOpen(false);
+  };
+  
   return (
-    <div className="container px-4 py-6 max-w-5xl mx-auto">
-      <TabNav />
-      
-      <div className="mt-6 space-y-6">
-        {/* Organization Options */}
-        <Card className="border-cream shadow-card overflow-hidden">
-          <CardHeader className="pb-3 bg-gradient-to-r from-sky-100 to-cream border-b border-cream">
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Layout className="h-5 w-5 text-sky-500" />
-              Organization
-            </CardTitle>
-            <CardDescription>Choose how to view your vocabulary</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="flex gap-4 flex-wrap">
-              <Button 
-                variant={organizationType === 'ai' ? "default" : "outline"}
-                className={`${organizationType === 'ai' ? 'bg-rust-500 hover:bg-rust-600' : 'border-rust-200'} flex gap-2 items-center`}
-                onClick={() => setOrganizationType('ai')}
-              >
-                <Sparkles className="h-4 w-4" />
-                Topics by AI
-              </Button>
-              <Button 
-                variant={organizationType === 'collection' ? "default" : "outline"}
-                className={`${organizationType === 'collection' ? 'bg-sky-500 hover:bg-sky-600' : 'border-sky-200'} flex gap-2 items-center`}
-                onClick={() => setOrganizationType('collection')}
-              >
-                <Book className="h-4 w-4" />
-                Created Collections
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Search Bar */}
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search vocabulary or collections..."
-            className="w-full pl-10 border-cream focus-visible:ring-sky-400"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        
-        {/* Collections Gallery */}
-        <CollectionGallery 
-          collections={mockCollections.filter(c => c.type === organizationType)}
-          searchQuery={searchQuery}
-          onCollectionSelect={handleCollectionSelect}
-        />
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left column - Topics Input and Recommended Words */}
-          <div className="md:col-span-1 space-y-6">
-            <Card className="border-cream shadow-card overflow-hidden">
-              <CardHeader className="pb-3 bg-gradient-to-r from-sky-100 to-cream border-b border-cream">
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <Book className="h-5 w-5 text-sky-500" />
-                  Create Topic
-                </CardTitle>
-                <CardDescription>Generate or manage your vocabulary topics</CardDescription>
-              </CardHeader>
-              <CardContent className="pb-1 pt-4">
-                <TopicInputForm onSubmit={handleGenerateTopic} />
-              </CardContent>
-              <CardFooter className="pt-0 pb-4 flex justify-end">
-                <div className="text-sm text-muted-foreground">
-                  {mockTopics.length} topics
-                </div>
-              </CardFooter>
-            </Card>
-            
-            {/* Recommended Vocabulary */}
-            <Card className="border-cream shadow-card overflow-hidden">
-              <CardHeader className="pb-3 bg-gradient-to-r from-tan-100 to-cream border-b border-cream">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Plus className="h-4 w-4 text-rust-500" />
-                  Recommended Words
-                </CardTitle>
-                <CardDescription>
-                  Based on your current topics and learning progress
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <RecommendedVocabulary onAddToLibrary={handleAddToLibrary} />
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Right column - Topic List */}
-          <div className="md:col-span-2">
-            <Card className="border-cream shadow-card overflow-hidden">
-              <CardHeader className="pb-3 bg-gradient-to-r from-sky-100 to-cream border-b border-cream">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Tag className="h-4 w-4 text-tan-500" />
-                  Your Topics
-                </CardTitle>
-                <CardDescription>
-                  Select a topic to filter your vocabulary
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <TopicList 
-                  topics={mockTopics} 
-                  selectedTopic={selectedTopic}
-                  onSelectTopic={setSelectedTopic}
-                />
-              </CardContent>
-            </Card>
-          </div>
+    <div className="container px-4 py-6 max-w-6xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-3xl font-bold">My Library</h2>
+        <div className="flex gap-4">
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2" 
+            onClick={() => setImportDialogOpen(true)}
+          >
+            <Upload className="h-5 w-5" />
+            Import
+          </Button>
+          <Button 
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90" 
+            onClick={() => setCreateDialogOpen(true)}
+          >
+            <Plus className="h-5 w-5" />
+            Create Collection
+          </Button>
         </div>
       </div>
       
-      {/* Collection Vocabulary Dialog */}
-      <Dialog open={isCollectionDialogOpen} onOpenChange={setIsCollectionDialogOpen}>
-        <DialogContent className="max-w-3xl">
+      <Card className="mb-8">
+        <CardContent className="p-6">
+          <div className="mb-6">
+            <div className="flex gap-4 items-center mb-4">
+              <Button 
+                className={viewMode === 'topics' ? 'bg-primary hover:bg-primary/90' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}
+                onClick={() => setViewMode('topics')}
+              >
+                <Tag className="mr-2 h-5 w-5" />
+                Topics by AI
+              </Button>
+              <Button 
+                className={viewMode === 'collections' ? 'bg-primary hover:bg-primary/90' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}
+                onClick={() => setViewMode('collections')}
+              >
+                <Folder className="mr-2 h-5 w-5" />
+                Created Collections
+              </Button>
+            </div>
+            
+            <div className="flex gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input 
+                  type="text" 
+                  placeholder="Search collections..." 
+                  className="w-full pl-12"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="h-5 w-5" />
+                Filters
+              </Button>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+              >
+                <ArrowDownAZ className="h-5 w-5" />
+                Sort
+              </Button>
+            </div>
+          </div>
+          
+          {/* Filter Panel */}
+          {showFilters && (
+            <div className="bg-gray-50 rounded-xl p-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <h4 className="font-medium mb-3">Difficulty Level</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="beginner" />
+                      <Label htmlFor="beginner">Beginner</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="intermediate" />
+                      <Label htmlFor="intermediate">Intermediate</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="advanced" />
+                      <Label htmlFor="advanced">Advanced</Label>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-3">Categories</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="business" />
+                      <Label htmlFor="business">Business</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="technology" />
+                      <Label htmlFor="technology">Technology</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="academic" />
+                      <Label htmlFor="academic">Academic</Label>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-3">Study Status</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="not-started" />
+                      <Label htmlFor="not-started">Not Started</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="in-progress" />
+                      <Label htmlFor="in-progress">In Progress</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="completed" />
+                      <Label htmlFor="completed">Completed</Label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-6">
+            {/* Left Panel - Create Topic + Collections */}
+            <div className="w-[400px]">
+              <Card className="bg-[#fdf8f3] mb-6 border-gray-100">
+                <CardContent className="p-6">
+                  <div className="flex flex-col h-full">
+                    <h3 className="text-lg font-medium mb-3">Create Topic</h3>
+                    <p className="text-sm text-gray-600 mb-4">Generate or manage your vocabulary topics</p>
+                    <Input 
+                      type="text" 
+                      placeholder="Enter a topic (e.g., 'Medical terminology')" 
+                      className="mb-4 border-gray-200"
+                    />
+                    <Button 
+                      className="mt-auto w-full bg-[#e4a795] hover:bg-[#e4a795]/90"
+                    >
+                      <span className="mr-2 h-5 w-5">✨</span>
+                      Generate Vocabulary
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <div className="space-y-4">
+                {filteredCollections.map(collection => (
+                  <CollectionCard 
+                    key={collection.id}
+                    collection={collection}
+                    isSelected={selectedCollection === collection.id}
+                    onSelect={() => setSelectedCollection(collection.id)}
+                  />
+                ))}
+                
+                {filteredCollections.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No collections found.</p>
+                    {searchQuery && (
+                      <p className="text-sm text-gray-400 mt-2">Try a different search term.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Right Panel - Vocabulary List */}
+            {selectedCollection ? (
+              <div className="flex-1 bg-white rounded-xl p-6 border border-gray-100">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold">{currentCollection?.name}</h3>
+                  <div className="flex gap-4">
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <Pencil className="h-5 w-5" />
+                      Edit
+                    </Button>
+                    <Button className="flex items-center gap-2 bg-primary hover:bg-primary/90">
+                      <Play className="h-5 w-5" />
+                      Start Learning
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  {currentVocabulary.map((item, index) => (
+                    <VocabularyItem key={index} item={item} />
+                  ))}
+                  
+                  {currentVocabulary.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No vocabulary items found in this collection.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-white/50 rounded-xl border border-gray-100 border-dashed">
+                <div className="text-center py-12 px-4">
+                  <Book className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-500 mb-2">Select a collection</h3>
+                  <p className="text-sm text-gray-400">Choose a collection from the left to view its vocabulary</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Create Collection Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-rust-500" />
-              {currentCollection?.name || 'Collection'}
-            </DialogTitle>
+            <DialogTitle className="text-xl font-bold">Create New Collection</DialogTitle>
             <DialogDescription>
-              {currentCollection ? `${currentCollection.wordCount} words · ${currentCollection.progress}% complete` : ''}
+              Create a new vocabulary collection to organize your words.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="max-h-[60vh] overflow-y-auto">
-            <table className="w-full">
-              <thead className="bg-cream/30">
-                <tr>
-                  <th className="text-left py-2 px-4 font-medium">Word</th>
-                  <th className="text-left py-2 px-4 font-medium">Definition</th>
-                  <th className="text-right py-2 px-4 font-medium">Last Reviewed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentCollectionVocabulary.map(word => (
-                  <tr key={word.id} className="border-b border-cream hover:bg-cream/20">
-                    <td className="py-3 px-4 font-medium">{word.word}</td>
-                    <td className="py-3 px-4">{word.definition}</td>
-                    <td className="py-3 px-4 text-right text-muted-foreground">
-                      {new Date(word.lastReviewed).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-                {currentCollectionVocabulary.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="py-8 text-center text-muted-foreground">
-                      No words found in this collection.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setIsCollectionDialogOpen(false)}>Close</Button>
-            <Button className="bg-rust-500 hover:bg-rust-600">
-              <BookOpen className="mr-2 h-4 w-4" />
-              Study Collection
-            </Button>
-          </div>
+          <CreateCollectionForm onSubmit={handleCreateCollection} />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Import Words Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Import Word List</DialogTitle>
+            <DialogDescription>
+              Import words from a file to add to your vocabulary.
+            </DialogDescription>
+          </DialogHeader>
+          <ImportWordsForm onSubmit={handleImportWords} />
         </DialogContent>
       </Dialog>
     </div>

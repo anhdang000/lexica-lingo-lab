@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Home, Book, Folder, LineChart, Menu, X, User } from 'lucide-react';
 import 'remixicon/fonts/remixicon.css';
 
 const Header: React.FC = () => {
@@ -15,10 +16,10 @@ const Header: React.FC = () => {
   };
 
   const navLinks = [
-    { name: 'Home', path: '/', icon: 'ri-home-line' },
-    { name: 'Dictionary', path: '/dictionary', icon: 'ri-book-line' },
-    { name: 'Library', path: '/library', icon: 'ri-folder-line' },
-    { name: 'Progress', path: '/progress', icon: 'ri-line-chart-line' },
+    { name: 'Home', path: '/', icon: <Home className="h-5 w-5" /> },
+    { name: 'Dictionary', path: '/dictionary', icon: <Book className="h-5 w-5" /> },
+    { name: 'Library', path: '/library', icon: <Folder className="h-5 w-5" /> },
+    { name: 'Progress', path: '/progress', icon: <LineChart className="h-5 w-5" /> },
   ];
 
   // Simplified version for mobile
@@ -36,9 +37,9 @@ const Header: React.FC = () => {
               className="p-2 rounded-md text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
             >
               {mobileMenuOpen ? (
-                <i className="ri-close-line h-6 w-6"></i>
+                <X className="h-6 w-6" />
               ) : (
-                <i className="ri-menu-line h-6 w-6"></i>
+                <Menu className="h-6 w-6" />
               )}
             </button>
           </div>
@@ -58,7 +59,7 @@ const Header: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <div className="w-6 h-6 flex items-center justify-center">
-                  <i className={link.icon}></i>
+                  {link.icon}
                 </div>
                 <span className="ml-3">{link.name}</span>
               </Link>
@@ -67,11 +68,11 @@ const Header: React.FC = () => {
             <div className="p-4 border-t border-gray-100 dark:border-gray-700">
               <div className="flex items-center">
                 <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                  <i className="ri-user-line text-gray-500"></i>
+                  <User className="h-6 w-6 text-gray-500" />
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium">Guest User</p>
-                  <p className="text-xs text-gray-500">Sign in</p>
+                  <p className="text-sm font-medium">Emily Parker</p>
+                  <p className="text-xs text-gray-500">Premium Member</p>
                 </div>
               </div>
             </div>
@@ -101,7 +102,7 @@ const Header: React.FC = () => {
             )}
           >
             <div className="w-6 h-6 flex items-center justify-center">
-              <i className={link.icon}></i>
+              {link.icon}
             </div>
             <span className="ml-3">{link.name}</span>
           </Link>
@@ -111,11 +112,21 @@ const Header: React.FC = () => {
       <div className="p-6 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center">
           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-            <i className="ri-user-line text-gray-500"></i>
+            <img 
+              src="https://public.readdy.ai/ai/img_res/26aca20a0c7223efb936303b6c05acfa.jpg" 
+              alt="Profile"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '';
+                e.currentTarget.classList.add('flex', 'items-center', 'justify-center');
+                e.currentTarget.appendChild(document.createElement('span')).textContent = 'EP';
+              }}
+            />
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium">Guest User</p>
-            <p className="text-xs text-gray-500">Sign in</p>
+            <p className="text-sm font-medium">Emily Parker</p>
+            <p className="text-xs text-gray-500">Premium Member</p>
           </div>
         </div>
       </div>

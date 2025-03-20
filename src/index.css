@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -120,8 +119,12 @@
   }
   
   /* Card hover effects */
-  .card-hover {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+  .collection-card {
+    @apply transition-all duration-200;
+  }
+  
+  .collection-card:hover {
+    @apply -translate-y-1 shadow-md;
   }
   
   /* Word card hover animation */
