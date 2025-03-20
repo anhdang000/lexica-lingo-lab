@@ -1,140 +1,133 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { 
-  Book, 
-  Home, 
-  Library, 
-  ChevronDown, 
-  Sun, 
-  Moon,
+  BookOpen,
+  Home,
+  FolderOpen,
+  LineChart,
   Menu,
-  X
+  X,
+  User
 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const Header: React.FC = () => {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    document.documentElement.classList.toggle('dark');
-  };
+  const location = useLocation();
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
   const navLinks = [
-    { name: 'Home', path: '/', icon: <Home className="w-4 h-4 mr-2" /> },
-    { name: 'Library', path: '/library', icon: <Library className="w-4 h-4 mr-2" /> },
-    { name: 'Dictionary', path: '/dictionary', icon: <Book className="w-4 h-4 mr-2" /> },
+    { name: 'Home', path: '/', icon: <Home className="w-5 h-5" /> },
+    { name: 'Dictionary', path: '/dictionary', icon: <BookOpen className="w-5 h-5" /> },
+    { name: 'Library', path: '/library', icon: <FolderOpen className="w-5 h-5" /> },
+    { name: 'Progress', path: '/progress', icon: <LineChart className="w-5 h-5" /> },
   ];
 
-  return (
-    <header className="w-full backdrop-blur-lg bg-white/80 dark:bg-brown-900/80 border-b border-cream dark:border-brown-800 fixed top-0 left-0 right-0 z-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center">
+  // Simplified version for mobile
+  if (isMobile) {
+    return (
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 fixed top-0 left-0 right-0 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
-              <div className="w-8 h-8 rounded-md bg-gradient-to-br from-rust-400 to-rust-600 flex items-center justify-center mr-2">
-                <span className="text-white font-bold">L</span>
-              </div>
-              <span className="text-foreground font-medium text-xl tracking-tight">Lexica</span>
+              <h1 className="text-primary text-3xl font-['Pacifico']">Lexica</h1>
             </Link>
+
+            <button
+              onClick={toggleMobileMenu}
+              className="p-2 rounded-md text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+            >
+              {mobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </button>
           </div>
-
-          {/* Desktop Navigation */}
-          {!isMobile && (
-            <div className="hidden md:flex items-center space-x-4">
-              <nav className="flex items-center space-x-1">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.name}
-                    to={link.path}
-                    className="px-3 py-2 rounded-md text-sm font-medium text-brown-600 hover:text-brown-900 dark:text-cream dark:hover:text-white hover:bg-cream dark:hover:bg-brown-800 transition-all duration-200"
-                  >
-                    <div className="flex items-center">
-                      {link.icon}
-                      {link.name}
-                    </div>
-                  </Link>
-                ))}
-              </nav>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleTheme}
-                className="ml-2"
-              >
-                {theme === 'light' ? (
-                  <Moon className="h-5 w-5" />
-                ) : (
-                  <Sun className="h-5 w-5" />
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Mobile Menu Button */}
-          {isMobile && (
-            <div className="flex items-center md:hidden">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleTheme}
-                className="mr-2"
-              >
-                {theme === 'light' ? (
-                  <Moon className="h-5 w-5" />
-                ) : (
-                  <Sun className="h-5 w-5" />
-                )}
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleMobileMenu}
-              >
-                {mobileMenuOpen ? (
-                  <X className="h-5 w-5" />
-                ) : (
-                  <Menu className="h-5 w-5" />
-                )}
-              </Button>
-            </div>
-          )}
         </div>
-      </div>
 
-      {/* Mobile menu */}
-      {isMobile && mobileMenuOpen && (
-        <div className="md:hidden animate-fade-in">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white dark:bg-brown-900 shadow-lg border-t border-cream dark:border-brown-800">
+        {/* Mobile navigation menu */}
+        {mobileMenuOpen && (
+          <nav className="bg-white dark:bg-gray-800 shadow-lg">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.path}
-                className="block px-3 py-4 rounded-md text-base font-medium text-brown-700 dark:text-cream hover:bg-cream dark:hover:bg-brown-800 transition-all duration-200"
+                className={cn(
+                  "flex items-center px-4 py-3 text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700",
+                  location.pathname === link.path && "text-primary dark:text-primary bg-light dark:bg-gray-700"
+                )}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <div className="flex items-center">
+                <div className="w-6 h-6 flex items-center justify-center">
                   {link.icon}
-                  {link.name}
                 </div>
+                <span className="ml-3">{link.name}</span>
               </Link>
             ))}
+            
+            <div className="p-4 border-t border-gray-100 dark:border-gray-700">
+              <div className="flex items-center">
+                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="w-5 h-5 text-gray-500" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium">Guest User</p>
+                  <p className="text-xs text-gray-500">Sign in</p>
+                </div>
+              </div>
+            </div>
+          </nav>
+        )}
+      </header>
+    );
+  }
+
+  // Desktop sidebar navigation
+  return (
+    <nav className="w-60 bg-white dark:bg-gray-800 h-screen fixed left-0 top-0 border-r border-gray-100 dark:border-gray-700 flex flex-col">
+      <div className="p-6">
+        <Link to="/">
+          <h1 className="text-primary text-3xl font-['Pacifico']">Lexica</h1>
+        </Link>
+      </div>
+      
+      <div className="flex-1 px-4">
+        {navLinks.map((link) => (
+          <Link
+            key={link.name}
+            to={link.path}
+            className={cn(
+              "flex items-center px-4 py-3 text-gray-600 dark:text-gray-200 rounded-lg mb-2 hover:bg-gray-50 dark:hover:bg-gray-700",
+              location.pathname === link.path && "text-primary dark:text-primary bg-light dark:bg-gray-700"
+            )}
+          >
+            <div className="w-6 h-6 flex items-center justify-center">
+              {link.icon}
+            </div>
+            <span className="ml-3">{link.name}</span>
+          </Link>
+        ))}
+      </div>
+      
+      <div className="p-6 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center">
+          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+            <User className="w-5 h-5 text-gray-500" />
+          </div>
+          <div className="ml-3">
+            <p className="text-sm font-medium">Guest User</p>
+            <p className="text-xs text-gray-500">Sign in</p>
           </div>
         </div>
-      )}
-    </header>
+      </div>
+    </nav>
   );
 };
 
