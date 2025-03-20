@@ -63,45 +63,71 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Lexica custom colors
-				amber: {
-					DEFAULT: '#FFC067',
-					50: '#FFFAF2',
-					100: '#FFF5E5',
-					200: '#FFE7C2',
-					300: '#FFD89F',
-					400: '#FFCA7C',
-					500: '#FFC067', // Primary brand color
-					600: '#FFAB33',
-					700: '#FF9700',
-					800: '#CC7800',
-					900: '#995A00'
+				// Custom color palette
+				rust: {
+					DEFAULT: '#cd4631', // main accent
+					50: '#fdf0ed',
+					100: '#f9d6cd',
+					200: '#f4b8aa',
+					300: '#ea8c79',
+					400: '#de6950',
+					500: '#cd4631',
+					600: '#b73121',
+					700: '#95281b',
+					800: '#732018',
+					900: '#541a15'
 				},
-				cyan: {
-					DEFAULT: '#67F2FF',
-					50: '#F2FDFF',
-					100: '#E5FBFF',
-					200: '#CCF7FF',
-					300: '#B3F4FF',
-					400: '#99F3FF',
-					500: '#67F2FF', // Secondary brand color
-					600: '#33EEFF',
-					700: '#00EAFF',
-					800: '#00BBCC',
-					900: '#008C99'
+				brown: {
+					DEFAULT: '#9e6240',
+					50: '#f8f1ec',
+					100: '#eddccf',
+					200: '#ddc0a9',
+					300: '#c99c7c',
+					400: '#b07f58',
+					500: '#9e6240',
+					600: '#8a4f2d',
+					700: '#6f3e24',
+					800: '#5a321f',
+					900: '#48291b'
 				},
-				purple: {
-					DEFAULT: '#7467FF',
-					50: '#F5F3FF',
-					100: '#EBE8FF',
-					200: '#D7D1FF',
-					300: '#C3BAFF',
-					400: '#AFA3FF',
-					500: '#7467FF', // Tertiary brand color
-					600: '#4D3DFF',
-					700: '#2613FF',
-					800: '#1500DF',
-					900: '#1000A7'
+				tan: {
+					DEFAULT: '#dea47e',
+					50: '#fcf7f3',
+					100: '#f6e9e0',
+					200: '#f0d5c3',
+					300: '#e7bd9f',
+					400: '#dea47e',
+					500: '#d58656',
+					600: '#c06939',
+					700: '#a15330',
+					800: '#83432a',
+					900: '#6b3826'
+				},
+				cream: {
+					DEFAULT: '#f8f2dc',
+					50: '#fefefc',
+					100: '#fcfbf5',
+					200: '#f8f2dc',
+					300: '#f0e3b6',
+					400: '#e6cf87',
+					500: '#dbbb61',
+					600: '#c9a23f',
+					700: '#a8832e',
+					800: '#86682c',
+					900: '#6d5528'
+				},
+				sky: {
+					DEFAULT: '#81adc8',
+					50: '#f5f8fb',
+					100: '#e8eff5',
+					200: '#cddfe9',
+					300: '#a9c8db',
+					400: '#81adc8',
+					500: '#5d8fb1',
+					600: '#477195',
+					700: '#3b5a7a',
+					800: '#344b65',
+					900: '#2e4055'
 				}
 			},
 			fontFamily: {
@@ -179,6 +205,7 @@ export default {
 				'glass-hover': '0 8px 32px rgba(0, 0, 0, 0.15)',
 				'neu': '8px 8px 16px #e9e9e9, -8px -8px 16px #ffffff',
 				'neu-inset': 'inset 8px 8px 16px #e9e9e9, inset -8px -8px 16px #ffffff',
+				'card': '0 10px 30px -5px rgba(0, 0, 0, 0.1)'
 			}
 		}
 	},

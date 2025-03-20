@@ -35,7 +35,7 @@ const TopicInputForm: React.FC<TopicInputFormProps> = ({ onSubmit }) => {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           disabled={isLoading}
-          className="w-full"
+          className="w-full border-cream focus-visible:ring-sky-400"
         />
         <div className="text-xs text-muted-foreground">
           AI will generate a curated vocabulary collection based on your topic
@@ -44,7 +44,7 @@ const TopicInputForm: React.FC<TopicInputFormProps> = ({ onSubmit }) => {
       
       <Button 
         type="submit" 
-        className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
+        className="w-full bg-gradient-to-r from-rust-500 to-rust-600 text-white hover:from-rust-600 hover:to-rust-700"
         disabled={!prompt.trim() || isLoading}
       >
         {isLoading ? (

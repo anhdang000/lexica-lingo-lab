@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -39,7 +40,7 @@ const CollectionList: React.FC<CollectionListProps> = ({ searchQuery, sortBy }) 
     <div className="overflow-auto">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-cream/30 hover:bg-cream/50">
             <TableHead>Collection Name</TableHead>
             <TableHead className="hidden sm:table-cell">Words</TableHead>
             <TableHead className="hidden sm:table-cell">Last Studied</TableHead>
@@ -48,20 +49,20 @@ const CollectionList: React.FC<CollectionListProps> = ({ searchQuery, sortBy }) 
         </TableHeader>
         <TableBody>
           {filteredCollections.map(collection => (
-            <TableRow key={collection.id}>
+            <TableRow key={collection.id} className="hover:bg-cream/30">
               <TableCell className="font-medium">{collection.name}</TableCell>
               <TableCell className="hidden sm:table-cell">{collection.wordCount} words</TableCell>
               <TableCell className="hidden sm:table-cell">{new Date(collection.lastStudied).toLocaleDateString()}</TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="icon" title="Settings">
-                    <Settings className="h-4 w-4 text-gray-500" />
+                    <Settings className="h-4 w-4 text-brown-500" />
                   </Button>
                   <Button variant="ghost" size="icon" title="Study">
-                    <BookOpen className="h-4 w-4 text-amber-500" />
+                    <BookOpen className="h-4 w-4 text-rust-500" />
                   </Button>
                   <Button variant="ghost" size="icon" title="Practice">
-                    <Play className="h-4 w-4 text-green-500" />
+                    <Play className="h-4 w-4 text-sky-500" />
                   </Button>
                 </div>
               </TableCell>

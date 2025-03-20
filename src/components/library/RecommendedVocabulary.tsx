@@ -17,18 +17,18 @@ interface RecommendedVocabularyProps {
 
 const RecommendedVocabulary: React.FC<RecommendedVocabularyProps> = ({ onAddToLibrary }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3">
       {mockRecommendations.map(item => (
         <div 
           key={item.id}
-          className="border rounded-lg p-3 hover:border-cyan-200 dark:hover:border-cyan-800 transition-colors"
+          className="border border-cream rounded-lg p-3 hover:border-tan-300 dark:hover:border-tan-800 transition-colors bg-white/50 dark:bg-brown-900/50 shadow-sm"
         >
           <div className="flex justify-between items-start">
             <div>
-              <h4 className="font-medium">{item.word}</h4>
+              <h4 className="font-medium text-brown-800 dark:text-cream">{item.word}</h4>
               <p className="text-sm text-muted-foreground mt-0.5">{item.definition}</p>
               <div className="mt-1.5">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-cream text-brown-800 dark:bg-brown-800 dark:text-cream">
                   {item.related}
                 </span>
               </div>
@@ -36,10 +36,10 @@ const RecommendedVocabulary: React.FC<RecommendedVocabularyProps> = ({ onAddToLi
             <Button 
               size="sm" 
               variant="ghost" 
-              className="h-8 w-8 p-0 rounded-full" 
+              className="h-8 w-8 p-0 rounded-full hover:bg-tan-100 dark:hover:bg-tan-900/50" 
               onClick={() => onAddToLibrary(item.word)}
             >
-              <Plus className="h-4 w-4 text-green-500" />
+              <Plus className="h-4 w-4 text-rust-500" />
               <span className="sr-only">Add</span>
             </Button>
           </div>

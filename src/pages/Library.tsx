@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -25,8 +26,8 @@ const mockTopics = [
 
 // Organization/sorting options
 const sortOptions = [
-  { id: 'ai', label: 'Topic by AI', icon: <Sparkles className="h-4 w-4 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-transparent bg-clip-text" /> },
-  { id: 'collection', label: 'Collection', icon: <Book className="h-4 w-4" /> },
+  { id: 'ai', label: 'Topic by AI', icon: <Sparkles className="h-4 w-4 text-rust-500" /> },
+  { id: 'collection', label: 'Collection', icon: <Book className="h-4 w-4 text-sky-500" /> },
 ];
 
 const Library: React.FC = () => {
@@ -52,15 +53,15 @@ const Library: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         {/* Left column - Topics and Topic Input */}
         <div className="md:col-span-1 space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="border-cream shadow-card overflow-hidden">
+            <CardHeader className="pb-3 bg-gradient-to-r from-sky-100 to-cream border-b border-cream">
               <CardTitle className="text-xl flex items-center gap-2">
-                <Book className="h-5 w-5 text-cyan-500" />
+                <Book className="h-5 w-5 text-sky-500" />
                 Topics
               </CardTitle>
               <CardDescription>Generate or manage your vocabulary topics</CardDescription>
             </CardHeader>
-            <CardContent className="pb-1">
+            <CardContent className="pb-1 pt-4">
               <TopicInputForm onSubmit={handleGenerateTopic} />
             </CardContent>
             <CardFooter className="pt-0 pb-4 flex justify-end">
@@ -71,17 +72,17 @@ const Library: React.FC = () => {
           </Card>
           
           {/* Recommended Vocabulary moved to left column */}
-          <Card>
-            <CardHeader>
+          <Card className="border-cream shadow-card overflow-hidden">
+            <CardHeader className="pb-3 bg-gradient-to-r from-tan-100 to-cream border-b border-cream">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Plus className="h-4 w-4 text-green-500" />
+                <Plus className="h-4 w-4 text-rust-500" />
                 Recommended Vocabulary
               </CardTitle>
               <CardDescription>
                 Based on your current topics and learning progress
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <RecommendedVocabulary onAddToLibrary={handleAddToLibrary} />
             </CardContent>
           </Card>
@@ -89,8 +90,8 @@ const Library: React.FC = () => {
         
         {/* Right column - Vocabulary content */}
         <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="border-cream shadow-card overflow-hidden">
+            <CardHeader className="pb-3 bg-gradient-to-r from-rust-100 to-cream border-b border-cream">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                   <CardTitle className="text-xl">
@@ -103,7 +104,7 @@ const Library: React.FC = () => {
                     <Input
                       type="search"
                       placeholder="Search vocabulary..."
-                      className="w-full pl-8"
+                      className="w-full pl-8 border-cream focus-visible:ring-sky-400"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -117,7 +118,7 @@ const Library: React.FC = () => {
                         key={option.id}
                         variant={sortBy === option.id ? "default" : "secondary"}
                         size="sm"
-                        className={`${sortBy === option.id ? 'bg-cyan-500 hover:bg-cyan-600' : ''}`}
+                        className={`${sortBy === option.id ? 'bg-rust-500 hover:bg-rust-600' : 'bg-cream hover:bg-cream-300 text-brown-800'}`}
                         onClick={() => setSortBy(option.id)}
                       >
                         {option.icon}
@@ -128,7 +129,7 @@ const Library: React.FC = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <CollectionList 
                 searchQuery={searchQuery}
                 sortBy={sortBy}
@@ -137,17 +138,17 @@ const Library: React.FC = () => {
           </Card>
           
           {/* Topic list integrated below main view */}
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="border-cream shadow-card overflow-hidden">
+            <CardHeader className="pb-3 bg-gradient-to-r from-sky-100 to-cream border-b border-cream">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Tag className="h-4 w-4 text-amber-500" />
+                <Tag className="h-4 w-4 text-tan-500" />
                 Topic List
               </CardTitle>
               <CardDescription>
                 Select a topic to filter your vocabulary
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <TopicList 
                 topics={mockTopics} 
                 selectedTopic={selectedTopic}
