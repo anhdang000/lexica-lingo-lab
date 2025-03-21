@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Star, ArrowUpRight } from 'lucide-react';
+import { Volume2, Star, ArrowUpRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface VocabularyWord {
@@ -14,9 +14,10 @@ export interface VocabularyWord {
 interface VocabularyResultsProps {
   results: VocabularyWord[];
   isVisible: boolean;
+  onClose: () => void;
 }
 
-const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisible }) => {
+const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisible, onClose }) => {
   if (!isVisible || results.length === 0) return null;
 
   return (
@@ -25,9 +26,19 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold">Analysis Results</h3>
-            <Button variant="outline" size="sm" className="text-sm">
-              Save to Library <ArrowUpRight className="ml-2 h-3.5 w-3.5" />
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="text-sm">
+                Save to Library <ArrowUpRight className="ml-2 h-3.5 w-3.5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 rounded-full hover:bg-[#cd4631]/10 text-gray-500 hover:text-[#cd4631]"
+                onClick={onClose}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           
           <p className="text-sm text-gray-500 mb-6">
@@ -40,7 +51,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h4 className="text-lg font-bold">{item.word}</h4>
-                    <span className="text-primary text-sm italic">{item.partOfSpeech}</span>
+                    <span className="text-[#cd4631] text-sm italic">{item.partOfSpeech}</span>
                   </div>
                   <div className="flex gap-2">
                     <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">

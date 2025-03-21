@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import InputBox from '@/components/InputBox';
 import VocabularyResults, { VocabularyWord } from '@/components/VocabularyResults';
@@ -159,6 +160,11 @@ const Index = () => {
     setWordDetailOpen(true);
   };
 
+  // Function to close analysis results
+  const handleCloseResults = () => {
+    setShowResults(false);
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Hero Section */}
@@ -179,6 +185,7 @@ const Index = () => {
       <VocabularyResults 
         results={analysisResults}
         isVisible={showResults}
+        onClose={handleCloseResults}
       />
 
       {/* Only show the rest of the UI if no results are displayed */}

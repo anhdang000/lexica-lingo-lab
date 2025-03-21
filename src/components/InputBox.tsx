@@ -76,7 +76,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             size="sm"
             className={cn(
               "rounded-full text-sm px-4 transition-all",
-              inputType === 'text' ? "bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300" : ""
+              inputType === 'text' ? "bg-[#dea47e]/20 text-[#9e6240] hover:bg-[#dea47e]/30 dark:bg-[#dea47e]/10 dark:text-[#dea47e]" : ""
             )}
             onClick={() => selectInputType('text')}
           >
@@ -89,7 +89,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             size="sm"
             className={cn(
               "rounded-full text-sm px-4 transition-all",
-              inputType === 'url' ? "bg-cyan-50 text-cyan-600 hover:bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-300" : ""
+              inputType === 'url' ? "bg-[#81adc8]/20 text-[#81adc8] hover:bg-[#81adc8]/30 dark:bg-[#81adc8]/10 dark:text-[#81adc8]" : ""
             )}
             onClick={() => selectInputType('url')}
           >
@@ -102,7 +102,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             size="sm"
             className={cn(
               "rounded-full text-sm px-4 transition-all",
-              inputType === 'image' ? "bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300" : ""
+              inputType === 'image' ? "bg-[#f8f2dc]/60 text-[#9e6240] hover:bg-[#f8f2dc]/80 dark:bg-[#f8f2dc]/20 dark:text-[#dea47e]" : ""
             )}
             onClick={() => selectInputType('image')}
           >
@@ -128,7 +128,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
           
           {inputType === 'image' && (
             <div 
-              className="min-h-[150px] flex flex-col items-center justify-center p-5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 transition-all hover:border-amber-300 dark:hover:border-amber-500 cursor-pointer mt-3"
+              className="min-h-[150px] flex flex-col items-center justify-center p-5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 transition-all hover:border-[#dea47e] dark:hover:border-[#dea47e] cursor-pointer mt-3"
               onClick={triggerFileInput}
             >
               <input
@@ -150,7 +150,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
               ) : (
                 <div className="flex flex-col items-center">
                   <div className="flex items-center mb-2">
-                    <span className="text-md font-medium text-amber-600 dark:text-amber-400">
+                    <span className="text-md font-medium text-[#9e6240] dark:text-[#dea47e]">
                       {fileName}
                     </span>
                     <Button
@@ -179,7 +179,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
           <Button
             onClick={handleAnalyze}
             disabled={isAnalyzing || (!inputValue && !fileName)}
-            className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
+            className="bg-gradient-to-r from-[#cd4631] to-[#dea47e] hover:from-[#cd4631]/90 hover:to-[#dea47e]/90 text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
           >
             {isAnalyzing ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
