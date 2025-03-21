@@ -6,12 +6,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import 'remixicon/fonts/remixicon.css';
 import { Link } from 'react-router-dom';
+import WordDetailModal from '@/components/WordDetailModal';
 
 const Index = () => {
   // State for vocabulary analysis
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<VocabularyWord[]>([]);
   const [showResults, setShowResults] = useState(false);
+  
+  // State for word detail modal
+  const [wordDetailOpen, setWordDetailOpen] = useState(false);
+  const [currentWord, setCurrentWord] = useState({ word: '', definition: '' });
 
   // Sample data for Word of the Day
   const wordOfDayData = {
@@ -146,6 +151,12 @@ const Index = () => {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // Function to show word details in modal
+  const showWordDetails = (word: string, definition: string) => {
+    setCurrentWord({ word, definition });
+    setWordDetailOpen(true);
   };
 
   return (
@@ -297,6 +308,14 @@ const Index = () => {
           </div>
         </>
       )}
+      
+      {/* Word Detail Modal */}
+      <WordDetailModal
+        open={wordDetailOpen}
+        onOpenChange={setWordDetailOpen}
+        word={currentWord.word}
+        definition={currentWord.definition}
+      />
     </div>
   );
 };
