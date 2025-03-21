@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Home, Book, Folder, LineChart, Menu, X, User } from 'lucide-react';
+import { Home, Folder, Keyboard, Menu, X, User } from 'lucide-react';
 import 'remixicon/fonts/remixicon.css';
 
 const Header: React.FC = () => {
@@ -17,9 +16,8 @@ const Header: React.FC = () => {
 
   const navLinks = [
     { name: 'Home', path: '/', icon: <Home className="h-5 w-5" /> },
-    { name: 'Dictionary', path: '/dictionary', icon: <Book className="h-5 w-5" /> },
     { name: 'Library', path: '/library', icon: <Folder className="h-5 w-5" /> },
-    { name: 'Progress', path: '/progress', icon: <LineChart className="h-5 w-5" /> },
+    { name: 'Practice', path: '/progress', icon: <Keyboard className="h-5 w-5" /> },
   ];
 
   // Simplified version for mobile

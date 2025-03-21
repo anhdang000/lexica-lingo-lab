@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -38,12 +37,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Layout><Index /></Layout>} />
           <Route path="/library" element={<Layout><Library /></Layout>} />
-          {/* These routes will be implemented later */}
-          <Route path="/dictionary" element={<Layout><div>Dictionary Page (Coming Soon)</div></Layout>} />
-          <Route path="/progress" element={<Layout><div>Progress Page (Coming Soon)</div></Layout>} />
+          <Route path="/practice" element={<Layout><div>Practice Page (Coming Soon)</div></Layout>} />
           <Route path="/analysis" element={<Layout><div>Analysis Page (Coming Soon)</div></Layout>} />
           <Route path="/card/:id" element={<Layout><div>Card Detail Page (Coming Soon)</div></Layout>} />
-          <Route path="/practice" element={<Layout><div>Practice Page (Coming Soon)</div></Layout>} />
           <Route path="/profile" element={<Layout><div>Profile Page (Coming Soon)</div></Layout>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
