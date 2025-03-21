@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +30,8 @@ import {
   MoreHorizontal,
   X,
   Volume2,
-  Star
+  Star,
+  Wand2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import CollectionCard from '@/components/library/CollectionCard';
@@ -152,8 +152,6 @@ const Library: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
   
   // Get the current collection's vocabulary
   const currentCollection = selectedCollection 
@@ -174,41 +172,10 @@ const Library: React.FC = () => {
     );
   });
   
-  // Handle collection creation
-  const handleCreateCollection = (data: any) => {
-    // In a real app, this would call an API to create the collection
-    toast.success('Collection created successfully!');
-    setCreateDialogOpen(false);
-  };
-  
-  // Handle word import
-  const handleImportWords = (data: any) => {
-    // In a real app, this would call an API to import words
-    toast.success('Words imported successfully!');
-    setImportDialogOpen(false);
-  };
-  
   return (
     <div className="container px-4 py-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <h2 className="text-3xl font-bold">My Library</h2>
-        <div className="flex gap-4">
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2" 
-            onClick={() => setImportDialogOpen(true)}
-          >
-            <Upload className="h-5 w-5" />
-            Import
-          </Button>
-          <Button 
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90" 
-            onClick={() => setCreateDialogOpen(true)}
-          >
-            <Plus className="h-5 w-5" />
-            Create Collection
-          </Button>
-        </div>
       </div>
       
       <Card className="mb-8">
@@ -335,9 +302,9 @@ const Library: React.FC = () => {
                       className="mb-4 border-gray-200"
                     />
                     <Button 
-                      className="mt-auto w-full bg-[#e4a795] hover:bg-[#e4a795]/90"
+                      className="mt-auto w-full bg-primary hover:bg-primary/90"
                     >
-                      <span className="mr-2 h-5 w-5">✨</span>
+                      <Wand2 className="mr-2 h-5 w-5" />
                       Generate Vocabulary
                     </Button>
                   </div>
@@ -406,32 +373,6 @@ const Library: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-      
-      {/* Create Collection Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Create New Collection</DialogTitle>
-            <DialogDescription>
-              Create a new vocabulary collection to organize your words.
-            </DialogDescription>
-          </DialogHeader>
-          <CreateCollectionForm onSubmit={handleCreateCollection} />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Import Words Dialog */}
-      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Import Word List</DialogTitle>
-            <DialogDescription>
-              Import words from a file to add to your vocabulary.
-            </DialogDescription>
-          </DialogHeader>
-          <ImportWordsForm onSubmit={handleImportWords} />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

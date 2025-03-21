@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -67,7 +66,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
 
   return (
     <div className="w-full max-w-4xl mx-auto animate-slide-in-up">
-      <div className="relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#cd4631] focus-within:border-[#cd4631]">
         {/* Tabs for input type */}
         <div className="flex p-3 gap-2">
           <Button
@@ -122,7 +121,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                   ? "Paste text, or type vocabulary you want to learn..." 
                   : "Enter a URL to analyze content..."
               }
-              className="min-h-[150px] text-md bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-1 focus-visible:ring-[#cd4631] focus-visible:ring-offset-1"
+              className="min-h-[150px] text-md bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           )}
           

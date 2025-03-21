@@ -1,8 +1,8 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Star, ArrowUpRight, X } from 'lucide-react';
+import { Volume2, Plus, ArrowUpRight, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export interface VocabularyWord {
   word: string;
@@ -19,7 +19,14 @@ interface VocabularyResultsProps {
 }
 
 const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisible, onClose }) => {
+  const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
+  
   if (!isVisible || results.length === 0) return null;
+
+  const handleAddWord = (index: number, word: string) => {
+    toast.success(`Added "${word}" to library`);
+    setAddedWords(prev => new Set(prev).add(index));
+  };
 
   // Function to get styling based on part of speech
   const getPartOfSpeechStyle = (pos: string) => {
@@ -53,7 +60,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
             <h3 className="text-lg font-semibold">Analysis Results</h3>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="text-sm">
-                Save to Library <ArrowUpRight className="ml-2 h-3.5 w-3.5" />
+                Save all to Library <ArrowUpRight className="ml-2 h-3.5 w-3.5" />
               </Button>
               <Button 
                 variant="ghost" 
@@ -87,8 +94,16 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
                     <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
                       <Volume2 className="h-5 w-5" />
                     </button>
-                    <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
-                      <Star className="h-5 w-5" />
+                    <button 
+                      className={`w-8 h-8 flex items-center justify-center transition-colors ${
+                        addedWords.has(index) 
+                          ? 'text-green-500 hover:text-green-600' 
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                      onClick={() => handleAddWord(index, item.word)}
+                      disabled={addedWords.has(index)}
+                    >
+                      {addedWords.has(index) ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
                     </button>
                   </div>
                 </div>
