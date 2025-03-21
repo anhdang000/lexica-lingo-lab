@@ -42,19 +42,73 @@ import ImportWordsForm from '@/components/library/ImportWordsForm';
 // Mock vocabulary data
 const mockVocabulary = {
   business: [
-    { word: "Acquisition", definition: "The purchase of one company by another", example: "The tech giant announced the acquisition of a promising startup." },
-    { word: "Revenue", definition: "Income generated from business activities", example: "The company's quarterly revenue exceeded expectations." },
-    { word: "Stakeholder", definition: "Person or entity with interest in a business", example: "The stakeholders met to discuss the company's future." }
+    { 
+      word: "Acquisition", 
+      phonetic: "/ˌækwɪˈzɪʃən/", 
+      partOfSpeech: "noun", 
+      definition: "The purchase of one company by another", 
+      example: "The tech giant announced the acquisition of a promising startup." 
+    },
+    { 
+      word: "Revenue", 
+      phonetic: "/ˈrevənuː/", 
+      partOfSpeech: "noun", 
+      definition: "Income generated from business activities", 
+      example: "The company's quarterly revenue exceeded expectations." 
+    },
+    { 
+      word: "Stakeholder", 
+      phonetic: "/ˈsteɪkˌhoʊldər/", 
+      partOfSpeech: "noun", 
+      definition: "Person or entity with interest in a business", 
+      example: "The stakeholders met to discuss the company's future." 
+    }
   ],
   tech: [
-    { word: "Algorithm", definition: "A step-by-step procedure for solving a problem", example: "The search engine uses a complex algorithm to rank results." },
-    { word: "API", definition: "Application Programming Interface", example: "Developers use the API to integrate with our platform." },
-    { word: "Backend", definition: "Server-side of an application", example: "The backend processes all user requests." }
+    { 
+      word: "Algorithm", 
+      phonetic: "/ˈælɡəˌrɪðəm/", 
+      partOfSpeech: "noun", 
+      definition: "A step-by-step procedure for solving a problem", 
+      example: "The search engine uses a complex algorithm to rank results." 
+    },
+    { 
+      word: "API", 
+      phonetic: "/ˌeɪ piː ˈaɪ/", 
+      partOfSpeech: "noun", 
+      definition: "Application Programming Interface", 
+      example: "Developers use the API to integrate with our platform." 
+    },
+    { 
+      word: "Backend", 
+      phonetic: "/ˈbækˌend/", 
+      partOfSpeech: "noun", 
+      definition: "Server-side of an application", 
+      example: "The backend processes all user requests." 
+    }
   ],
   academic: [
-    { word: "Hypothesis", definition: "A proposed explanation for a phenomenon", example: "The researchers developed a hypothesis about climate change." },
-    { word: "Methodology", definition: "System of methods used in research", example: "The study's methodology was peer-reviewed." },
-    { word: "Analysis", definition: "Detailed examination of elements", example: "The data analysis revealed interesting patterns." }
+    { 
+      word: "Hypothesis", 
+      phonetic: "/haɪˈpɒθəsɪs/", 
+      partOfSpeech: "noun", 
+      definition: "A proposed explanation for a phenomenon", 
+      example: "The researchers developed a hypothesis about climate change." 
+    },
+    { 
+      word: "Methodology", 
+      phonetic: "/ˌmeθəˈdɒlədʒi/", 
+      partOfSpeech: "noun", 
+      definition: "System of methods used in research", 
+      example: "The study's methodology was peer-reviewed." 
+    },
+    { 
+      word: "Analysis", 
+      phonetic: "/əˈnæləsɪs/", 
+      partOfSpeech: "noun", 
+      definition: "Detailed examination of elements", 
+      example: "The data analysis revealed interesting patterns." 
+    }
   ]
 };
 
