@@ -122,13 +122,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                   ? "Paste text, or type vocabulary you want to learn..." 
                   : "Enter a URL to analyze content..."
               }
-              className="min-h-[150px] text-md bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="min-h-[150px] text-md bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-1 focus-visible:ring-[#cd4631] focus-visible:ring-offset-1"
             />
           )}
           
           {inputType === 'image' && (
             <div 
-              className="min-h-[150px] flex flex-col items-center justify-center p-5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 transition-all hover:border-[#dea47e] dark:hover:border-[#dea47e] cursor-pointer mt-3"
+              className="min-h-[150px] flex flex-col items-center justify-center p-5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 transition-all hover:border-[#cd4631] focus-within:border-[#cd4631] focus-within:ring-1 focus-within:ring-[#cd4631] dark:hover:border-[#dea47e] cursor-pointer mt-3"
               onClick={triggerFileInput}
             >
               <input

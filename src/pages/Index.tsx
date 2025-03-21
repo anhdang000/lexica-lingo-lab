@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import InputBox from '@/components/InputBox';
 import VocabularyResults, { VocabularyWord } from '@/components/VocabularyResults';
@@ -56,6 +55,8 @@ const Index = () => {
     {
       id: 1,
       word: 'Paradigm',
+      phonetic: '/ˈpærəˌdaɪm/',
+      partOfSpeech: 'noun',
       definition: 'A typical example or pattern of something',
       category: 'Business',
       reviewDate: 'Today',
@@ -64,6 +65,8 @@ const Index = () => {
     {
       id: 2,
       word: 'Algorithm',
+      phonetic: '/ˈælɡəˌrɪðəm/',
+      partOfSpeech: 'noun',
       definition: 'A process or set of rules to be followed in calculations',
       category: 'Technology',
       reviewDate: 'Tomorrow',
@@ -72,6 +75,8 @@ const Index = () => {
     {
       id: 3,
       word: 'Quantum',
+      phonetic: '/ˈkwɑːntəm/',
+      partOfSpeech: 'noun',
       definition: 'The smallest amount of energy that can exist independently',
       category: 'Science',
       reviewDate: 'In 3 days',
@@ -121,24 +126,28 @@ const Index = () => {
       const mockResponse: VocabularyWord[] = [
         {
           word: "Ubiquitous",
+          phonetic: "/juːˈbɪkwɪtəs/",
           partOfSpeech: "adjective",
           definition: "Present, appearing, or found everywhere.",
           example: "His ubiquitous influence was felt in every department."
         },
         {
           word: "Paradigm",
+          phonetic: "/ˈpærəˌdaɪm/",
           partOfSpeech: "noun",
           definition: "A typical example or pattern of something; a model.",
           example: "The company's business model became a paradigm for others in the industry."
         },
         {
           word: "Ephemeral",
+          phonetic: "/ɪˈfɛmərəl/",
           partOfSpeech: "adjective",
           definition: "Lasting for a very short time.",
           example: "The ephemeral nature of fashion trends makes it hard to keep up."
         },
         {
           word: "Pragmatic",
+          phonetic: "/præɡˈmætɪk/",
           partOfSpeech: "adjective",
           definition: "Dealing with things sensibly and realistically in a way that is based on practical considerations.",
           example: "We need a pragmatic approach to solving this problem."
