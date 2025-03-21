@@ -108,7 +108,16 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
                   </div>
                 </div>
                 <p className="text-gray-600 dark:text-gray-300 mb-2">{item.definition}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 italic">"{item.example}"</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">"{item.example}"</p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-base font-bold text-[#b36736] hover:text-[#b36736] hover:bg-[#b36736]/10"
+                  >
+                    Detail
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

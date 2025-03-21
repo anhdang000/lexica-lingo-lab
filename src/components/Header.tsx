@@ -17,7 +17,7 @@ const Header: React.FC = () => {
   const navLinks = [
     { name: 'Home', path: '/', icon: <Home className="h-5 w-5" /> },
     { name: 'Library', path: '/library', icon: <Folder className="h-5 w-5" /> },
-    { name: 'Practice', path: '/progress', icon: <Keyboard className="h-5 w-5" /> },
+    { name: 'Practice', path: '/practice', icon: <Keyboard className="h-5 w-5" /> },
   ];
 
   // Simplified version for mobile
