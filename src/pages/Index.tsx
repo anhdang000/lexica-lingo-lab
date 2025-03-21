@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import 'remixicon/fonts/remixicon.css';
 import WordDetailModal from '@/components/WordDetailModal';
-import { Calendar } from '@/components/ui/calendar';
 import { Trophy, Target, Brain, Sparkles, Play, Clock, Tag } from 'lucide-react';
 
 const Index = () => {
@@ -27,19 +26,6 @@ const Index = () => {
     daysActive: 15
   };
 
-  // Sample dates with learning activity
-  const activeDates = [
-    new Date(2025, 0, 1),
-    new Date(2025, 0, 3),
-    new Date(2025, 0, 4),
-    new Date(2025, 0, 7),
-    new Date(2025, 0, 8),
-    new Date(2025, 0, 10),
-    new Date(2025, 0, 11),
-    new Date(2025, 0, 14),
-    new Date(2025, 0, 15)
-  ];
-
   // Sample recent vocabulary
   const recentVocabulary = [
     {
@@ -55,6 +41,20 @@ const Index = () => {
       category: "Science",
       nextReview: "In 3 days",
       level: "Advanced"
+    },
+    {
+      word: "Synthesis",
+      definition: "The combination of components to form a connected whole",
+      category: "Chemistry",
+      nextReview: "In 2 days",
+      level: "Advanced"
+    },
+    {
+      word: "Paradigm",
+      definition: "A typical example or pattern of something",
+      category: "Academic",
+      nextReview: "Today",
+      level: "Intermediate"
     }
   ];
 
@@ -178,62 +178,35 @@ const Index = () => {
             </Card>
           </div>
 
-          {/* Learning Calendar and Recent Vocabulary */}
-          <div className="grid grid-cols-12 gap-6">
-            {/* Calendar Section */}
-            <Card className="col-span-7">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Learning Progress</h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-primary"></div>
-                      <span>Active</span>
-                    </div>
-                  </div>
-                </div>
-                <Calendar
-                  mode="single"
-                  selected={new Date()}
-                  modifiers={{
-                    learning: activeDates
-                  }}
-                  modifiersStyles={{
-                    learning: {
-                      backgroundColor: 'hsl(var(--primary))',
-                      color: 'white',
-                      borderRadius: '50%'
-                    }
-                  }}
-                  className="rounded-md"
-                />
-              </CardContent>
-            </Card>
-
-            {/* Recent Vocabulary Section */}
-            <Card className="col-span-5">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Recent Vocabulary</h3>
-                  <Button className="bg-primary hover:bg-primary/90">
-                    <Play className="h-4 w-4 mr-2" />
-                    Study Now
-                  </Button>
-                </div>
-                <div className="space-y-4">
-                  {recentVocabulary.map((word, index) => (
-                    <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{word.word}</span>
+          {/* Recent Vocabulary Section - Full Width */}
+          <Card className="w-full">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold">Recent Vocabulary</h3>
+                <Button className="bg-primary hover:bg-primary/90">
+                  <Play className="h-4 w-4 mr-2" />
+                  Study Now
+                </Button>
+              </div>
+              
+              {/* Horizontal Scrollable Container */}
+              <div className="flex overflow-x-auto pb-4 gap-4 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+                {recentVocabulary.map((word, index) => (
+                  <div key={index} className="flex-none w-[300px]">
+                    <div className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-medium text-lg">{word.word}</span>
                         <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
                           {word.category}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{word.definition}</p>
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                        {word.definition}
+                      </p>
                       <div className="flex items-center justify-between text-xs text-gray-500">
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          <span>Next review: {word.nextReview}</span>
+                          <span>{word.nextReview}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Tag className="h-3 w-3" />
@@ -241,11 +214,11 @@ const Index = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
       
