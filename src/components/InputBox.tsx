@@ -13,13 +13,16 @@ import {
   Type
 } from 'lucide-react';
 
-const InputBox: React.FC = () => {
+interface InputBoxProps {
+  onAnalyze: (text: string) => Promise<void>;
+  isAnalyzing: boolean;
+}
+
+const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const [inputValue, setInputValue] = useState('');
   const [inputType, setInputType] = useState<'text' | 'url' | 'image'>('text');
   const [fileName, setFileName] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
@@ -46,16 +49,13 @@ const InputBox: React.FC = () => {
     }
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!inputValue && !fileName) return;
     
-    setIsLoading(true);
-    
-    // Simulate API call with timeout
-    setTimeout(() => {
-      navigate('/analysis');
-      setIsLoading(false);
-    }, 1500);
+    // For now, we only handle text analysis
+    if (inputType === 'text' && inputValue) {
+      await onAnalyze(inputValue);
+    }
   };
 
   const selectInputType = (type: 'text' | 'url' | 'image') => {
@@ -178,10 +178,10 @@ const InputBox: React.FC = () => {
         <div className="flex justify-center pb-5">
           <Button
             onClick={handleAnalyze}
-            disabled={isLoading || (!inputValue && !fileName)}
+            disabled={isAnalyzing || (!inputValue && !fileName)}
             className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
           >
-            {isLoading ? (
+            {isAnalyzing ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Search className="mr-2 h-4 w-4" />
