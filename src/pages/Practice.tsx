@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Brain, Target, Trophy, Calendar, Play, BookOpen, Shuffle } from 'lucide-react';
+import { Brain, Target, Trophy, Calendar, Play, BookOpen, Shuffle, ArrowLeft } from 'lucide-react';
+import { FlashcardGame } from '@/components/practice/FlashcardGame';
 
 const Practice = () => {
+  const [currentGame, setCurrentGame] = useState<string | null>(null);
+
   // Sample learning stats
   const learningStats = {
     todayGoal: 15,
@@ -38,6 +41,31 @@ const Practice = () => {
       bgColor: "bg-[#81adc8]/10",
     }
   ];
+
+  const handleStartPractice = (gameType: string) => {
+    setCurrentGame(gameType);
+  };
+
+  const handleBackToPractice = () => {
+    setCurrentGame(null);
+  };
+
+  if (currentGame) {
+    return (
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        <Button 
+          variant="ghost" 
+          className="mb-8 hover:bg-gray-100"
+          onClick={handleBackToPractice}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Practice
+        </Button>
+        
+        {currentGame === "Flashcards" && <FlashcardGame onBack={handleBackToPractice} />}
+      </div>
+    );
+  }
 
   return (
     <div className="container max-w-6xl mx-auto px-4 py-8">
@@ -119,7 +147,10 @@ const Practice = () => {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">{mode.title}</h3>
                 <p className="text-sm text-gray-600 mb-4">{mode.description}</p>
-                <Button className="w-full bg-gray-900 hover:bg-gray-800">
+                <Button 
+                  className="w-full bg-gray-900 hover:bg-gray-800"
+                  onClick={() => handleStartPractice(mode.title)}
+                >
                   Start Practice
                 </Button>
               </CardContent>
