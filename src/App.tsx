@@ -7,6 +7,7 @@ import Header from "./components/Header";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Library from "./pages/Library";
+import Practice from "./pages/Practice";
 import { useIsMobile } from "./hooks/use-mobile";
 
 // Create QueryClient
@@ -37,7 +38,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Layout><Index /></Layout>} />
           <Route path="/library" element={<Layout><Library /></Layout>} />
-          <Route path="/practice" element={<Layout><div>Practice Page (Coming Soon)</div></Layout>} />
+          <Route path="/practice" element={<Layout><Practice /></Layout>} />
           <Route path="/analysis" element={<Layout><div>Analysis Page (Coming Soon)</div></Layout>} />
           <Route path="/card/:id" element={<Layout><div>Card Detail Page (Coming Soon)</div></Layout>} />
           <Route path="/profile" element={<Layout><div>Profile Page (Coming Soon)</div></Layout>} />

@@ -88,19 +88,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             size="sm"
             className={cn(
               "rounded-full text-sm px-4 transition-all",
-              inputType === 'url' ? "bg-[#81adc8]/20 text-[#81adc8] hover:bg-[#81adc8]/30 dark:bg-[#81adc8]/10 dark:text-[#81adc8]" : ""
-            )}
-            onClick={() => selectInputType('url')}
-          >
-            <LinkIcon className="w-3.5 h-3.5 mr-1.5" />
-            URL
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "rounded-full text-sm px-4 transition-all",
               inputType === 'image' ? "bg-[#f8f2dc]/60 text-[#9e6240] hover:bg-[#f8f2dc]/80 dark:bg-[#f8f2dc]/20 dark:text-[#dea47e]" : ""
             )}
             onClick={() => selectInputType('image')}
@@ -116,11 +103,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             <Textarea
               value={inputValue}
               onChange={handleInputChange}
-              placeholder={
-                inputType === 'text' 
-                  ? "Paste text, or type vocabulary you want to learn..." 
-                  : "Enter a URL to analyze content..."
-              }
+              placeholder="Paste text, URLs, or type vocabulary you want to learn..."
               className="min-h-[150px] text-md bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           )}
