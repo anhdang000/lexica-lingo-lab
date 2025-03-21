@@ -14,8 +14,10 @@ interface VocabularyItemProps {
 
 const VocabularyItem: React.FC<VocabularyItemProps> = ({ item }) => {
   // Function to get styling based on part of speech
-  const getPartOfSpeechStyle = (pos: string) => {
-    switch (pos?.toLowerCase()) {
+  const getPartOfSpeechStyle = (pos?: string) => {
+    if (!pos) return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    
+    switch (pos.toLowerCase()) {
       case 'noun':
         return 'bg-primary/10 text-primary';
       case 'verb':
