@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -64,6 +64,18 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     }
   };
 
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        // Allow Shift+Enter for new line
+        return;
+      }
+      // Prevent default to avoid new line
+      e.preventDefault();
+      handleAnalyze();
+    }
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto animate-slide-in-up">
       <div className="relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#cd4631] focus-within:border-[#cd4631]">
@@ -103,7 +115,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             <Textarea
               value={inputValue}
               onChange={handleInputChange}
-              placeholder="Paste text, URLs, or type vocabulary you want to learn..."
+              onKeyDown={handleKeyDown}
+              placeholder="Paste text, URLs, or type vocabulary you want to learn... (Press Enter to analyze, Shift+Enter for new line)"
               className="min-h-[150px] text-md bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           )}

@@ -20,12 +20,23 @@ interface VocabularyResultsProps {
 
 const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisible, onClose }) => {
   const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
+  const [allSaved, setAllSaved] = useState(false);
   
   if (!isVisible || results.length === 0) return null;
 
   const handleAddWord = (index: number, word: string) => {
     toast.success(`Added "${word}" to library`);
     setAddedWords(prev => new Set(prev).add(index));
+  };
+
+  const handleSaveAll = () => {
+    if (allSaved) return;
+    
+    const newAddedWords = new Set<number>();
+    results.forEach((_, index) => newAddedWords.add(index));
+    setAddedWords(newAddedWords);
+    setAllSaved(true);
+    toast.success(`Added all ${results.length} words to library`);
   };
 
   // Function to get styling based on part of speech
@@ -59,8 +70,19 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold">Analysis Results</h3>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="text-sm">
-                Save all to Library <ArrowUpRight className="ml-2 h-3.5 w-3.5" />
+              <Button 
+                variant={allSaved ? "secondary" : "outline"} 
+                size="sm" 
+                onClick={handleSaveAll}
+                disabled={allSaved}
+                className={`text-sm text-black ${
+                  allSaved
+                    ? 'bg-[#81adc8] hover:bg-[#81adc8]'
+                    : 'hover:bg-[#81adc8]'
+                }`}
+              >
+                {allSaved ? "Added to Library" : "Add to Library"}{" "}
+                {allSaved ? <Check className="ml-2 h-3.5 w-3.5" /> : <ArrowUpRight className="ml-2 h-3.5 w-3.5" />}
               </Button>
               <Button 
                 variant="ghost" 
