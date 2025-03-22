@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Brain, Target, Trophy, Calendar, Play, BookOpen, Shuffle, ArrowLeft } from 'lucide-react';
+import { Brain, Target, Trophy, Calendar, Play, BookOpen, Shuffle, ArrowLeft, Search } from 'lucide-react';
 import { FlashcardGame } from '@/components/practice/FlashcardGame';
+import { QuizGame } from '@/components/practice/QuizGame';
 
 const Practice = () => {
   const [currentGame, setCurrentGame] = useState<string | null>(null);
@@ -27,11 +28,18 @@ const Practice = () => {
       bgColor: "bg-[#dea47e]/10",
     },
     {
-      title: "Quick Review",
-      description: "Quick 5-minute review of learned words",
-      icon: Play,
+      title: "Quizz with AI",
+      description: "Test your knowledge with AI-generated quizzes",
+      icon: Brain,
       color: "text-[#cd4631]",
       bgColor: "bg-[#cd4631]/10",
+    },
+    {
+      title: "Find the Word",
+      description: "Find the correct word from a passage",
+      icon: Search,
+      color: "text-[#b6c199]",
+      bgColor: "bg-[#b6c199]/10",
     },
     {
       title: "Random Challenge",
@@ -63,6 +71,7 @@ const Practice = () => {
         </Button>
         
         {currentGame === "Flashcards" && <FlashcardGame onBack={handleBackToPractice} />}
+        {currentGame === "Quizz with AI" && <QuizGame onBack={handleBackToPractice} />}
       </div>
     );
   }
@@ -141,12 +150,12 @@ const Practice = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {practiceModes.map((mode, index) => (
             <Card key={index} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
+              <CardContent className="p-6 flex flex-col h-full">
                 <div className={`w-12 h-12 rounded-lg ${mode.bgColor} ${mode.color} flex items-center justify-center mb-4`}>
                   <mode.icon className="h-6 w-6" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">{mode.title}</h3>
-                <p className="text-sm text-gray-600 mb-4">{mode.description}</p>
+                <p className="text-sm text-gray-600 mb-4 flex-grow">{mode.description}</p>
                 <Button 
                   className="w-full bg-gray-900 hover:bg-gray-800"
                   onClick={() => handleStartPractice(mode.title)}
