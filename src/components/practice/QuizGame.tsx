@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trophy, MoveRight } from 'lucide-react';
+import { Trophy, MoveRight, HelpCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
   DialogContent,
@@ -14,43 +13,46 @@ import {
 
 interface QuizQuestion {
   word: string;
+  definition: string;
   question: string;
   options: string[];
   correct_option_idx: number;
 }
 
-// Placeholder API response - this would come from your actual API
 const sampleQuizzes: QuizQuestion[] = [
   {
     word: "optimistic",
-    question: "Imagine you're planning a picnic, and the weather forecast predicts rain. Someone with this quality might say, \"It'll clear up!\" even if the chance of rain is high. What word describes their outlook?",
+    definition: "Hopeful and confident about the future.",
+    question: "Imagine a friend always sees the bright side, even when things are tough. They always believe things will get better. Which word best describes their attitude?",
     options: [
-      "pessimistic",
-      "realistic",
-      "optimistic",
-      "apathetic"
+      "Pessimistic",
+      "Realistic",
+      "Optimistic",
+      "Critical"
     ],
     correct_option_idx: 2
   },
   {
     word: "overreact",
-    question: "Your friend spills their drink, and instead of just cleaning it up, they start yelling and slamming things around. Which word best describes their behavior?",
+    definition: "To respond more strongly than is appropriate or necessary.",
+    question: "Sometimes, people get really upset about something small. They might yell, cry, or make a bigger deal out of it than they should. What word means the same as responding too strongly?",
     options: [
-      "respond",
-      "underreact",
-      "overreact",
-      "react"
+      "Ignore",
+      "Underreact",
+      "React calmly",
+      "Overreact"
     ],
-    correct_option_idx: 2
+    correct_option_idx: 3
   },
   {
     word: "downside",
-    question: "You're considering buying a pet snake. You've thought about the fun of owning a snake, but what's a negative thing to keep in mind about this?",
+    definition: "The negative aspect or risk of something.",
+    question: "Every good thing has a not-so-good side, like how playing video games all day might mean you don't get exercise. What is another way to say the 'not-so-good side'?",
     options: [
-      "upside",
-      "benefit",
-      "downside",
-      "advantage"
+      "Upside",
+      "Benefit",
+      "Downside",
+      "Advantage"
     ],
     correct_option_idx: 2
   }
@@ -64,6 +66,7 @@ export const QuizGame = ({ onBack }: { onBack: () => void }) => {
   const [score, setScore] = useState(0);
   const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [sessionCount, setSessionCount] = useState(1);
+  const [showHint, setShowHint] = useState(false);
 
   const currentQuestion = sampleQuizzes[currentQuestionIndex];
   const questionsPerSession = sampleQuizzes.length;
@@ -115,35 +118,64 @@ export const QuizGame = ({ onBack }: { onBack: () => void }) => {
   };
 
   const getOptionClassName = (index: number) => {
-    if (selectedOption === null) return "border-2 border-gray-200 hover:border-[#cd4631]";
-    if (selectedOption !== index) return "border-2 border-gray-200 opacity-50";
-    return isCorrect 
-      ? "border-2 border-green-500 bg-green-50" 
-      : "border-2 border-red-500 bg-red-50";
+    if (selectedOption === null) return "border-2 border-gray-200 transition-colors duration-200 hover:border-[#cd4631]";
+    
+    const correctIndex = shuffledOptions.indexOf(currentQuestion.options[currentQuestion.correct_option_idx]);
+    
+    if (index === correctIndex) {
+      return "border-2 border-green-500 bg-green-50";
+    }
+    if (selectedOption === index) {
+      return "border-2 border-red-500 bg-red-50";
+    }
+    return "border-2 border-gray-200";
   };
 
   return (
-    <div className="container max-w-3xl mx-auto px-4">
+    <div className="container max-w-4xl mx-auto px-4">
       <Progress 
         value={(currentQuestionIndex / questionsPerSession) * 100}
-        className="h-2 mb-8"
+        className="h-3 mb-8"
       />
       <div className="mb-8">
-        <p className="text-sm text-gray-500 mb-2">
+        <p className="text-sm text-gray-500 mb-4">
           Question {currentQuestionIndex + 1} of {questionsPerSession} · Score: {score} · Session {sessionCount}
         </p>
-        <Card className="bg-white p-6">
-          <p className="text-xl font-medium mb-12 leading-relaxed">{currentQuestion.question}</p>
-          <div className="grid grid-cols-2 gap-4">
+        <Card className="bg-white p-8">
+          <p className="text-2xl font-medium mb-4 leading-relaxed">{currentQuestion.question}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowHint(!showHint)}
+            className="mb-8 text-[#cd4631] hover:text-[#cd4631]/80 hover:bg-[#f8f2dc] flex items-center gap-2"
+          >
+            <HelpCircle className="h-4 w-4" />
+            {showHint ? 'Hide Hint' : 'Show Hint'}
+          </Button>
+          {showHint && (
+            <blockquote className="mb-8 pl-4 border-l-4 border-[#cd4631] text-gray-600 italic">
+              {currentQuestion.definition}
+            </blockquote>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {shuffledOptions.map((option, index) => (
               <Button
                 key={option}
                 variant="outline"
-                className={`p-6 h-auto text-left justify-start font-normal ${getOptionClassName(index)}`}
+                className={`p-8 h-auto text-left justify-start text-lg hover:bg-transparent ${getOptionClassName(index)} ${selectedOption !== null ? 'pointer-events-none' : ''}`}
                 onClick={() => handleOptionSelect(index)}
-                disabled={selectedOption !== null}
               >
                 {option}
+                {selectedOption !== null && (
+                  <span className="ml-auto">
+                    {index === shuffledOptions.indexOf(currentQuestion.options[currentQuestion.correct_option_idx]) && (
+                      <span className="text-green-500">✓</span>
+                    )}
+                    {selectedOption === index && index !== shuffledOptions.indexOf(currentQuestion.options[currentQuestion.correct_option_idx]) && (
+                      <span className="text-red-500">×</span>
+                    )}
+                  </span>
+                )}
               </Button>
             ))}
           </div>
@@ -163,7 +195,7 @@ export const QuizGame = ({ onBack }: { onBack: () => void }) => {
               </Button>
               <Button
                 onClick={handleContinueSession}
-                className="bg-[#cd4631] hover:bg-[#cd4631]/90"
+                className="bg-[#cd4631] hover:bg-[#cd4631]/10"
               >
                 Continue Session
                 <MoveRight className="ml-2 h-4 w-4" />
