@@ -1,17 +1,26 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Home, Folder, Keyboard, Menu, X, User } from 'lucide-react';
+import { Home, Folder, Keyboard, Menu, X, User, LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import 'remixicon/fonts/remixicon.css';
 
 const Header: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   const navLinks = [
@@ -19,6 +28,13 @@ const Header: React.FC = () => {
     { name: 'Library', path: '/library', icon: <Folder className="h-5 w-5" /> },
     { name: 'Practice', path: '/practice', icon: <Keyboard className="h-5 w-5" /> },
   ];
+
+  // Get user initials for avatar fallback
+  const getUserInitials = () => {
+    if (!user) return 'U';
+    const email = user.email || '';
+    return email.substring(0, 2).toUpperCase();
+  };
 
   // Simplified version for mobile
   if (isMobile) {
@@ -64,14 +80,18 @@ const Header: React.FC = () => {
             ))}
             
             <div className="p-4 border-t border-gray-100 dark:border-gray-700">
-              <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                  <User className="h-6 w-6 text-gray-500" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Avatar>
+                    <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                  </Avatar>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium">{user?.email}</p>
+                  </div>
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium">Emily Parker</p>
-                  <p className="text-xs text-gray-500">Premium Member</p>
-                </div>
+                <Button variant="ghost" size="icon" onClick={handleSignOut}>
+                  <LogOut className="h-5 w-5" />
+                </Button>
               </div>
             </div>
           </nav>
@@ -108,24 +128,22 @@ const Header: React.FC = () => {
       </div>
       
       <div className="p-6 border-t border-gray-100 dark:border-gray-700">
-        <div className="flex items-center">
-          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-            <img 
-              src="https://public.readdy.ai/ai/img_res/26aca20a0c7223efb936303b6c05acfa.jpg" 
-              alt="Profile"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = '';
-                e.currentTarget.classList.add('flex', 'items-center', 'justify-center');
-                e.currentTarget.appendChild(document.createElement('span')).textContent = 'EP';
-              }}
-            />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Avatar>
+              <AvatarImage 
+                src=""
+                alt="Profile"
+              />
+              <AvatarFallback>{getUserInitials()}</AvatarFallback>
+            </Avatar>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{user?.email}</p>
+            </div>
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium">Emily Parker</p>
-            <p className="text-xs text-gray-500">Premium Member</p>
-          </div>
+          <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out">
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
       </div>
     </nav>
