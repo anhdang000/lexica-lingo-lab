@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -9,6 +9,10 @@ type ProtectedRouteProps = {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
+  
+  useEffect(() => {
+    console.log('ProtectedRoute - Auth state:', { user, loading });
+  }, [user, loading]);
 
   // If authentication is still loading, show a more visible loading state
   if (loading) {
@@ -24,10 +28,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // If user is not authenticated, redirect to login page
   if (!user) {
+    console.log('ProtectedRoute - User not authenticated, redirecting to /auth');
     return <Navigate to="/auth" />;
   }
 
   // If user is authenticated, render children
+  console.log('ProtectedRoute - User authenticated, rendering children');
   return <>{children}</>;
 };
 

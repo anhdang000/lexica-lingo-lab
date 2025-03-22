@@ -41,7 +41,10 @@ const App = () => (
           <Toaster />
           <Sonner />
           <Routes>
+            {/* Auth route - this should always be accessible */}
             <Route path="/auth" element={<Auth />} />
+            
+            {/* Protected routes - these require authentication */}
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout><Index /></Layout>
@@ -72,7 +75,8 @@ const App = () => (
                 <Layout><div>Profile Page (Coming Soon)</div></Layout>
               </ProtectedRoute>
             } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            
+            {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
