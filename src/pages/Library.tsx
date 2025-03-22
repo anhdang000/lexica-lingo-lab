@@ -148,9 +148,7 @@ const mockCollections = [
 
 const Library: React.FC = () => {
   // State management
-  const [viewMode, setViewMode] = useState<'topics' | 'collections'>('topics');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   
   // Get the current collection's vocabulary
@@ -174,49 +172,25 @@ const Library: React.FC = () => {
   
   return (
     <div className="container px-4 py-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8">
         <h2 className="text-3xl font-bold">My Library</h2>
+        <p className="text-gray-600 mt-2">Easily manage your vocabulary, sorted into topics with AI-powered categorization.</p>
       </div>
       
       <Card className="mb-8">
         <CardContent className="p-6">
           <div className="mb-6">
-            <div className="flex gap-4 items-center mb-4">
-              <Button 
-                className={viewMode === 'topics' ? 'bg-primary hover:bg-primary/90' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}
-                onClick={() => setViewMode('topics')}
-              >
-                <Tag className="mr-2 h-5 w-5" />
-                Topics by AI
-              </Button>
-              <Button 
-                className={viewMode === 'collections' ? 'bg-primary hover:bg-primary/90' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}
-                onClick={() => setViewMode('collections')}
-              >
-                <Folder className="mr-2 h-5 w-5" />
-                Created Collections
-              </Button>
-            </div>
-            
             <div className="flex gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input 
                   type="text" 
-                  placeholder="Search collections..." 
+                  placeholder="Search words or collections..." 
                   className="w-full pl-12"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2"
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                <Filter className="h-5 w-5" />
-                Filters
-              </Button>
               <Button 
                 variant="outline" 
                 className="flex items-center gap-2"
@@ -226,67 +200,6 @@ const Library: React.FC = () => {
               </Button>
             </div>
           </div>
-          
-          {/* Filter Panel */}
-          {showFilters && (
-            <div className="bg-gray-50 rounded-xl p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <h4 className="font-medium mb-3">Difficulty Level</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="beginner" />
-                      <Label htmlFor="beginner">Beginner</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="intermediate" />
-                      <Label htmlFor="intermediate">Intermediate</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="advanced" />
-                      <Label htmlFor="advanced">Advanced</Label>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium mb-3">Categories</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="business" />
-                      <Label htmlFor="business">Business</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="technology" />
-                      <Label htmlFor="technology">Technology</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="academic" />
-                      <Label htmlFor="academic">Academic</Label>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium mb-3">Study Status</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="not-started" />
-                      <Label htmlFor="not-started">Not Started</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="in-progress" />
-                      <Label htmlFor="in-progress">In Progress</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="completed" />
-                      <Label htmlFor="completed">Completed</Label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
           
           <div className="flex gap-6">
             {/* Left Panel - Create Topic + Collections */}
