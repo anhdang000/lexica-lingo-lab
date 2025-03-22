@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Brain, Target, Trophy, Calendar, Play, BookOpen, Shuffle, ArrowLeft, Search } from 'lucide-react';
+import { Brain, Target, Trophy, Calendar, Play, BookOpen, Shuffle, ArrowLeft, TextSearch } from 'lucide-react';
 import { FlashcardGame } from '@/components/practice/FlashcardGame';
 import { QuizGame } from '@/components/practice/QuizGame';
 
@@ -37,7 +37,7 @@ const Practice = () => {
     {
       title: "Find the Word",
       description: "Find the correct word from a passage",
-      icon: Search,
+      icon: TextSearch,
       color: "text-[#b6c199]",
       bgColor: "bg-[#b6c199]/10",
     },

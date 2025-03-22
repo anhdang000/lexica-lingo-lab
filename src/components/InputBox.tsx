@@ -116,7 +116,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Paste text, URLs, or type vocabulary you want to learn... (Press Enter to analyze, Shift+Enter for new line)"
+              placeholder="Paste text, URLs, or type vocabulary you want to learn..."
               className="min-h-[150px] text-md bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           )}

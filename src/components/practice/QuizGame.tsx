@@ -77,6 +77,7 @@ export const QuizGame = ({ onBack }: { onBack: () => void }) => {
     setShuffledOptions(shuffled);
     setSelectedOption(null);
     setIsCorrect(null);
+    setShowHint(false); // Reset hint visibility when question changes
   }, [currentQuestionIndex]);
 
   const handleOptionSelect = (optionIndex: number) => {
@@ -195,7 +196,7 @@ export const QuizGame = ({ onBack }: { onBack: () => void }) => {
               </Button>
               <Button
                 onClick={handleContinueSession}
-                className="bg-[#cd4631] hover:bg-[#cd4631]/10"
+                className="bg-[#cd4631] hover:bg-[#cd4631]/80"
               >
                 Continue Session
                 <MoveRight className="ml-2 h-4 w-4" />

@@ -108,7 +108,7 @@ const Index = () => {
         <h2 className="text-4xl font-bold mb-4">
           Expand your <span className="font-['Pacifico'] text-primary">lexicon</span> with AI
         </h2>
-        <p className="text-gray-600">Enter text, paste a URL, or upload an image to discover new words</p>
+        <p className="text-gray-600">Enter text, paste a URL, or upload an image to discover new words.</p>
       </div>
 
       {/* Input Box */}
