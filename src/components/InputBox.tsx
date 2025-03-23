@@ -1,13 +1,13 @@
-import React, { useState, useRef, KeyboardEvent } from 'react';
+import React, { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { 
-  Search, 
-  FileUp, 
-  Link as LinkIcon, 
-  Loader2, 
+import {
+  Search,
+  FileUp,
+  Link as LinkIcon,
+  Loader2,
   X,
   Type
 } from 'lucide-react';
@@ -21,7 +21,40 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const [inputValue, setInputValue] = useState('');
   const [inputType, setInputType] = useState<'text' | 'url' | 'image'>('text');
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fontSize, setFontSize] = useState(24); // Initial large font size
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const calculateFontSize = (text: string) => {
+    const lines = text.split('\n').length;
+    const length = text.length;
+
+    if (lines >= 4) return 18; // Normal size after 4 lines
+    if (length === 0) return 24; // Default large size
+    if (length < 50) return 24;
+    if (length < 100) return 20;
+    if (length < 200) return 18;
+    return 16;
+  };
+
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const lines = inputValue.split('\n').length;
+      textarea.style.height = 'auto';
+      if (lines < 4) {
+        textarea.style.height = Math.max(150, textarea.scrollHeight) + 'px';
+      } else {
+        textarea.style.height = '150px'; // Fixed height after 4 lines
+      }
+    }
+  };
+
+  useEffect(() => {
+    const newFontSize = calculateFontSize(inputValue);
+    setFontSize(newFontSize);
+    adjustTextareaHeight();
+  }, [inputValue]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
@@ -50,8 +83,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
 
   const handleAnalyze = async () => {
     if (!inputValue && !fileName) return;
-    
-    // For now, we only handle text analysis
+
     if (inputType === 'text' && inputValue) {
       await onAnalyze(inputValue.trim());
     }
@@ -67,10 +99,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       if (e.shiftKey) {
-        // Allow Shift+Enter for new line
         return;
       }
-      // Prevent default to avoid new line
       e.preventDefault();
       handleAnalyze();
     }
@@ -78,8 +108,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
 
   return (
     <div className="w-full max-w-4xl mx-auto animate-slide-in-up">
-      <div className="relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#cd4631] focus-within:border-[#cd4631]">
-        {/* Tabs for input type */}
+      <div
+        className={cn(
+          "relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#cd4631] focus-within:border-[#cd4631]"
+        )}
+      >
+        {/* Tabs */}
         <div className="flex p-3 gap-2">
           <Button
             type="button"
@@ -87,7 +121,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             size="sm"
             className={cn(
               "rounded-full text-sm px-4 transition-all",
-              inputType === 'text' ? "bg-[#dea47e]/20 text-[#9e6240] hover:bg-[#dea47e]/30 dark:bg-[#dea47e]/10 dark:text-[#dea47e]" : ""
+              inputType === 'text'
+                ? "bg-[#dea47e]/20 text-[#9e6240] hover:bg-[#dea47e]/30 dark:bg-[#dea47e]/10 dark:text-[#dea47e]"
+                : ""
             )}
             onClick={() => selectInputType('text')}
           >
@@ -100,7 +136,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             size="sm"
             className={cn(
               "rounded-full text-sm px-4 transition-all",
-              inputType === 'image' ? "bg-[#f8f2dc]/60 text-[#9e6240] hover:bg-[#f8f2dc]/80 dark:bg-[#f8f2dc]/20 dark:text-[#dea47e]" : ""
+              inputType === 'image'
+                ? "bg-[#f8f2dc]/60 text-[#9e6240] hover:bg-[#f8f2dc]/80 dark:bg-[#f8f2dc]/20 dark:text-[#dea47e]"
+                : ""
             )}
             onClick={() => selectInputType('image')}
           >
@@ -108,22 +146,24 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             Image
           </Button>
         </div>
-        
-        {/* Content area */}
+
+        {/* Content */}
         <div className="px-4 pb-4">
           {inputType !== 'image' && (
             <Textarea
+              ref={textareaRef}
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Paste text, URLs, or type vocabulary you want to learn..."
-              className="min-h-[150px] text-md bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 transition-all duration-200"
+              style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}
             />
           )}
-          
+
           {inputType === 'image' && (
-            <div 
-              className="min-h-[150px] flex flex-col items-center justify-center p-5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 transition-all hover:border-[#cd4631] focus-within:border-[#cd4631] focus-within:ring-1 focus-within:ring-[#cd4631] dark:hover:border-[#dea47e] cursor-pointer mt-3"
+            <div
+              className="min-h-[150px] flex flex-col items-center justify-center p-5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 transition-all hover:border-[#cd4631] dark:hover:border-[#dea47e] cursor-pointer mt-3"
               onClick={triggerFileInput}
             >
               <input
@@ -133,7 +173,6 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                 accept="image/*"
                 className="hidden"
               />
-              
               {!fileName ? (
                 <>
                   <FileUp className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" />
@@ -145,9 +184,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
               ) : (
                 <div className="flex flex-col items-center">
                   <div className="flex items-center mb-2">
-                    <span className="text-md font-medium text-[#9e6240] dark:text-[#dea47e]">
-                      {fileName}
-                    </span>
+                    <span className="text-md font-medium text-[#9e6240] dark:text-[#dea47e]">{fileName}</span>
                     <Button
                       size="icon"
                       variant="ghost"
@@ -160,15 +197,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Click to replace
-                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Click to replace</p>
                 </div>
               )}
             </div>
           )}
         </div>
-        
+
         {/* Analyze button */}
         <div className="flex justify-center pb-5">
           <Button
