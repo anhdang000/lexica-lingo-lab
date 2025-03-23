@@ -24,7 +24,8 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
   const [expandedWords, setExpandedWords] = useState<Set<number>>(new Set());
 
   React.useEffect(() => {
-    setExpandedWords(new Set());
+    // Initialize with first card expanded if there's only one result
+    setExpandedWords(new Set(results.length === 1 ? [0] : []));
     setAddedWords(new Set());
     setAllSaved(false);
   }, [results, isVisible]);
@@ -95,7 +96,9 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold">Analysis Results</h3>
+            <h3 className="text-xl font-semibold">
+              {results.length === 1 ? 'Word Definition' : 'Analysis Results'}
+            </h3>
             <div className="flex gap-2">
               <Button
                 variant={allSaved ? 'secondary' : 'outline'}
@@ -125,9 +128,11 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
             </div>
           </div>
 
-          <p className="text-base text-gray-500 mb-6">
-            Found {results.length} words that might enhance your vocabulary.
-          </p>
+          {results.length > 1 && (
+            <p className="text-base text-gray-500 mb-6">
+              Found {results.length} words that might enhance your vocabulary.
+            </p>
+          )}
 
           <div className="space-y-6">
             {results.map((item, index) => {

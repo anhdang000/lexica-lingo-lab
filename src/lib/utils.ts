@@ -72,15 +72,14 @@ export async function lookupWord(word: string): Promise<WordDefinition | null> {
     // Helper function to clean formatting tokens
     const cleanFormatting = (text: string): string => {
       return text
-        .replace(/\{bc\}/g, '')
+        .replace(/\{bc\}/g, ' ') // Replace with space instead of empty string
         .replace(/\{it\}|\{\/it\}/g, '')
         .replace(/\{phrase\}|\{\/phrase\}/g, '')
         .replace(/\{dx\}.*?\{\/dx\}/g, '')
-        // Extract the referenced word from {sx} token
-        .replace(/\{sx\|(.*?):\d+\|\|.*?\}/g, '$1')
-        // Remove any remaining formatting tokens
-        .replace(/\{.*?\}/g, '')
+        .replace(/\{sx\|([^|]+)\|\|.*?\}/g, '$1') // Improved sx token handling
+        .replace(/\{([^}]*)\}/g, '') // Clean any remaining formatting tokens
         .replace(/\[\=.*?\]/g, '')
+        .replace(/\s+/g, ' ') // Normalize spaces
         .trim();
     };
 
