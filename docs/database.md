@@ -14,6 +14,7 @@ Extends the auth.users table with application-specific user data.
 create table public.profiles (
   id uuid references auth.users(id) primary key,
   username text unique,
+  avatar_url TEXT,
   streak_count int default 0,
   last_practice_at timestamp with time zone,
   words_learned int default 0,
@@ -22,15 +23,33 @@ create table public.profiles (
   updated_at timestamp with time zone default now()
 );
 
--- Realtime enabled
-alter table public.profiles replica identity full;
+-- Enable Row Level Security
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
-alter table public.profiles enable row level security;
-create policy "Users can view own profile" 
-  on public.profiles for select using (auth.uid() = id);
-create policy "Users can update own profile" 
-  on public.profiles for update using (auth.uid() = id);
+-- Create policy to allow users to view their own profile
+CREATE POLICY "Users can view their own profile" 
+ON public.profiles FOR SELECT 
+USING (auth.uid() = id);
+
+-- Create policy to allow users to update their own profile
+CREATE POLICY "Users can update their own profile" 
+ON public.profiles FOR UPDATE 
+USING (auth.uid() = id);
+
+-- Function to handle new user creation
+CREATE OR REPLACE FUNCTION public.handle_new_user() 
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, username, avatar_url)
+  VALUES (new.id, new.raw_user_meta_data->>'username', new.raw_user_meta_data->>'avatar_url');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to call the function whenever a user is created
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 ```
 
 ### collections
