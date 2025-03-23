@@ -42,6 +42,177 @@ export type Database = {
         }
         Relationships: []
       }
+      words: {
+        Row: {
+          id: string
+          word: string
+          phonetic: string | null
+          audio_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          word: string
+          phonetic?: string | null
+          audio_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          word?: string
+          phonetic?: string | null
+          audio_url?: string | null
+          created_at?: string
+        }
+      }
+      word_meanings: {
+        Row: {
+          id: string
+          word_id: string
+          ordinal_index: number
+          part_of_speech: string | null
+          definition: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          word_id: string
+          ordinal_index: number
+          part_of_speech?: string | null
+          definition: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          word_id?: string
+          ordinal_index?: number
+          part_of_speech?: string | null
+          definition?: string
+          created_at?: string
+        }
+      }
+      meaning_examples: {
+        Row: {
+          id: string
+          meaning_id: string
+          example: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          meaning_id: string
+          example: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          meaning_id?: string
+          example?: string
+          created_at?: string
+        }
+      }
+      collection_words: {
+        Row: {
+          id: string
+          collection_id: string
+          word_id: string
+          meaning_id: string
+          user_id: string
+          status: 'new' | 'learning' | 'mastered'
+          last_reviewed_at: string | null
+          review_count: number
+          next_review_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          collection_id: string
+          word_id: string
+          meaning_id: string
+          user_id: string
+          status?: 'new' | 'learning' | 'mastered'
+          last_reviewed_at?: string | null
+          review_count?: number
+          next_review_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          collection_id?: string
+          word_id?: string
+          meaning_id?: string
+          user_id?: string
+          status?: 'new' | 'learning' | 'mastered'
+          last_reviewed_at?: string | null
+          review_count?: number
+          next_review_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      practice_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          mode: 'flashcard' | 'quiz' | 'findword'
+          total_words: number
+          correct_answers: number
+          completed: boolean
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          mode: 'flashcard' | 'quiz' | 'findword'
+          total_words: number
+          correct_answers: number
+          completed?: boolean
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          mode?: 'flashcard' | 'quiz' | 'findword'
+          total_words?: number
+          correct_answers?: number
+          completed?: boolean
+          created_at?: string
+          completed_at?: string | null
+        }
+      }
+      practice_session_words: {
+        Row: {
+          id: string
+          session_id: string
+          word_id: string
+          meaning_id: string
+          collection_id: string
+          is_correct: boolean | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          word_id: string
+          meaning_id: string
+          collection_id: string
+          is_correct?: boolean | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          word_id?: string
+          meaning_id?: string
+          collection_id?: string
+          is_correct?: boolean | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

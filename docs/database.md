@@ -75,27 +75,67 @@ create policy "Users can manage own collections"
 ```
 
 ### words
-Central table storing vocabulary words and their details.
+Central table storing unique vocabulary words.
 ```sql
 create table public.words (
   id uuid default gen_random_uuid() primary key,
   word text not null,
   phonetic text,
-  part_of_speech text,
-  definition text not null,
-  example text,
   audio_url text,
   created_at timestamp with time zone default now()
 );
 
 -- Indexes
 create index words_word_idx on public.words(word);
-create index words_part_of_speech_idx on public.words(part_of_speech);
 
 -- RLS Policies
 alter table public.words enable row level security;
 create policy "Words are readable by all authenticated users"
   on public.words for select using (auth.role() = 'authenticated');
+```
+
+### word_meanings
+Stores multiple meanings/definitions for each word.
+```sql
+create table public.word_meanings (
+  id uuid default gen_random_uuid() primary key,
+  word_id uuid references public.words(id) on delete cascade,
+  ordinal_index int not null,
+  part_of_speech text,
+  definition text not null,
+  created_at timestamp with time zone default now(),
+  -- Ensure ordinal_index is unique per word
+  unique(word_id, ordinal_index)
+);
+
+-- Indexes
+create index word_meanings_word_id_idx on public.word_meanings(word_id);
+create index word_meanings_part_of_speech_idx on public.word_meanings(part_of_speech);
+create index word_meanings_ordinal_idx on public.word_meanings(ordinal_index);
+
+-- RLS Policies
+alter table public.word_meanings enable row level security;
+create policy "Word meanings are readable by all authenticated users"
+  on public.word_meanings for select using (auth.role() = 'authenticated');
+```
+
+### meaning_examples
+Stores multiple examples for each word meaning.
+```sql
+create table public.meaning_examples (
+  id uuid default gen_random_uuid() primary key,
+  meaning_id uuid references public.word_meanings(id) on delete cascade,
+  example text not null,
+  created_at timestamp with time zone default now()
+);
+
+-- Indexes
+create index meaning_examples_meaning_id_idx on public.meaning_examples(meaning_id);
+
+-- RLS Policies
+alter table public.meaning_examples enable row level security;
+create policy "Meaning examples are readable by all authenticated users"
+  on public.meaning_examples for select using (auth.role() = 'authenticated');
 ```
 
 ### collection_words
@@ -105,6 +145,7 @@ create table public.collection_words (
   id uuid default gen_random_uuid() primary key,
   collection_id uuid references public.collections(id) on delete cascade,
   word_id uuid references public.words(id) on delete cascade,
+  meaning_id uuid references public.word_meanings(id) on delete cascade,
   user_id uuid references auth.users(id),
   status text default 'new' check (status in ('new', 'learning', 'mastered')),
   last_reviewed_at timestamp with time zone,
@@ -112,7 +153,7 @@ create table public.collection_words (
   next_review_at timestamp with time zone,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now(),
-  unique(collection_id, word_id, user_id)
+  unique(collection_id, word_id, meaning_id, user_id)
 );
 
 -- Indexes
@@ -132,11 +173,9 @@ Records of user practice activities and performance.
 create table public.practice_sessions (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users(id),
-  collection_id uuid references public.collections(id),
   mode text not null check (mode in ('flashcard', 'quiz', 'findword')),
   total_words int not null,
   correct_answers int not null,
-  duration interval,
   completed boolean default false,
   created_at timestamp with time zone default now(),
   completed_at timestamp with time zone
@@ -144,7 +183,6 @@ create table public.practice_sessions (
 
 -- Indexes
 create index practice_sessions_user_id_idx on public.practice_sessions(user_id);
-create index practice_sessions_collection_id_idx on public.practice_sessions(collection_id);
 
 -- RLS Policies
 alter table public.practice_sessions enable row level security;
@@ -153,20 +191,22 @@ create policy "Users can manage their practice sessions"
 ```
 
 ### practice_session_words
-Detailed records of words practiced in each session.
+Records words practiced in each session, including which meaning was tested.
 ```sql
 create table public.practice_session_words (
   id uuid default gen_random_uuid() primary key,
   session_id uuid references public.practice_sessions(id) on delete cascade,
   word_id uuid references public.words(id),
+  meaning_id uuid references public.word_meanings(id),
+  collection_id uuid references public.collections(id),
   is_correct boolean,
-  response text,
-  time_taken interval,
   created_at timestamp with time zone default now()
 );
 
 -- Indexes
 create index practice_session_words_session_id_idx on public.practice_session_words(session_id);
+create index practice_session_words_word_id_idx on public.practice_session_words(word_id);
+create index practice_session_words_collection_id_idx on public.practice_session_words(collection_id);
 
 -- RLS Policies
 alter table public.practice_session_words enable row level security;
@@ -237,6 +277,69 @@ after insert or update on public.practice_sessions
 for each row execute function update_user_stats();
 ```
 
+### Update Collection Practice Stats
+```sql
+-- Function to update collection practice stats when a word is practiced
+create or replace function update_collection_practice_stats()
+returns trigger as $$
+begin
+  -- Update the word practice count in collection_words
+  update public.collection_words
+  set review_count = review_count + 1,
+      last_reviewed_at = now(),
+      status = case
+        when new.is_correct then
+          case 
+            when review_count >= 5 and status = 'learning' then 'mastered'
+            when status = 'new' then 'learning'
+            else status
+          end
+        else status
+      end
+  where collection_id = new.collection_id
+    and word_id = new.word_id;
+
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger update_collection_practice_stats_trigger
+after insert on public.practice_session_words
+for each row execute function update_collection_practice_stats();
+
+-- Update user stats function
+create or replace function update_user_practice_stats()
+returns trigger as $$
+begin
+  -- Only update stats when session is completed
+  if new.completed and not old.completed then
+    update public.profiles
+    set 
+      words_learned = (
+        select count(distinct cw.word_id)
+        from public.collection_words cw
+        where cw.user_id = new.user_id
+        and cw.status = 'mastered'
+      ),
+      accuracy = (
+        select 
+          avg((ps.correct_answers::float / ps.total_words) * 100)
+        from public.practice_sessions ps
+        where ps.user_id = new.user_id
+        and ps.completed = true
+      ),
+      last_practice_at = new.completed_at
+    where id = new.user_id;
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger update_user_practice_stats_trigger
+after update on public.practice_sessions
+for each row execute function update_user_practice_stats();
+```
+
 ## Database Indexes
 Additional indexes are created on frequently queried columns to optimize performance:
 - User IDs for quick user-related queries
@@ -259,12 +362,24 @@ The words table utilizes PostgreSQL's full-text search capabilities:
 alter table public.words
 add column search_vector tsvector
 generated always as (
-  setweight(to_tsvector('english', coalesce(word, '')), 'A') ||
-  setweight(to_tsvector('english', coalesce(definition, '')), 'B') ||
+  setweight(to_tsvector('english', coalesce(word, '')), 'A')
+) stored;
+
+alter table public.word_meanings
+add column search_vector tsvector
+generated always as (
+  setweight(to_tsvector('english', coalesce(definition, '')), 'B')
+) stored;
+
+alter table public.meaning_examples
+add column search_vector tsvector
+generated always as (
   setweight(to_tsvector('english', coalesce(example, '')), 'C')
 ) stored;
 
 create index words_search_idx on public.words using gin(search_vector);
+create index word_meanings_search_idx on public.word_meanings using gin(search_vector);
+create index meaning_examples_search_idx on public.meaning_examples using gin(search_vector);
 ```
 
 ### Automated Timestamp Updates
