@@ -1,24 +1,41 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, ChevronDown, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, Loader2, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { lookupWord, type WordDefinition } from '@/lib/utils';
 
 const DictionaryLookup: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [wordData, setWordData] = useState<WordDefinition | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
     
-    // Simulate API call
     setIsLoading(true);
-    setTimeout(() => {
+    setError(null);
+    try {
+      const result = await lookupWord(searchTerm.trim());
+      if (result) {
+        setWordData(result);
+      } else {
+        setError('No definition found for this word');
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  const playAudio = (audioUrl?: string) => {
+    if (audioUrl) {
+      new Audio(audioUrl).play().catch(console.error);
+    }
   };
 
   const languages = ['English', 'Spanish', 'French', 'German', 'Japanese', 'Chinese'];
@@ -82,11 +99,87 @@ const DictionaryLookup: React.FC = () => {
           </Button>
         </form>
         
-        <div className="mt-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Looking up words is easy! Just type the word above and select your preferred language for translation.
-          </p>
-        </div>
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-md">
+            {error}
+          </div>
+        )}
+
+        {wordData && (
+          <div className="mt-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {wordData.word}
+                </h3>
+                {wordData.pronunciation && (
+                  <div className="flex items-center gap-2 mt-1 text-gray-600 dark:text-gray-400">
+                    <span>/{wordData.pronunciation.text}/</span>
+                    {wordData.pronunciation.audio && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                        onClick={() => playAudio(wordData.pronunciation?.audio)}
+                      >
+                        <Volume2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <span className="text-purple-500 font-medium">
+                {wordData.partOfSpeech}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {wordData.definitions.map((def, index) => (
+                <div key={index} className="space-y-2">
+                  <p className="text-gray-900 dark:text-gray-100">
+                    {index + 1}. {def.meaning}
+                  </p>
+                  {def.examples && def.examples.length > 0 && (
+                    <ul className="list-disc list-inside pl-4 space-y-1">
+                      {def.examples.map((example, exIndex) => (
+                        <li key={exIndex} className="text-sm text-gray-600 dark:text-gray-400">
+                          {example}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {wordData.stems && wordData.stems.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  Related Forms
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {wordData.stems.map((stem, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 text-sm bg-purple-50 dark:bg-purple-900/20 
+                               text-purple-600 dark:text-purple-400 rounded-md"
+                    >
+                      {stem}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!wordData && !error && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Looking up words is easy! Just type the word above and select your preferred language for translation.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
