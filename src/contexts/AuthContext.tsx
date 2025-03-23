@@ -31,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -39,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Got existing session:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -51,33 +53,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
+        console.error('Sign in error:', error.message);
         return { error, success: false };
       }
       navigate('/');
       return { error: null, success: true };
     } catch (error) {
+      console.error('Sign in exception:', error);
       return { error: error as Error, success: false };
     }
   };
 
   const signUp = async (email: string, password: string, username: string) => {
     try {
+      // The handle_new_user trigger will create the profile with default values
+      // for streak_count, words_learned, and accuracy
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             username,
+            avatar_url: null,
+            // No need to send the new fields as they have defaults in the database
           },
         },
       });
       
       if (error) {
+        console.error('Sign up error:', error.message);
         return { error, success: false };
       }
       
       return { error: null, success: true };
     } catch (error) {
+      console.error('Sign up exception:', error);
       return { error: error as Error, success: false };
     }
   };
