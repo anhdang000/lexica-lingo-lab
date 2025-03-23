@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,9 +8,9 @@ const TabNav: React.FC = () => {
   const location = useLocation();
   const currentPath = location.pathname;
 
-  // Handle tab change
+  // Handle tab change with state preservation
   const handleTabChange = (value: string) => {
-    navigate(value);
+    navigate(value, { replace: true, state: { from: currentPath } });
   };
 
   // Determine active tab based on current path

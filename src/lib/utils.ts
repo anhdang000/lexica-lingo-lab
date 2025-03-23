@@ -26,9 +26,12 @@ export async function lookupWord(word: string): Promise<WordDefinition | null> {
     throw new Error('Dictionary API key not found');
   }
 
+  // Clean up the word by removing number suffix
+  const cleanWord = word.replace(/:\d+$/, '');
+
   try {
     const response = await fetch(
-      `https://www.dictionaryapi.com/api/v3/references/learners/json/${encodeURIComponent(word)}?key=${apiKey}`
+      `https://www.dictionaryapi.com/api/v3/references/learners/json/${encodeURIComponent(cleanWord)}?key=${apiKey}`
     );
 
     if (!response.ok) {
@@ -49,8 +52,9 @@ export async function lookupWord(word: string): Promise<WordDefinition | null> {
       return null;
     }
 
+    // Use the cleaned word instead of the API response ID which might contain suffixes
     const wordDef: WordDefinition = {
-      word: firstEntry.meta.id,
+      word: cleanWord,
       partOfSpeech: firstEntry.fl || 'unknown',
       definitions: []
     };
