@@ -76,6 +76,9 @@ export async function lookupWord(word: string): Promise<WordDefinition | null> {
         .replace(/\{it\}|\{\/it\}/g, '')
         .replace(/\{phrase\}|\{\/phrase\}/g, '')
         .replace(/\{dx\}.*?\{\/dx\}/g, '')
+        // Extract the referenced word from {sx} token
+        .replace(/\{sx\|(.*?):\d+\|\|.*?\}/g, '$1')
+        // Remove any remaining formatting tokens
         .replace(/\{.*?\}/g, '')
         .replace(/\[\=.*?\]/g, '')
         .trim();

@@ -139,12 +139,13 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                   key={index}
                   onClick={() => handleDetailClick(index)}
                   className={cn(
-                    // Add "collection-card" class to get the same hover & click effects as your collections
                     'collection-card relative group rounded-xl p-6',
-                    'border border-gray-200 dark:border-gray-700',
+                    'border',
+                    isExpanded 
+                      ? 'border-[#cd4631]/90 shadow-xl' 
+                      : 'border-gray-200 dark:border-gray-700',
                     'backdrop-blur-sm bg-white/30 dark:bg-gray-800/30',
-                    'cursor-pointer',
-                    isExpanded ? 'ring-2 ring-[#cd4631]/20 shadow-xl' : ''
+                    'cursor-pointer'
                   )}
                 >
                   <div className="flex items-center justify-between mb-4">
