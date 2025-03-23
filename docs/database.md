@@ -60,8 +60,6 @@ create table public.collections (
   user_id uuid references auth.users(id),
   name text not null,
   description text,
-  category text,
-  is_ai_generated boolean default false,
   word_count int default 0,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()

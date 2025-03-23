@@ -115,34 +115,28 @@ const mockVocabulary = {
 // Mock collections data
 const mockCollections = [
   { 
-    id: '1', 
+    id: '123e4567-e89b-12d3-a456-426614174000', 
     name: 'Essential Business Terms', 
     description: 'Key vocabulary for professional communication and business meetings',
-    category: 'business',
-    categoryColor: 'quaternary',
-    wordCount: 120,
-    lastStudied: '2h ago',
-    progress: 75
+    word_count: 120,
+    created_at: '2025-03-22T10:30:00Z',
+    updated_at: '2025-03-23T08:15:00Z'
   },
   { 
-    id: '2', 
+    id: '987fcdeb-51d3-12d3-a456-426614174001', 
     name: 'Tech Industry Vocabulary', 
     description: 'Modern technology and software development terminology',
-    category: 'technology',
-    categoryColor: 'secondary',
-    wordCount: 85,
-    lastStudied: '1d ago',
-    progress: 45
+    word_count: 85,
+    created_at: '2025-03-21T15:45:00Z',
+    updated_at: '2025-03-23T09:20:00Z'
   },
   { 
-    id: '3', 
+    id: '456abc89-12d3-a456-426614174002', 
     name: 'Scientific Research Terms', 
     description: 'Advanced vocabulary for academic papers and research',
-    category: 'academic',
-    categoryColor: 'primary',
-    wordCount: 150,
-    lastStudied: '5d ago',
-    progress: 30
+    word_count: 150,
+    created_at: '2025-03-20T11:00:00Z',
+    updated_at: '2025-03-22T16:30:00Z'
   }
 ];
 
@@ -156,8 +150,9 @@ const Library: React.FC = () => {
     ? mockCollections.find(c => c.id === selectedCollection) 
     : null;
   
+  // Update the current collection check since we removed category
   const currentVocabulary = currentCollection 
-    ? mockVocabulary[currentCollection.category as keyof typeof mockVocabulary] || []
+    ? mockVocabulary.business // Temporarily using business vocabulary for demo
     : [];
   
   // Filter collections based on search
@@ -211,7 +206,7 @@ const Library: React.FC = () => {
                     <p className="text-sm text-gray-600 mb-4">Generate or manage your vocabulary topics</p>
                     <Input 
                       type="text" 
-                      placeholder="Enter a topic (e.g., 'Medical terminology')" 
+                      placeholder="Enter prompt for a collection" 
                       className="mb-4 border-gray-200"
                     />
                     <Button 
@@ -248,7 +243,7 @@ const Library: React.FC = () => {
             {/* Right Panel - Vocabulary List */}
             {selectedCollection ? (
               <div className="flex-1 bg-white rounded-xl p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xl font-bold">{currentCollection?.name}</h3>
                   <div className="flex gap-4">
                     <Button variant="outline" className="flex items-center gap-2">
@@ -261,6 +256,10 @@ const Library: React.FC = () => {
                     </Button>
                   </div>
                 </div>
+
+                <blockquote className="mb-6 border-l-2 border-gray-200 pl-4 italic text-gray-600">
+                  {currentCollection?.description}
+                </blockquote>
                 
                 <div className="space-y-4">
                   {currentVocabulary.map((item, index) => (
