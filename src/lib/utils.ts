@@ -20,20 +20,6 @@ export interface WordDefinition {
   stems?: string[];
 }
 
-export interface VocabularyAnalysis {
-  word: string;
-  phonetic?: {
-    text: string;
-    audio?: string;
-  };
-  context: {
-    partOfSpeech: string;
-    definition: string;
-    example: string;
-  };
-  detail?: Omit<WordDefinition, 'pronunciation'>;
-}
-
 export async function lookupWord(word: string): Promise<WordDefinition | null> {
   const apiKey = import.meta.env.VITE_LEARNERS_DICTIONARY_API_KEY;
   if (!apiKey) {
@@ -83,44 +69,59 @@ export async function lookupWord(word: string): Promise<WordDefinition | null> {
       wordDef.stems = firstEntry.meta.stems;
     }
 
-    // Process definitions and examples
-    if (firstEntry.shortdef) {
-      wordDef.definitions = firstEntry.shortdef.map(def => ({
-        meaning: def,
-        examples: []
-      }));
-    } else if (firstEntry.def) {
-      // Process more detailed definition structure
-      firstEntry.def.forEach(defBlock => {
-        if (defBlock.sseq) {
-          defBlock.sseq.forEach(senseSeq => {
-            senseSeq.forEach(sense => {
-              if (sense[0] === 'sense' && sense[1].dt) {
-                const examples: string[] = [];
-                let meaning = '';
+    // Helper function to clean formatting tokens
+    const cleanFormatting = (text: string): string => {
+      return text
+        .replace(/\{bc\}/g, '')
+        .replace(/\{it\}|\{\/it\}/g, '')
+        .replace(/\{phrase\}|\{\/phrase\}/g, '')
+        .replace(/\{dx\}.*?\{\/dx\}/g, '')
+        .replace(/\{.*?\}/g, '')
+        .replace(/\[\=.*?\]/g, '')
+        .trim();
+    };
 
-                // Extract meaning and examples from the dt array
-                sense[1].dt.forEach(dtElement => {
+    // Process definitions and examples from the detailed structure
+    if (firstEntry.def?.[0]?.sseq) {
+      firstEntry.def.forEach(defBlock => {
+        defBlock.sseq.forEach(senseSeq => {
+          senseSeq.forEach(sense => {
+            if (sense[0] === 'sense') {
+              const senseData = sense[1];
+              let meaning = '';
+              const examples: string[] = [];
+
+              // Process all dt elements
+              if (senseData.dt) {
+                senseData.dt.forEach(dtElement => {
                   if (dtElement[0] === 'text') {
-                    meaning += dtElement[1].replace(/[{}]/g, '').replace(/^:?\s*/, '');
+                    // Concatenate text pieces for the meaning
+                    meaning += ' ' + cleanFormatting(dtElement[1]);
                   } else if (dtElement[0] === 'vis') {
+                    // Add examples
                     dtElement[1].forEach((ex: { t: string }) => {
-                      examples.push(ex.t.replace(/[{}]/g, ''));
+                      examples.push(cleanFormatting(ex.t));
                     });
                   }
                 });
-
-                if (meaning) {
-                  wordDef.definitions.push({
-                    meaning,
-                    examples: examples.length > 0 ? examples : undefined
-                  });
-                }
               }
-            });
+
+              if (meaning) {
+                wordDef.definitions.push({
+                  meaning: meaning.trim(),
+                  examples: examples.length > 0 ? examples : undefined
+                });
+              }
+            }
           });
-        }
+        });
       });
+    } else if (firstEntry.shortdef) {
+      // Fallback to shortdef if detailed structure is not available
+      wordDef.definitions = firstEntry.shortdef.map(def => ({
+        meaning: cleanFormatting(def),
+        examples: []
+      }));
     }
 
     return wordDef;
@@ -137,37 +138,20 @@ export function isSingleWordOrPhrases(text: string): boolean {
   return text.trim().length > 0 && words.length <= 4;
 }
 
-export async function analyzeVocabulary(input: string): Promise<VocabularyAnalysis[]> {
+export async function analyzeVocabulary(input: string): Promise<WordDefinition[]> {
   // If input is a single word or short phrase, try lookupWord first
   if (isSingleWordOrPhrases(input)) {
     const lookupResult = await lookupWord(input);
     if (lookupResult) {
-      // Convert WordDefinition to VocabularyAnalysis format
-      const firstDefinition = lookupResult.definitions[0];
-      return [{
-        word: lookupResult.word,
-        phonetic: lookupResult.pronunciation,
-        context: {
-          partOfSpeech: lookupResult.partOfSpeech,
-          definition: firstDefinition.meaning,
-          example: firstDefinition.examples?.[0] || ''
-        },
-        detail: {
-          word: lookupResult.word,
-          partOfSpeech: lookupResult.partOfSpeech,
-          definitions: lookupResult.definitions,
-          stems: lookupResult.stems
-        }
-      }];
+      return [lookupResult];
     }
   }
   
-  // Fallback to text analysis for longer text or if lookupWord fails
+  // For longer text, analyze vocabulary
   return analyzeText(input);
 }
 
-// Rename existing analyzeText to _analyzeText since it's now an internal function
-export async function analyzeText(text: string): Promise<VocabularyAnalysis[]> {
+export async function analyzeText(text: string): Promise<WordDefinition[]> {
   // Get a random API key from the comma-separated list
   const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
   const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
@@ -186,34 +170,10 @@ export async function analyzeText(text: string): Promise<VocabularyAnalysis[]> {
       responseMimeType: "application/json",
       responseSchema: {
         type: SchemaType.ARRAY,
-        description: "List of vocabulary words with their context",
+        description: "List of vocabulary words",
         items: {
-          type: SchemaType.OBJECT,
-          properties: {
-            word: {
-              type: SchemaType.STRING,
-              description: "The vocabulary word",
-            },
-            context: {
-              type: SchemaType.OBJECT,
-              properties: {
-                partOfSpeech: {
-                  type: SchemaType.STRING,
-                  description: "Part of speech of the word",
-                },
-                definition: {
-                  type: SchemaType.STRING,
-                  description: "Brief definition of the word",
-                },
-                example: {
-                  type: SchemaType.STRING,
-                  description: "Example usage from the original text or a relevant example",
-                },
-              },
-              required: ["partOfSpeech", "definition", "example"],
-            },
-          },
-          required: ["word", "context"],
+          type: SchemaType.STRING,
+          description: "A vocabulary word that would be valuable for a language learner",
         },
       },
     },
@@ -232,31 +192,21 @@ Select words that are:
 2. Useful in various contexts
 3. Worth adding to one's vocabulary
 
+Return only an array of words, without any additional explanation.
+
 Text to analyze:
 ${text}`;
 
   try {
     const result = await model.generateContent(prompt);
-    const response = JSON.parse(result.response.text());
+    const words: string[] = JSON.parse(result.response.text());
     
-    // Enhance each word with dictionary lookup
-    const enhancedWords = await Promise.all(
-      response.map(async (item: VocabularyAnalysis) => {
-        const lookupResult = await lookupWord(item.word);
-        if (lookupResult) {
-          item.phonetic = lookupResult.pronunciation;
-          item.detail = {
-            word: lookupResult.word,
-            partOfSpeech: lookupResult.partOfSpeech,
-            definitions: lookupResult.definitions,
-            stems: lookupResult.stems
-          };
-        }
-        return item;
-      })
+    // Look up each word and filter out any null results
+    const definitions = await Promise.all(
+      words.map(word => lookupWord(word))
     );
-
-    return enhancedWords;
+    
+    return definitions.filter((def): def is WordDefinition => def !== null);
   } catch (error) {
     console.error('Error analyzing text:', error);
     throw error;

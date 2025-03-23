@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import InputBox from '@/components/InputBox';
-import VocabularyResults, { VocabularyWord } from '@/components/VocabularyResults';
+import VocabularyResults from '@/components/VocabularyResults';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { analyzeVocabulary, cn, isSingleWordOrPhrases } from '@/lib/utils';
+import { analyzeVocabulary, cn, isSingleWordOrPhrases, type WordDefinition } from '@/lib/utils';
 import 'remixicon/fonts/remixicon.css';
 import WordDetailModal from '@/components/WordDetailModal';
 import { Trophy, Target, Brain, Sparkles, Play, Clock, Tag } from 'lucide-react';
@@ -12,12 +12,12 @@ import { toast } from 'sonner';
 const Index = () => {
   // State for vocabulary analysis
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResults, setAnalysisResults] = useState<VocabularyWord[]>([]);
+  const [analysisResults, setAnalysisResults] = useState<WordDefinition[]>([]);
   const [showResults, setShowResults] = useState(false);
   
   // State for word detail modal
   const [wordDetailOpen, setWordDetailOpen] = useState(false);
-  const [currentWord, setCurrentWord] = useState({ word: '', definition: '' });
+  const [currentWord, setCurrentWord] = useState<WordDefinition | null>(null);
 
   // Sample progress data
   const progressData = {
@@ -74,8 +74,7 @@ const Index = () => {
       <WordDetailModal
         open={wordDetailOpen}
         onOpenChange={setWordDetailOpen}
-        word={currentWord.word}
-        definition={currentWord.definition}
+        wordDetails={currentWord}
       />
     </div>
   );
