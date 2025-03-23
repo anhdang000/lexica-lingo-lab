@@ -53,7 +53,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     
     // For now, we only handle text analysis
     if (inputType === 'text' && inputValue) {
-      await onAnalyze(inputValue);
+      await onAnalyze(inputValue.trim());
     }
   };
 

@@ -3,29 +3,41 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Volume2, Plus, ArrowUpRight, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { lookupWord, type WordDefinition as DetailedWordInfo } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 export interface VocabularyWord {
   word: string;
-  partOfSpeech: string;
-  phonetic?: string;
-  definition: string;
-  example: string;
+  phonetic?: {
+    text: string;
+    audio?: string;
+  };
+  context: {
+    partOfSpeech: string;
+    definition: string;
+    example: string;
+  };
+  detail?: {
+    word: string;
+    partOfSpeech: string;
+    definitions: Array<{
+      meaning: string;
+      examples?: string[];
+    }>;
+    stems?: string[];
+  };
 }
 
 interface VocabularyResultsProps {
   results: VocabularyWord[];
   isVisible: boolean;
   onClose: () => void;
+  isSingleWordOrPhrases: boolean;
 }
 
-const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisible, onClose }) => {
+const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisible, onClose, isSingleWordOrPhrases }) => {
   const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
   const [allSaved, setAllSaved] = useState(false);
   const [expandedWords, setExpandedWords] = useState<Set<number>>(new Set());
-  const [detailedInfoMap, setDetailedInfoMap] = useState<Map<number, DetailedWordInfo>>(new Map());
-  const [loadingWords, setLoadingWords] = useState<Set<number>>(new Set());
   
   if (!isVisible || results.length === 0) return null;
 
@@ -44,43 +56,16 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
     toast.success(`Added all ${results.length} words to library`);
   };
 
-  const handleDetailClick = async (index: number, word: string) => {
-    if (expandedWords.has(index)) {
-      setExpandedWords(prev => {
-        const next = new Set(prev);
+  const handleDetailClick = (index: number) => {
+    setExpandedWords(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
         next.delete(index);
-        return next;
-      });
-      return;
-    }
-
-    // Add to expanded set immediately for smooth UI
-    setExpandedWords(prev => new Set(prev).add(index));
-
-    if (!detailedInfoMap.has(index)) {
-      setLoadingWords(prev => new Set(prev).add(index));
-      try {
-        const wordInfo = await lookupWord(word);
-        if (wordInfo) {
-          setDetailedInfoMap(prev => new Map(prev).set(index, wordInfo));
-        }
-      } catch (error) {
-        toast.error('Failed to load word details');
-        console.error('Error fetching word details:', error);
-        // Remove from expanded if failed
-        setExpandedWords(prev => {
-          const next = new Set(prev);
-          next.delete(index);
-          return next;
-        });
-      } finally {
-        setLoadingWords(prev => {
-          const next = new Set(prev);
-          next.delete(index);
-          return next;
-        });
+      } else {
+        next.add(index);
       }
-    }
+      return next;
+    });
   };
 
   const playAudio = (audioUrl?: string) => {
@@ -154,9 +139,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
           <div className="space-y-4">
             {results.map((item, index) => {
               const isExpanded = expandedWords.has(index);
-              const isLoading = loadingWords.has(index);
-              const detailedInfo = detailedInfoMap.get(index);
-              const hasAudio = detailedInfo?.pronunciation?.audio;
+              const hasAudio = item.phonetic?.audio;
 
               return (
                 <div 
@@ -169,28 +152,25 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <h4 className="text-lg font-bold">{item.word}</h4>
-                      {item.phonetic && !detailedInfo?.pronunciation?.text && (
-                        <span className="text-gray-400 text-sm italic">{item.phonetic}</span>
-                      )}
-                      {detailedInfo?.pronunciation?.text && (
+                      {item.phonetic?.text && (
                         <div className="flex items-center gap-2">
                           <span className="text-gray-400 text-sm italic">
-                            /{detailedInfo.pronunciation.text}/
+                            /{item.phonetic.text}/
                           </span>
                           {hasAudio && (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-7 w-7 p-0"
-                              onClick={() => playAudio(detailedInfo.pronunciation?.audio)}
+                              onClick={() => playAudio(item.phonetic?.audio)}
                             >
                               <Volume2 className="h-4 w-4" />
                             </Button>
                           )}
                         </div>
                       )}
-                      <span className={`text-xs px-2 py-0.5 rounded-md ${getPartOfSpeechStyle(item.partOfSpeech)}`}>
-                        {item.partOfSpeech}
+                      <span className={`text-xs px-2 py-0.5 rounded-md ${getPartOfSpeechStyle(item.context.partOfSpeech)}`}>
+                        {item.context.partOfSpeech}
                       </span>
                     </div>
                     <div className="flex gap-2">
@@ -208,39 +188,37 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
                     </div>
                   </div>
                   
-                  <p className="text-gray-600 dark:text-gray-300 mb-2">{item.definition}</p>
+                  <p className="text-gray-600 dark:text-gray-300 mb-2">{item.context.definition}</p>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">"{item.example}"</p>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleDetailClick(index, item.word)}
-                      className={cn(
-                        "text-base font-bold text-[#b36736] hover:text-[#b36736] hover:bg-[#b36736]/10",
-                        isExpanded && "bg-[#b36736]/10"
-                      )}
-                    >
-                      {isExpanded ? "Collapse" : "Detail"}
-                    </Button>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">"{item.context.example}"</p>
+                    {item.detail && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleDetailClick(index)}
+                        className={cn(
+                          "text-base font-bold text-[#b36736] hover:text-[#b36736] hover:bg-[#b36736]/10",
+                          isExpanded && "bg-[#b36736]/10"
+                        )}
+                      >
+                        {isExpanded ? "Collapse" : "Detail"}
+                      </Button>
+                    )}
                   </div>
 
                   {/* Expanded detail section */}
-                  <div className={cn(
-                    "grid grid-rows-[0fr] transition-all duration-300",
-                    isExpanded && "grid-rows-[1fr] mt-4"
-                  )}>
-                    <div className="overflow-hidden">
-                      {isExpanded && (
-                        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                          {isLoading ? (
-                            <div className="flex justify-center py-4">
-                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#b36736]" />
-                            </div>
-                          ) : detailedInfo && (
+                  {item.detail && (
+                    <div className={cn(
+                      "grid grid-rows-[0fr] transition-all duration-300",
+                      isExpanded && "grid-rows-[1fr] mt-4"
+                    )}>
+                      <div className="overflow-hidden">
+                        {isExpanded && (
+                          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                             <div className="space-y-4">
                               {/* Definitions section */}
                               <div className="space-y-3">
-                                {detailedInfo.definitions.map((def, idx) => (
+                                {item.detail.definitions.map((def, idx) => (
                                   <div key={idx} className="space-y-2">
                                     <p className="text-gray-700 dark:text-gray-200">
                                       {idx + 1}. {def.meaning}
@@ -259,13 +237,13 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
                               </div>
 
                               {/* Word variations section */}
-                              {detailedInfo.stems && detailedInfo.stems.length > 0 && (
+                              {item.detail.stems && item.detail.stems.length > 0 && (
                                 <div className="pt-3">
                                   <h5 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                                     Word Forms & Phrases:
                                   </h5>
                                   <div className="flex flex-wrap gap-2">
-                                    {detailedInfo.stems.map((stem, idx) => (
+                                    {item.detail.stems.map((stem, idx) => (
                                       <span
                                         key={idx}
                                         className="px-2 py-1 text-sm bg-purple-50 dark:bg-purple-900/20 
@@ -278,11 +256,11 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({ results, isVisibl
                                 </div>
                               )}
                             </div>
-                          )}
-                        </div>
-                      )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
