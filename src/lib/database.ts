@@ -526,19 +526,21 @@ export async function addWordToCollection(
       throw meaningsError;
     }
 
-    // 3. Add word to collection (using first meaning)
+    // 3. Add all word meanings to the collection (previously only added the first meaning)
+    const collectionWordsToInsert = meanings.map(meaning => ({
+      collection_id: collectionId,
+      word_id: existingWord.id,
+      meaning_id: meaning.id,
+      user_id: userId,
+      status: "new",
+    }));
+
     const { error: collectionWordError } = await supabase
       .from("collection_words")
-      .insert({
-        collection_id: collectionId,
-        word_id: existingWord.id,
-        meaning_id: meanings[0].id,
-        user_id: userId,
-        status: "new",
-      });
+      .insert(collectionWordsToInsert);
 
     if (collectionWordError && collectionWordError.code !== "23505") { // Not a unique violation
-      console.error("Error adding word to collection:", collectionWordError);
+      console.error("Error adding word meanings to collection:", collectionWordError);
       throw collectionWordError;
     }
 
