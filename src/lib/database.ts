@@ -76,17 +76,18 @@ export async function createCollection(userId: string, name: string, description
 // Function to get words from a collection
 export async function getCollectionWords(collectionId: string) {
   try {
-    const { data, error } = await supabase
+    // First, get all collection word entries
+    const { data: collectionEntries, error: collectionError } = await supabase
       .from("collection_words")
       .select(`
         *,
-        words:word_id(id, word, phonetic, audio_url),
+        words:word_id(id, word, phonetic, audio_url, stems),
         meanings:meaning_id(id, definition, part_of_speech, examples)
       `)
       .eq("collection_id", collectionId);
 
-    if (error) {
-      console.error("Error fetching collection words:", error);
+    if (collectionError) {
+      console.error("Error fetching collection words:", collectionError);
       toast({
         title: "Error",
         description: "Failed to load words. Please try again later.",
@@ -95,7 +96,49 @@ export async function getCollectionWords(collectionId: string) {
       return [];
     }
 
-    return data || [];
+    if (!collectionEntries || collectionEntries.length === 0) {
+      return [];
+    }
+
+    // Now get all meanings for each word in the collection
+    // Group entries by word_id to avoid duplicate queries
+    const wordIds = [...new Set(collectionEntries.map(entry => entry.word_id))];
+    
+    // Fetch all meanings for these words
+    const { data: allMeanings, error: meaningsError } = await supabase
+      .from("word_meanings")
+      .select(`
+        id, 
+        word_id, 
+        definition,
+        part_of_speech,
+        examples,
+        ordinal_index
+      `)
+      .in("word_id", wordIds)
+      .order("ordinal_index", { ascending: true });
+
+    if (meaningsError) {
+      console.error("Error fetching word meanings:", meaningsError);
+      // Continue with what we have even if this fails
+    }
+
+    // Organize meanings by word_id
+    const meaningsByWordId = (allMeanings || []).reduce((acc, meaning) => {
+      if (!acc[meaning.word_id]) {
+        acc[meaning.word_id] = [];
+      }
+      acc[meaning.word_id].push(meaning);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    // Enhance collection entries with all meanings
+    const enhancedEntries = collectionEntries.map(entry => ({
+      ...entry,
+      all_meanings: meaningsByWordId[entry.word_id] || []
+    }));
+
+    return enhancedEntries || [];
   } catch (error) {
     console.error("Exception fetching collection words:", error);
     toast({

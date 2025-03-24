@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,36 @@ const Library: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedWords, setExpandedWords] = useState<Set<string>>(new Set());
   
+  // Group words by word_id to avoid duplicates
+  const groupedWords = useMemo(() => {
+    if (!collectionWords.length) return [];
+    
+    // Create a map of word_id to word entries
+    const wordMap = new Map();
+    
+    collectionWords.forEach(item => {
+      if (!wordMap.has(item.word_id)) {
+        // Create a new entry for this word with its first meaning
+        wordMap.set(item.word_id, {
+          ...item,
+          // Use the all_meanings array if available, otherwise create one
+          all_meanings: item.all_meanings || [item.meanings]
+        });
+      } else if (!wordMap.get(item.word_id).all_meanings?.some(m => m.id === item.meanings.id)) {
+        // Add this meaning to the existing word if it doesn't already exist
+        const existingEntry = wordMap.get(item.word_id);
+        if (existingEntry.all_meanings) {
+          existingEntry.all_meanings.push(item.meanings);
+        } else {
+          existingEntry.all_meanings = [existingEntry.meanings, item.meanings];
+        }
+      }
+    });
+    
+    // Convert the map to an array
+    return Array.from(wordMap.values());
+  }, [collectionWords]);
+
   // Filter collections based on search
   const filteredCollections = collections.filter(collection => {
     if (!searchQuery) return true;
@@ -93,6 +123,14 @@ const Library: React.FC = () => {
     return str.replace(/\b\w/g, char => char.toUpperCase());
   };
   
+  // Helper function to capitalize the title
+  const capitalizeTitle = (title: string) => {
+    return title
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
     <div className="container px-4 py-6 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -182,7 +220,7 @@ const Library: React.FC = () => {
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xl font-bold">
                     {collections.find(c => c.id === selectedCollectionId)?.name && 
-                     capitalize(collections.find(c => c.id === selectedCollectionId)?.name || '')}
+                     capitalizeTitle(collections.find(c => c.id === selectedCollectionId)?.name || '')}
                   </h3>
                   <div className="flex gap-4">
                     <Button variant="outline" className="flex items-center gap-2">
@@ -206,9 +244,11 @@ const Library: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {collectionWords.map((item) => {
+                    {groupedWords.map((item) => {
                       const isExpanded = expandedWords.has(item.word_id);
                       const hasAudio = item.words.audio_url;
+                      // Default to first meaning if no specific meaning structure
+                      const primaryMeaning = item.meanings || (item.all_meanings && item.all_meanings[0]);
 
                       return (
                         <div
@@ -249,70 +289,112 @@ const Library: React.FC = () => {
                                   )}
                                 </div>
                               )}
-                              {item.meanings.part_of_speech && (
+                              {primaryMeaning.part_of_speech && (
                                 <span className={cn(
                                   'text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors',
-                                  getPartOfSpeechStyle(item.meanings.part_of_speech)
+                                  getPartOfSpeechStyle(primaryMeaning.part_of_speech)
                                 )}>
-                                  {item.meanings.part_of_speech}
+                                  {primaryMeaning.part_of_speech}
                                 </span>
                               )}
                             </div>
                           </div>
 
-                          <div className={cn(
-                            'space-y-4',
-                            'transition-all duration-300 ease-in-out'
-                          )}>
-                            <div className="group/def space-y-2">
-                              <p className="text-gray-800 dark:text-gray-200 text-base">
-                                {item.meanings.definition}
-                              </p>
-                              {item.meanings.examples && item.meanings.examples.length > 0 && (
-                                <div
-                                  className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
-                                            transition-colors duration-300"
-                                >
-                                  <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                                    {item.meanings.examples[0]}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
+                          {/* First meaning - always visible */}
+                          <div className="group/def space-y-2">
+                            <p className="text-gray-800 dark:text-gray-200 text-base">
+                              {isExpanded && item.all_meanings && item.all_meanings.length > 1 ? "1. " : ""}
+                              {primaryMeaning.definition}
+                            </p>
+                            {primaryMeaning.examples && primaryMeaning.examples.length > 0 && (
+                              <div
+                                className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
+                                          transition-colors duration-300"
+                              >
+                                <p className="text-gray-600 dark:text-gray-400 italic text-sm">
+                                  {primaryMeaning.examples[0]}
+                                </p>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Additional meanings section when expanded */}
+                          {/* Show indication of more definitions in compact mode */}
+                          {!isExpanded && item.all_meanings && item.all_meanings.length > 1 && (
+                            <p className="text-xs text-gray-500 mt-3 pl-4 border-l-2 border-gray-200">
+                              + {item.all_meanings.length - 1} more definition
+                              {item.all_meanings.length > 2 ? 's' : ''}
+                            </p>
+                          )}
+
+                          {/* Additional meanings - only visible when expanded */}
+                          <div
+                            className={cn(
+                              'mt-4 space-y-4',
+                              'overflow-hidden transition-all duration-300 ease-in-out',
+                              isExpanded ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'
+                            )}
+                          >
+                            {isExpanded && item.all_meanings && item.all_meanings.length > 1 && (
+                              <div className="space-y-4">
+                                {item.all_meanings.slice(1).map((meaning, idx) => (
+                                  <div key={idx} className="group/def space-y-2">
+                                    <p className="text-gray-800 dark:text-gray-200 text-base">
+                                      {idx + 2}. {meaning.definition}
+                                    </p>
+                                    {meaning.examples && meaning.examples.length > 0 && (
+                                      <div
+                                        className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
+                                                  transition-colors duration-300"
+                                      >
+                                        <p className="text-gray-600 dark:text-gray-400 italic text-sm">
+                                          {meaning.examples[0]}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Word Forms & Phrases section - only visible when expanded */}
                           <div
                             className={cn(
                               'mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50',
                               'overflow-hidden transition-all duration-300 ease-in-out',
-                              isExpanded ? 'opacity-100 max-h-40' : 'opacity-0 max-h-0'
+                              isExpanded ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'
                             )}
                           >
-                            {isExpanded && item.meanings.examples && item.meanings.examples.length > 1 && (
+                            {isExpanded && item.words.stems && item.words.stems.length > 0 && (
                               <>
                                 <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-3">
-                                  Additional Examples:
+                                  Word Forms & Phrases:
                                 </h5>
-                                <div className="space-y-2">
-                                  {item.meanings.examples.slice(1).map((example, idx) => (
-                                    <p key={idx} className="text-gray-600 dark:text-gray-400 text-sm italic">
-                                      {example}
-                                    </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {item.words.stems.map((stem, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="px-2.5 py-1 text-xs bg-[#f8f2dc] dark:bg-[#cd4631]/10
+                                               text-[#9e6240] dark:text-[#dea47e] rounded-full
+                                               hover:bg-[#f8f2dc]/70 dark:hover:bg-[#cd4631]/20
+                                               transition-colors duration-200"
+                                    >
+                                      {stem}
+                                    </span>
                                   ))}
                                 </div>
                               </>
                             )}
                           </div>
 
-                          <div className="absolute bottom-2 right-4 text-xs text-gray-400 dark:text-gray-500 transition-opacity duration-200 group-hover:opacity-100 opacity-50">
+                          <div className="absolute bottom-4 right-4 text-xs text-gray-400 dark:text-gray-500 transition-opacity duration-200 group-hover:opacity-100 opacity-50">
                             Click to {isExpanded ? 'hide' : 'view'} details
                           </div>
                         </div>
                       );
                     })}
 
-                    {collectionWords.length === 0 && (
+                    {groupedWords.length === 0 && (
                       <div className="text-center py-8">
                         <p className="text-gray-500">No vocabulary items found in this collection.</p>
                       </div>

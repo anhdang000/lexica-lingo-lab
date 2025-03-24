@@ -19,6 +19,14 @@ interface CollectionCardProps {
   onSelect?: () => void;
 }
 
+// Helper function to capitalize collection title
+const capitalizeTitle = (title: string) => {
+  return title
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 const CollectionCard: React.FC<CollectionCardProps> = ({
   collection,
   isSelected = false,
@@ -37,7 +45,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
           <Book className="h-5 w-5 text-primary" />
         </div>
         <div className="flex-1">
-          <h4 className="font-bold line-clamp-1">{collection.name}</h4>
+          <h4 className="font-bold line-clamp-1">{capitalizeTitle(collection.name)}</h4>
           <blockquote className="my-2 border-l-2 border-gray-200 pl-3 italic text-sm text-gray-600 line-clamp-2">
             {collection.description}
           </blockquote>
