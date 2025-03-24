@@ -40,13 +40,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {
-      const lines = inputValue.split('\n').length;
-      textarea.style.height = 'auto';
-      if (lines < 4) {
-        textarea.style.height = Math.max(150, textarea.scrollHeight) + 'px';
-      } else {
-        textarea.style.height = '150px'; // Fixed height after 4 lines
-      }
+      // Set a fixed height regardless of content length
+      textarea.style.height = '150px';
     }
   };
 
