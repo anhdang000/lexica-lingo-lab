@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -253,20 +253,23 @@ const Library: React.FC = () => {
                       return (
                         <div
                           key={item.word_id}
-                          onClick={() => handleWordDetailClick(item.word_id)}
                           className={cn(
-                            'collection-card relative group rounded-xl p-6',
+                            'collection-card relative group rounded-xl p-4',
                             'border',
                             isExpanded 
                               ? 'border-[#cd4631]/90 shadow-xl' 
                               : 'border-gray-200 dark:border-gray-700',
                             'backdrop-blur-sm bg-white/30 dark:bg-gray-800/30',
-                            'cursor-pointer'
+                            'cursor-pointer',
+                            'transition-all duration-300 ease-in-out'
                           )}
+                          onClick={() => handleWordDetailClick(item.word_id)}
                         >
-                          <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-3 flex-wrap">
-                              <h4 className="text-xl font-bold text-[#cd4631] dark:text-[#de6950]">
+                              <h4 
+                                className="text-xl font-bold text-[#cd4631] dark:text-[#de6950]"
+                              >
                                 {item.words.word}
                               </h4>
                               {item.words.phonetic && (
@@ -298,6 +301,25 @@ const Library: React.FC = () => {
                                 </span>
                               )}
                             </div>
+                            <button 
+                              className="text-[#cd4631] transition-transform duration-300 ease-in-out"
+                              aria-label={isExpanded ? "Collapse" : "Expand"}
+                            >
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                width="24" 
+                                height="24" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                                className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+                              >
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                            </button>
                           </div>
 
                           {/* First meaning - always visible */}
@@ -326,15 +348,15 @@ const Library: React.FC = () => {
                             </p>
                           )}
 
-                          {/* Additional meanings - only visible when expanded */}
+                          {/* Additional meanings - with smooth animation */}
                           <div
                             className={cn(
                               'mt-4 space-y-4',
-                              'overflow-hidden transition-all duration-300 ease-in-out',
-                              isExpanded ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'
+                              'overflow-hidden transition-all duration-500 ease-in-out',
+                              isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
                             )}
                           >
-                            {isExpanded && item.all_meanings && item.all_meanings.length > 1 && (
+                            {item.all_meanings && item.all_meanings.length > 1 && (
                               <div className="space-y-4">
                                 {item.all_meanings.slice(1).map((meaning, idx) => (
                                   <div key={idx} className="group/def space-y-2">
@@ -357,15 +379,15 @@ const Library: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Word Forms & Phrases section - only visible when expanded */}
+                          {/* Word Forms & Phrases section - with smooth animation */}
                           <div
                             className={cn(
                               'mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50',
-                              'overflow-hidden transition-all duration-300 ease-in-out',
-                              isExpanded ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'
+                              'overflow-hidden transition-all duration-500 ease-in-out',
+                              isExpanded ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0 border-t-0'
                             )}
                           >
-                            {isExpanded && item.words.stems && item.words.stems.length > 0 && (
+                            {item.words.stems && item.words.stems.length > 0 && (
                               <>
                                 <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-3">
                                   Word Forms & Phrases:
@@ -385,10 +407,6 @@ const Library: React.FC = () => {
                                 </div>
                               </>
                             )}
-                          </div>
-
-                          <div className="absolute bottom-4 right-4 text-xs text-gray-400 dark:text-gray-500 transition-opacity duration-200 group-hover:opacity-100 opacity-50">
-                            Click to {isExpanded ? 'hide' : 'view'} details
                           </div>
                         </div>
                       );
@@ -418,7 +436,7 @@ const Library: React.FC = () => {
       {/* Hover and click effect styles */}
       <style>{`
         .collection-card {
-          transition: transform 0.2s, box-shadow 0.2s;
+          transition: transform 0.2s, box-shadow 0.2s, border-color 0.3s;
         }
         .collection-card:hover {
           transform: translateY(-2px);

@@ -198,7 +198,8 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                       ? 'border-[#cd4631]/90 shadow-xl' 
                       : 'border-gray-200 dark:border-gray-700',
                     'backdrop-blur-sm bg-white/30 dark:bg-gray-800/30',
-                    'cursor-pointer'
+                    'cursor-pointer',
+                    'transition-all duration-300 ease-in-out'
                   )}
                 >
                   <div className="flex items-center justify-between mb-4">
@@ -255,22 +256,41 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                           <Plus className="h-5 w-5" />
                         )}
                       </button>
+                      <button 
+                        className="text-[#cd4631] transition-transform duration-300 ease-in-out"
+                        aria-label={isExpanded ? "Collapse" : "Expand"}
+                      >
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          width="24" 
+                          height="24" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+                        >
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </button>
                     </div>
                   </div>
 
-                  <div className="space-y-4 overflow-hidden transition-all duration-300 ease-in-out">
+                  <div className="space-y-4 overflow-hidden transition-all duration-500 ease-in-out">
                     {(isExpanded
                       ? item.definitions
                       : item.definitions.slice(0, 1)
                     ).map((def, defIdx) => (
                       <div key={defIdx} className="group/def space-y-2">
                         <p className="text-gray-800 dark:text-gray-200 text-base">
-                          {defIdx + 1}. {def.meaning}
+                          {isExpanded && item.definitions.length > 1 ? `${defIdx + 1}. ` : ''}{def.meaning}
                         </p>
                         {def.examples && def.examples.length > 0 && (
                           <div
                             className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
-                                        transition-colors duration-300"
+                                      transition-colors duration-300"
                           >
                             <p className="text-gray-600 dark:text-gray-400 italic text-sm">
                               {def.examples[0]}
@@ -286,14 +306,45 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                         {item.definitions.length > 2 ? 's' : ''}
                       </p>
                     )}
+
+                    {/* Additional definitions - with smooth animation */}
+                    <div
+                      className={cn(
+                        'mt-4 space-y-4',
+                        'overflow-hidden transition-all duration-500 ease-in-out',
+                        isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                      )}
+                    >
+                      {item.definitions.length > 1 && isExpanded && (
+                        <div className="space-y-4">
+                          {item.definitions.slice(1).map((def, idx) => (
+                            <div key={idx} className="group/def space-y-2">
+                              <p className="text-gray-800 dark:text-gray-200 text-base">
+                                {def.meaning}
+                              </p>
+                              {def.examples && def.examples.length > 0 && (
+                                <div
+                                  className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
+                                            transition-colors duration-300"
+                                >
+                                  <p className="text-gray-600 dark:text-gray-400 italic text-sm">
+                                    {def.examples[0]}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Word Forms & Phrases section */}
                   <div
                     className={cn(
                       'mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50',
-                      'overflow-hidden transition-all duration-300 ease-in-out',
-                      isExpanded ? 'opacity-100 max-h-40' : 'opacity-0 max-h-0'
+                      'overflow-hidden transition-all duration-500 ease-in-out',
+                      isExpanded ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0 border-t-0'
                     )}
                   >
                     {isExpanded && item.stems && item.stems.length > 0 && (
