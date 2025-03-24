@@ -82,13 +82,12 @@ create table public.words (
   word text not null,
   phonetic text,
   audio_url text,
-  stems text[], -- Array of word variants/stems (e.g. ["run", "runs", "ran", "running"])
+  stems text[],
   created_at timestamp with time zone default now()
 );
 
 -- Indexes
 create index words_word_idx on public.words(word);
-create index words_stems_idx on public.words using gin(stems); -- GIN index for array operations
 
 -- RLS Policies
 alter table public.words enable row level security;
@@ -105,9 +104,8 @@ create table public.word_meanings (
   ordinal_index int not null,
   part_of_speech text,
   definition text not null,
-  examples text[], -- Array of example sentences
+  examples text[],
   created_at timestamp with time zone default now(),
-  -- Ensure ordinal_index is unique per word
   unique(word_id, ordinal_index)
 );
 
@@ -115,7 +113,6 @@ create table public.word_meanings (
 create index word_meanings_word_id_idx on public.word_meanings(word_id);
 create index word_meanings_part_of_speech_idx on public.word_meanings(part_of_speech);
 create index word_meanings_ordinal_idx on public.word_meanings(ordinal_index);
-create index word_meanings_examples_idx on public.word_meanings using gin(examples); -- GIN index for array operations
 
 -- RLS Policies
 alter table public.word_meanings enable row level security;
