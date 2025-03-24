@@ -48,6 +48,7 @@ export type Database = {
           word: string
           phonetic: string | null
           audio_url: string | null
+          stems: string[] | null
           created_at: string
         }
         Insert: {
@@ -55,6 +56,7 @@ export type Database = {
           word: string
           phonetic?: string | null
           audio_url?: string | null
+          stems?: string[] | null
           created_at?: string
         }
         Update: {
@@ -62,6 +64,7 @@ export type Database = {
           word?: string
           phonetic?: string | null
           audio_url?: string | null
+          stems?: string[] | null
           created_at?: string
         }
       }
@@ -72,6 +75,7 @@ export type Database = {
           ordinal_index: number
           part_of_speech: string | null
           definition: string
+          examples: string[] | null
           created_at: string
         }
         Insert: {
@@ -80,6 +84,7 @@ export type Database = {
           ordinal_index: number
           part_of_speech?: string | null
           definition: string
+          examples?: string[] | null
           created_at?: string
         }
         Update: {
@@ -88,26 +93,7 @@ export type Database = {
           ordinal_index?: number
           part_of_speech?: string | null
           definition?: string
-          created_at?: string
-        }
-      }
-      meaning_examples: {
-        Row: {
-          id: string
-          meaning_id: string
-          example: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          meaning_id: string
-          example: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          meaning_id?: string
-          example?: string
+          examples?: string[] | null
           created_at?: string
         }
       }

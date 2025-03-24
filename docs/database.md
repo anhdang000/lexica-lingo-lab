@@ -82,11 +82,13 @@ create table public.words (
   word text not null,
   phonetic text,
   audio_url text,
+  stems text[], -- Array of word variants/stems (e.g. ["run", "runs", "ran", "running"])
   created_at timestamp with time zone default now()
 );
 
 -- Indexes
 create index words_word_idx on public.words(word);
+create index words_stems_idx on public.words using gin(stems); -- GIN index for array operations
 
 -- RLS Policies
 alter table public.words enable row level security;
@@ -95,7 +97,7 @@ create policy "Words are readable by all authenticated users"
 ```
 
 ### word_meanings
-Stores multiple meanings/definitions for each word.
+Stores multiple meanings/definitions for each word, along with its examples.
 ```sql
 create table public.word_meanings (
   id uuid default gen_random_uuid() primary key,
@@ -103,6 +105,7 @@ create table public.word_meanings (
   ordinal_index int not null,
   part_of_speech text,
   definition text not null,
+  examples text[], -- Array of example sentences
   created_at timestamp with time zone default now(),
   -- Ensure ordinal_index is unique per word
   unique(word_id, ordinal_index)
@@ -112,30 +115,12 @@ create table public.word_meanings (
 create index word_meanings_word_id_idx on public.word_meanings(word_id);
 create index word_meanings_part_of_speech_idx on public.word_meanings(part_of_speech);
 create index word_meanings_ordinal_idx on public.word_meanings(ordinal_index);
+create index word_meanings_examples_idx on public.word_meanings using gin(examples); -- GIN index for array operations
 
 -- RLS Policies
 alter table public.word_meanings enable row level security;
 create policy "Word meanings are readable by all authenticated users"
   on public.word_meanings for select using (auth.role() = 'authenticated');
-```
-
-### meaning_examples
-Stores multiple examples for each word meaning.
-```sql
-create table public.meaning_examples (
-  id uuid default gen_random_uuid() primary key,
-  meaning_id uuid references public.word_meanings(id) on delete cascade,
-  example text not null,
-  created_at timestamp with time zone default now()
-);
-
--- Indexes
-create index meaning_examples_meaning_id_idx on public.meaning_examples(meaning_id);
-
--- RLS Policies
-alter table public.meaning_examples enable row level security;
-create policy "Meaning examples are readable by all authenticated users"
-  on public.meaning_examples for select using (auth.role() = 'authenticated');
 ```
 
 ### collection_words
@@ -368,13 +353,8 @@ generated always as (
 alter table public.word_meanings
 add column search_vector tsvector
 generated always as (
-  setweight(to_tsvector('english', coalesce(definition, '')), 'B')
-) stored;
-
-alter table public.meaning_examples
-add column search_vector tsvector
-generated always as (
-  setweight(to_tsvector('english', coalesce(example, '')), 'C')
+  setweight(to_tsvector('english', coalesce(definition, '')), 'B') ||
+  setweight(to_tsvector('english', coalesce(array_to_string(examples, ' '), '')), 'C')
 ) stored;
 
 create index words_search_idx on public.words using gin(search_vector);
