@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +13,7 @@ import Auth from "./pages/Auth";
 import { useIsMobile } from "./hooks/use-mobile";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppStateProvider } from "./contexts/AppStateContext";
+import { VocabularyProvider } from "./components/library/VocabularyProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Create QueryClient
@@ -39,47 +41,49 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <AppStateProvider>
-            <Toaster />
-            <Sonner />
-            <Routes>
-              {/* Auth route - this should always be accessible */}
-              <Route path="/auth" element={<Auth />} />
-              
-              {/* Protected routes - these require authentication */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Layout><Index /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/library" element={
-                <ProtectedRoute>
-                  <Layout><Library /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/practice" element={
-                <ProtectedRoute>
-                  <Layout><Practice /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/analysis" element={
-                <ProtectedRoute>
-                  <Layout><div>Analysis Page (Coming Soon)</div></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/card/:id" element={
-                <ProtectedRoute>
-                  <Layout><div>Card Detail Page (Coming Soon)</div></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/profile" element={
-                <ProtectedRoute>
-                  <Layout><div>Profile Page (Coming Soon)</div></Layout>
-                </ProtectedRoute>
-              } />
-              
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <VocabularyProvider>
+              <Toaster />
+              <Sonner />
+              <Routes>
+                {/* Auth route - this should always be accessible */}
+                <Route path="/auth" element={<Auth />} />
+                
+                {/* Protected routes - these require authentication */}
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <Layout><Index /></Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/library" element={
+                  <ProtectedRoute>
+                    <Layout><Library /></Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/practice" element={
+                  <ProtectedRoute>
+                    <Layout><Practice /></Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/analysis" element={
+                  <ProtectedRoute>
+                    <Layout><div>Analysis Page (Coming Soon)</div></Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/card/:id" element={
+                  <ProtectedRoute>
+                    <Layout><div>Card Detail Page (Coming Soon)</div></Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <Layout><div>Profile Page (Coming Soon)</div></Layout>
+                  </ProtectedRoute>
+                } />
+                
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </VocabularyProvider>
           </AppStateProvider>
         </AuthProvider>
       </BrowserRouter>

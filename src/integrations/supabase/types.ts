@@ -9,9 +9,40 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      collections: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+          user_id: string | null
+          word_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          user_id?: string | null
+          word_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string | null
+          word_count?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           accuracy: number | null
+          avatar_url: string | null
           created_at: string | null
           id: string
           last_practice_at: string | null
@@ -22,6 +53,7 @@ export type Database = {
         }
         Insert: {
           accuracy?: number | null
+          avatar_url?: string | null
           created_at?: string | null
           id: string
           last_practice_at?: string | null
@@ -32,6 +64,7 @@ export type Database = {
         }
         Update: {
           accuracy?: number | null
+          avatar_url?: string | null
           created_at?: string | null
           id?: string
           last_practice_at?: string | null
@@ -41,163 +74,6 @@ export type Database = {
           words_learned?: number | null
         }
         Relationships: []
-      }
-      words: {
-        Row: {
-          id: string
-          word: string
-          phonetic: string | null
-          audio_url: string | null
-          stems: string[] | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          word: string
-          phonetic?: string | null
-          audio_url?: string | null
-          stems?: string[] | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          word?: string
-          phonetic?: string | null
-          audio_url?: string | null
-          stems?: string[] | null
-          created_at?: string
-        }
-      }
-      word_meanings: {
-        Row: {
-          id: string
-          word_id: string
-          ordinal_index: number
-          part_of_speech: string | null
-          definition: string
-          examples: string[] | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          word_id: string
-          ordinal_index: number
-          part_of_speech?: string | null
-          definition: string
-          examples?: string[] | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          word_id?: string
-          ordinal_index?: number
-          part_of_speech?: string | null
-          definition?: string
-          examples?: string[] | null
-          created_at?: string
-        }
-      }
-      collection_words: {
-        Row: {
-          id: string
-          collection_id: string
-          word_id: string
-          meaning_id: string
-          user_id: string
-          status: 'new' | 'learning' | 'mastered'
-          last_reviewed_at: string | null
-          review_count: number
-          next_review_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          collection_id: string
-          word_id: string
-          meaning_id: string
-          user_id: string
-          status?: 'new' | 'learning' | 'mastered'
-          last_reviewed_at?: string | null
-          review_count?: number
-          next_review_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          collection_id?: string
-          word_id?: string
-          meaning_id?: string
-          user_id?: string
-          status?: 'new' | 'learning' | 'mastered'
-          last_reviewed_at?: string | null
-          review_count?: number
-          next_review_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      practice_sessions: {
-        Row: {
-          id: string
-          user_id: string
-          mode: 'flashcard' | 'quiz' | 'findword'
-          total_words: number
-          correct_answers: number
-          completed: boolean
-          created_at: string
-          completed_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          mode: 'flashcard' | 'quiz' | 'findword'
-          total_words: number
-          correct_answers: number
-          completed?: boolean
-          created_at?: string
-          completed_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          mode?: 'flashcard' | 'quiz' | 'findword'
-          total_words?: number
-          correct_answers?: number
-          completed?: boolean
-          created_at?: string
-          completed_at?: string | null
-        }
-      }
-      practice_session_words: {
-        Row: {
-          id: string
-          session_id: string
-          word_id: string
-          meaning_id: string
-          collection_id: string
-          is_correct: boolean | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          session_id: string
-          word_id: string
-          meaning_id: string
-          collection_id: string
-          is_correct?: boolean | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          session_id?: string
-          word_id?: string
-          meaning_id?: string
-          collection_id?: string
-          is_correct?: boolean | null
-          created_at?: string
-        }
       }
     }
     Views: {
