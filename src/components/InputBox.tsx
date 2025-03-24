@@ -29,11 +29,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     const lines = text.split('\n').length;
     const length = text.length;
 
-    if (lines >= 4) return 18; // Normal size after 4 lines
-    if (length === 0) return 24; // Default large size
-    if (length < 50) return 24;
-    if (length < 100) return 20;
-    if (length < 200) return 18;
+    if (lines >= 5) return 18; // Normal size after 4 lines
+    if (lines === 4) return 20;
+    if (lines === 3) return 24;
+    if (lines === 2) return 28;
+    if (lines === 1) return 30;
+    if (lines === 0) return 30; // Default large size// Default large size
     return 16;
   };
 
