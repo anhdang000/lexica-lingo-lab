@@ -156,8 +156,14 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Paste text, URLs, or type vocabulary you want to learn..."
-              className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 transition-all duration-200"
-              style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}
+              className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200"
+              style={{ 
+                fontSize: `${fontSize}px`, 
+                lineHeight: '1.5',
+                outlineWidth: '0px',
+                outline: 'none',
+                boxShadow: 'none'
+              }}
             />
           )}
 
