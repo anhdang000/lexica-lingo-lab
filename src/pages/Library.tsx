@@ -1,169 +1,97 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogClose,
-  DialogFooter
-} from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import TabNav from '@/components/TabNav';
-import { 
-  Folder, 
   Search, 
-  Plus, 
-  Upload, 
-  Tag, 
-  Book, 
-  Filter, 
   ArrowDownAZ, 
-  Clock, 
   Play, 
   Pencil, 
-  MoreHorizontal,
-  X,
   Volume2,
   Star,
-  Wand2
+  Plus,
+  Check,
+  Wand2,
+  Book
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import CollectionCard from '@/components/library/CollectionCard';
-import VocabularyItem from '@/components/library/VocabularyItem';
-import CreateCollectionForm from '@/components/library/CreateCollectionForm';
-import ImportWordsForm from '@/components/library/ImportWordsForm';
-
-// Mock vocabulary data
-const mockVocabulary = {
-  business: [
-    { 
-      word: "Acquisition", 
-      phonetic: "/ˌækwɪˈzɪʃən/", 
-      partOfSpeech: "noun", 
-      definition: "The purchase of one company by another", 
-      example: "The tech giant announced the acquisition of a promising startup." 
-    },
-    { 
-      word: "Revenue", 
-      phonetic: "/ˈrevənuː/", 
-      partOfSpeech: "noun", 
-      definition: "Income generated from business activities", 
-      example: "The company's quarterly revenue exceeded expectations." 
-    },
-    { 
-      word: "Stakeholder", 
-      phonetic: "/ˈsteɪkˌhoʊldər/", 
-      partOfSpeech: "noun", 
-      definition: "Person or entity with interest in a business", 
-      example: "The stakeholders met to discuss the company's future." 
-    }
-  ],
-  tech: [
-    { 
-      word: "Algorithm", 
-      phonetic: "/ˈælɡəˌrɪðəm/", 
-      partOfSpeech: "noun", 
-      definition: "A step-by-step procedure for solving a problem", 
-      example: "The search engine uses a complex algorithm to rank results." 
-    },
-    { 
-      word: "API", 
-      phonetic: "/ˌeɪ piː ˈaɪ/", 
-      partOfSpeech: "noun", 
-      definition: "Application Programming Interface", 
-      example: "Developers use the API to integrate with our platform." 
-    },
-    { 
-      word: "Backend", 
-      phonetic: "/ˈbækˌend/", 
-      partOfSpeech: "noun", 
-      definition: "Server-side of an application", 
-      example: "The backend processes all user requests." 
-    }
-  ],
-  academic: [
-    { 
-      word: "Hypothesis", 
-      phonetic: "/haɪˈpɒθəsɪs/", 
-      partOfSpeech: "noun", 
-      definition: "A proposed explanation for a phenomenon", 
-      example: "The researchers developed a hypothesis about climate change." 
-    },
-    { 
-      word: "Methodology", 
-      phonetic: "/ˌmeθəˈdɒlədʒi/", 
-      partOfSpeech: "noun", 
-      definition: "System of methods used in research", 
-      example: "The study's methodology was peer-reviewed." 
-    },
-    { 
-      word: "Analysis", 
-      phonetic: "/əˈnæləsɪs/", 
-      partOfSpeech: "noun", 
-      definition: "Detailed examination of elements", 
-      example: "The data analysis revealed interesting patterns." 
-    }
-  ]
-};
-
-// Mock collections data
-const mockCollections = [
-  { 
-    id: '123e4567-e89b-12d3-a456-426614174000', 
-    name: 'Essential Business Terms', 
-    description: 'Key vocabulary for professional communication and business meetings',
-    word_count: 120,
-    created_at: '2025-03-22T10:30:00Z',
-    updated_at: '2025-03-23T08:15:00Z'
-  },
-  { 
-    id: '987fcdeb-51d3-12d3-a456-426614174001', 
-    name: 'Tech Industry Vocabulary', 
-    description: 'Modern technology and software development terminology',
-    word_count: 85,
-    created_at: '2025-03-21T15:45:00Z',
-    updated_at: '2025-03-23T09:20:00Z'
-  },
-  { 
-    id: '456abc89-12d3-a456-426614174002', 
-    name: 'Scientific Research Terms', 
-    description: 'Advanced vocabulary for academic papers and research',
-    word_count: 150,
-    created_at: '2025-03-20T11:00:00Z',
-    updated_at: '2025-03-22T16:30:00Z'
-  }
-];
+import { useVocabulary } from '@/components/library/VocabularyProvider';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Library: React.FC = () => {
+  const { user } = useAuth();
+  const { 
+    collections, 
+    isLoading, 
+    selectedCollectionId,
+    setSelectedCollectionId,
+    collectionWords,
+    isLoadingWords 
+  } = useVocabulary();
+
   // State management
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
-  
-  // Get the current collection's vocabulary
-  const currentCollection = selectedCollection 
-    ? mockCollections.find(c => c.id === selectedCollection) 
-    : null;
-  
-  // Update the current collection check since we removed category
-  const currentVocabulary = currentCollection 
-    ? mockVocabulary.business // Temporarily using business vocabulary for demo
-    : [];
+  const [expandedWords, setExpandedWords] = useState<Set<string>>(new Set());
   
   // Filter collections based on search
-  const filteredCollections = mockCollections.filter(collection => {
+  const filteredCollections = collections.filter(collection => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
       collection.name.toLowerCase().includes(query) ||
-      collection.description.toLowerCase().includes(query)
+      (collection.description?.toLowerCase() || '').includes(query)
     );
   });
+
+  const handleWordDetailClick = (wordId: string) => {
+    setExpandedWords((prev) => {
+      const next = new Set(prev);
+      if (next.has(wordId)) {
+        next.delete(wordId);
+      } else {
+        next.add(wordId);
+      }
+      return next;
+    });
+  };
+
+  const playAudio = (audioUrl?: string) => {
+    if (audioUrl) {
+      new Audio(audioUrl).play().catch((error) => {
+        console.error('Error playing audio:', error);
+        toast.error('Failed to play pronunciation');
+      });
+    }
+  };
+
+  const getPartOfSpeechStyle = (pos: string) => {
+    switch (pos?.toLowerCase()) {
+      case 'noun':
+        return 'bg-primary/10 text-primary';
+      case 'verb':
+        return 'bg-secondary/10 text-secondary';
+      case 'adjective':
+        return 'bg-[#dea47e]/20 text-[#9e6240]';
+      case 'adverb':
+        return 'bg-[#81adc8]/20 text-[#81adc8]';
+      case 'pronoun':
+        return 'bg-[#f8f2dc]/40 text-[#9e6240]';
+      case 'preposition':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'conjunction':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'interjection':
+        return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    }
+  };
+
+  const capitalize = (str: string) => {
+    return str.replace(/\b\w/g, char => char.toUpperCase());
+  };
   
   return (
     <div className="container px-4 py-6 max-w-6xl mx-auto">
@@ -197,7 +125,7 @@ const Library: React.FC = () => {
           </div>
           
           <div className="flex gap-6">
-            {/* Left Panel - Create Topic + Collections */}
+            {/* Left Panel - Collections */}
             <div className="w-[400px]">
               <Card className="bg-[#fdf8f3] mb-6 border-gray-100">
                 <CardContent className="p-6">
@@ -220,31 +148,42 @@ const Library: React.FC = () => {
               </Card>
               
               <div className="space-y-4">
-                {filteredCollections.map(collection => (
-                  <CollectionCard 
-                    key={collection.id}
-                    collection={collection}
-                    isSelected={selectedCollection === collection.id}
-                    onSelect={() => setSelectedCollection(collection.id)}
-                  />
-                ))}
-                
-                {filteredCollections.length === 0 && (
+                {isLoading ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">No collections found.</p>
-                    {searchQuery && (
-                      <p className="text-sm text-gray-400 mt-2">Try a different search term.</p>
-                    )}
+                    <p className="text-gray-500">Loading collections...</p>
                   </div>
+                ) : (
+                  <>
+                    {filteredCollections.map(collection => (
+                      <CollectionCard 
+                        key={collection.id}
+                        collection={collection}
+                        isSelected={selectedCollectionId === collection.id}
+                        onSelect={() => setSelectedCollectionId(collection.id)}
+                      />
+                    ))}
+                    
+                    {filteredCollections.length === 0 && (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500">No collections found.</p>
+                        {searchQuery && (
+                          <p className="text-sm text-gray-400 mt-2">Try a different search term.</p>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
             
             {/* Right Panel - Vocabulary List */}
-            {selectedCollection ? (
+            {selectedCollectionId ? (
               <div className="flex-1 bg-white rounded-xl p-6 border border-gray-100">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold">{currentCollection?.name}</h3>
+                  <h3 className="text-xl font-bold">
+                    {collections.find(c => c.id === selectedCollectionId)?.name && 
+                     capitalize(collections.find(c => c.id === selectedCollectionId)?.name || '')}
+                  </h3>
                   <div className="flex gap-4">
                     <Button variant="outline" className="flex items-center gap-2">
                       <Pencil className="h-5 w-5" />
@@ -258,20 +197,128 @@ const Library: React.FC = () => {
                 </div>
 
                 <blockquote className="mb-6 border-l-2 border-gray-200 pl-4 italic text-gray-600">
-                  {currentCollection?.description}
+                  {collections.find(c => c.id === selectedCollectionId)?.description}
                 </blockquote>
                 
-                <div className="space-y-4">
-                  {currentVocabulary.map((item, index) => (
-                    <VocabularyItem key={index} item={item} />
-                  ))}
-                  
-                  {currentVocabulary.length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No vocabulary items found in this collection.</p>
-                    </div>
-                  )}
-                </div>
+                {isLoadingWords ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Loading words...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {collectionWords.map((item) => {
+                      const isExpanded = expandedWords.has(item.word_id);
+                      const hasAudio = item.words.audio_url;
+
+                      return (
+                        <div
+                          key={item.word_id}
+                          onClick={() => handleWordDetailClick(item.word_id)}
+                          className={cn(
+                            'collection-card relative group rounded-xl p-6',
+                            'border',
+                            isExpanded 
+                              ? 'border-[#cd4631]/90 shadow-xl' 
+                              : 'border-gray-200 dark:border-gray-700',
+                            'backdrop-blur-sm bg-white/30 dark:bg-gray-800/30',
+                            'cursor-pointer'
+                          )}
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <h4 className="text-xl font-bold text-[#cd4631] dark:text-[#de6950]">
+                                {item.words.word}
+                              </h4>
+                              {item.words.phonetic && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                    /{item.words.phonetic}/
+                                  </span>
+                                  {hasAudio && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 hover:text-[#cd4631] hover:bg-[#cd4631]/10"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        playAudio(item.words.audio_url);
+                                      }}
+                                    >
+                                      <Volume2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                              {item.meanings.part_of_speech && (
+                                <span className={cn(
+                                  'text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors',
+                                  getPartOfSpeechStyle(item.meanings.part_of_speech)
+                                )}>
+                                  {item.meanings.part_of_speech}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className={cn(
+                            'space-y-4',
+                            'transition-all duration-300 ease-in-out'
+                          )}>
+                            <div className="group/def space-y-2">
+                              <p className="text-gray-800 dark:text-gray-200 text-base">
+                                {item.meanings.definition}
+                              </p>
+                              {item.meanings.examples && item.meanings.examples.length > 0 && (
+                                <div
+                                  className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
+                                            transition-colors duration-300"
+                                >
+                                  <p className="text-gray-600 dark:text-gray-400 italic text-sm">
+                                    {item.meanings.examples[0]}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Additional meanings section when expanded */}
+                          <div
+                            className={cn(
+                              'mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50',
+                              'overflow-hidden transition-all duration-300 ease-in-out',
+                              isExpanded ? 'opacity-100 max-h-40' : 'opacity-0 max-h-0'
+                            )}
+                          >
+                            {isExpanded && item.meanings.examples && item.meanings.examples.length > 1 && (
+                              <>
+                                <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                  Additional Examples:
+                                </h5>
+                                <div className="space-y-2">
+                                  {item.meanings.examples.slice(1).map((example, idx) => (
+                                    <p key={idx} className="text-gray-600 dark:text-gray-400 text-sm italic">
+                                      {example}
+                                    </p>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="absolute bottom-2 right-4 text-xs text-gray-400 dark:text-gray-500 transition-opacity duration-200 group-hover:opacity-100 opacity-50">
+                            Click to {isExpanded ? 'hide' : 'view'} details
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {collectionWords.length === 0 && (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500">No vocabulary items found in this collection.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center bg-white/50 rounded-xl border border-gray-100 border-dashed">
@@ -285,6 +332,17 @@ const Library: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Hover and click effect styles */}
+      <style>{`
+        .collection-card {
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .collection-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+        }
+      `}</style>
     </div>
   );
 };
