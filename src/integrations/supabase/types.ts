@@ -1,94 +1,235 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
       collections: {
         Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          name: string
-          updated_at: string | null
-          user_id: string | null
-          word_count: number | null
-        }
+          id: string;
+          user_id: string;
+          name: string;
+          description: string | null;
+          word_count: number;
+          created_at: string;
+          updated_at: string;
+        };
         Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          updated_at?: string | null
-          user_id?: string | null
-          word_count?: number | null
-        }
+          id?: string;
+          user_id: string;
+          name: string;
+          description?: string | null;
+          word_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
         Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          updated_at?: string | null
-          user_id?: string | null
-          word_count?: number | null
-        }
-        Relationships: []
-      }
+          id?: string;
+          user_id?: string;
+          name?: string;
+          description?: string | null;
+          word_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       profiles: {
         Row: {
-          accuracy: number | null
-          avatar_url: string | null
-          created_at: string | null
-          id: string
-          last_practice_at: string | null
-          streak_count: number | null
-          updated_at: string | null
-          username: string | null
-          words_learned: number | null
-        }
+          id: string;
+          username: string | null;
+          avatar_url: string | null;
+          streak_count: number;
+          last_practice_at: string | null;
+          words_learned: number;
+          accuracy: number;
+          created_at: string;
+          updated_at: string;
+        };
         Insert: {
-          accuracy?: number | null
-          avatar_url?: string | null
-          created_at?: string | null
-          id: string
-          last_practice_at?: string | null
-          streak_count?: number | null
-          updated_at?: string | null
-          username?: string | null
-          words_learned?: number | null
-        }
+          id: string;
+          username?: string | null;
+          avatar_url?: string | null;
+          streak_count?: number;
+          last_practice_at?: string | null;
+          words_learned?: number;
+          accuracy?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
         Update: {
-          accuracy?: number | null
-          avatar_url?: string | null
-          created_at?: string | null
-          id?: string
-          last_practice_at?: string | null
-          streak_count?: number | null
-          updated_at?: string | null
-          username?: string | null
-          words_learned?: number | null
-        }
-        Relationships: []
-      }
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      [_ in never]: never
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
+          id?: string;
+          username?: string | null;
+          avatar_url?: string | null;
+          streak_count?: number;
+          last_practice_at?: string | null;
+          words_learned?: number;
+          accuracy?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      words: {
+        Row: {
+          id: string;
+          word: string;
+          phonetic: string | null;
+          audio_url: string | null;
+          stems: string[] | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          word: string;
+          phonetic?: string | null;
+          audio_url?: string | null;
+          stems?: string[] | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          word?: string;
+          phonetic?: string | null;
+          audio_url?: string | null;
+          stems?: string[] | null;
+          created_at?: string;
+        };
+      };
+      word_meanings: {
+        Row: {
+          id: string;
+          word_id: string;
+          ordinal_index: number;
+          part_of_speech: string | null;
+          definition: string;
+          examples: string[] | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          word_id: string;
+          ordinal_index: number;
+          part_of_speech?: string | null;
+          definition: string;
+          examples?: string[] | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          word_id?: string;
+          ordinal_index?: number;
+          part_of_speech?: string | null;
+          definition?: string;
+          examples?: string[] | null;
+          created_at?: string;
+        };
+      };
+      collection_words: {
+        Row: {
+          id: string;
+          collection_id: string;
+          word_id: string;
+          meaning_id: string;
+          user_id: string;
+          status: string;
+          last_reviewed_at: string | null;
+          review_count: number;
+          next_review_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          collection_id: string;
+          word_id: string;
+          meaning_id: string;
+          user_id: string;
+          status?: string;
+          last_reviewed_at?: string | null;
+          review_count?: number;
+          next_review_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          collection_id?: string;
+          word_id?: string;
+          meaning_id?: string;
+          user_id?: string;
+          status?: string;
+          last_reviewed_at?: string | null;
+          review_count?: number;
+          next_review_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      practice_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          mode: string;
+          total_words: number;
+          correct_answers: number;
+          completed: boolean;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          mode: string;
+          total_words: number;
+          correct_answers: number;
+          completed?: boolean;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          mode?: string;
+          total_words?: number;
+          correct_answers?: number;
+          completed?: boolean;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+      };
+      practice_session_words: {
+        Row: {
+          id: string;
+          session_id: string;
+          word_id: string;
+          meaning_id: string;
+          collection_id: string;
+          is_correct: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          word_id: string;
+          meaning_id: string;
+          collection_id: string;
+          is_correct: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          word_id?: string;
+          meaning_id?: string;
+          collection_id?: string;
+          is_correct?: boolean;
+          created_at?: string;
+        };
+      };
+    };
+    Views: {};
+    Functions: {};
+    Enums: {};
+    CompositeTypes: {};
+  };
 }
 
 type PublicSchema = Database[Extract<keyof Database, "public">]

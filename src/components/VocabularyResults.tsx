@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { WordDefinition } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { getOrCreateGeneralCollection, addWordToCollection } from '@/lib/database';
 
 interface VocabularyResultsProps {
   results: WordDefinition[];
@@ -19,12 +21,13 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
   onClose,
   isSingleWordOrPhrases,
 }) => {
+  const { user } = useAuth();
   const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
   const [allSaved, setAllSaved] = useState(false);
   const [expandedWords, setExpandedWords] = useState<Set<number>>(new Set());
+  const [isProcessing, setIsProcessing] = useState(false);
 
   React.useEffect(() => {
-    // Initialize with first card expanded if there's only one result
     setExpandedWords(new Set(results.length === 1 ? [0] : []));
     setAddedWords(new Set());
     setAllSaved(false);
@@ -32,19 +35,64 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
 
   if (!isVisible || results.length === 0) return null;
 
-  const handleAddWord = (index: number, word: string) => {
-    toast.success(`Added "${word}" to library`);
-    setAddedWords((prev) => new Set(prev).add(index));
+  const handleAddWord = async (index: number, wordData: WordDefinition) => {
+    if (!user) {
+      toast.error("Please log in to save words to your library");
+      return;
+    }
+
+    if (addedWords.has(index)) return;
+
+    setIsProcessing(true);
+    try {
+      const collection = await getOrCreateGeneralCollection(user.id);
+      const success = await addWordToCollection(user.id, wordData, collection.id);
+
+      if (success) {
+        toast.success(`Added "${wordData.word}" to library`);
+        setAddedWords(prev => new Set(prev).add(index));
+      } else {
+        toast.error(`Failed to add "${wordData.word}" to library`);
+      }
+    } catch (error) {
+      console.error('Error adding word:', error);
+      toast.error("Failed to add word to library");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleSaveAll = () => {
-    if (allSaved) return;
+  const handleSaveAll = async () => {
+    if (!user) {
+      toast.error("Please log in to save words to your library");
+      return;
+    }
 
-    const newAddedWords = new Set<number>();
-    results.forEach((_, index) => newAddedWords.add(index));
-    setAddedWords(newAddedWords);
-    setAllSaved(true);
-    toast.success(`Added all ${results.length} words to library`);
+    if (allSaved || isProcessing) return;
+
+    setIsProcessing(true);
+    try {
+      const collection = await getOrCreateGeneralCollection(user.id);
+      
+      const newAddedWords = new Set<number>();
+      for (let i = 0; i < results.length; i++) {
+        if (!addedWords.has(i)) {
+          const success = await addWordToCollection(user.id, results[i], collection.id);
+          if (success) {
+            newAddedWords.add(i);
+          }
+        }
+      }
+
+      setAddedWords(prev => new Set([...prev, ...newAddedWords]));
+      setAllSaved(true);
+      toast.success(`Added ${newAddedWords.size} words to library`);
+    } catch (error) {
+      console.error('Error adding all words:', error);
+      toast.error("Failed to add all words to library");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleDetailClick = (index: number) => {
@@ -104,7 +152,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                 variant={allSaved ? 'secondary' : 'outline'}
                 size="sm"
                 onClick={handleSaveAll}
-                disabled={allSaved}
+                disabled={allSaved || isProcessing}
                 className={cn(
                   'text-sm text-black',
                   allSaved ? 'bg-[#81adc8] hover:bg-[#81adc8]' : 'hover:bg-[#81adc8]'
@@ -197,7 +245,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                         )}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleAddWord(index, item.word);
+                          handleAddWord(index, item);
                         }}
                         disabled={addedWords.has(index)}
                       >

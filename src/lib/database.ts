@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import type { WordDefinition } from "@/lib/utils";
 
 // Function to get user collections
 export async function getUserCollections(userId: string) {
@@ -394,5 +395,130 @@ export async function updateUserProfile(userId: string, updates: any) {
       variant: "destructive",
     });
     return null;
+  }
+}
+
+// Function to get or create general collection
+export async function getOrCreateGeneralCollection(userId: string) {
+  try {
+    // First try to find existing general collection
+    const { data: existingCollection, error: findError } = await supabase
+      .from("collections")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("name", "general")
+      .single();
+
+    if (findError && findError.code !== "PGRST116") { // PGRST116 is "not found" error
+      console.error("Error finding general collection:", findError);
+      throw findError;
+    }
+
+    if (existingCollection) {
+      return existingCollection;
+    }
+
+    // Create new general collection if it doesn't exist
+    const { data: newCollection, error: createError } = await supabase
+      .from("collections")
+      .insert({
+        user_id: userId,
+        name: "general",
+        description: "Default collection for vocabulary",
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error("Error creating general collection:", createError);
+      throw createError;
+    }
+
+    return newCollection;
+  } catch (error) {
+    console.error("Exception in getOrCreateGeneralCollection:", error);
+    throw error;
+  }
+}
+
+// Function to add a word to the database and collection
+export async function addWordToCollection(
+  userId: string,  
+  wordData: WordDefinition,
+  collectionId: string
+) {
+  try {
+    // 1. Create or get the word entry
+    const { data: word, error: wordError } = await supabase
+      .from("words")
+      .insert({
+        word: wordData.word,
+        phonetic: wordData.pronunciation?.text || null,
+        audio_url: wordData.pronunciation?.audio || null,
+        stems: wordData.stems || [],
+      })
+      .select()
+      .single();
+
+    if (wordError && wordError.code !== "23505") { // Not a unique violation
+      console.error("Error creating word:", wordError);
+      throw wordError;
+    }
+
+    // If word already exists, get it
+    let existingWord = word;
+    if (wordError?.code === "23505") {
+      const { data: existing, error: getError } = await supabase
+        .from("words")
+        .select("*")
+        .eq("word", wordData.word)
+        .single();
+      
+      if (getError) {
+        console.error("Error getting existing word:", getError);
+        throw getError;
+      }
+      existingWord = existing;
+    }
+
+    // 2. Create meanings for the word
+    const meaningsToInsert = wordData.definitions.map((def, index) => ({
+      word_id: existingWord.id,
+      ordinal_index: index + 1,
+      part_of_speech: wordData.partOfSpeech,
+      definition: def.meaning,
+      examples: def.examples || [],
+    }));
+
+    const { data: meanings, error: meaningsError } = await supabase
+      .from("word_meanings")
+      .insert(meaningsToInsert)
+      .select();
+
+    if (meaningsError) {
+      console.error("Error creating word meanings:", meaningsError);
+      throw meaningsError;
+    }
+
+    // 3. Add word to collection (using first meaning)
+    const { error: collectionWordError } = await supabase
+      .from("collection_words")
+      .insert({
+        collection_id: collectionId,
+        word_id: existingWord.id,
+        meaning_id: meanings[0].id,
+        user_id: userId,
+        status: "new",
+      });
+
+    if (collectionWordError && collectionWordError.code !== "23505") { // Not a unique violation
+      console.error("Error adding word to collection:", collectionWordError);
+      throw collectionWordError;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Exception in addWordToCollection:", error);
+    return false;
   }
 }

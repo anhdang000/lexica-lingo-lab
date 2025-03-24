@@ -11,6 +11,9 @@ import {
 } from '@/components/ui/dialog';
 import { Volume2, Star } from 'lucide-react';
 import type { WordDefinition } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { getOrCreateGeneralCollection, addWordToCollection } from '@/lib/database';
+import { toast } from 'sonner';
 
 interface WordDetailModalProps {
   open: boolean;
@@ -19,9 +22,35 @@ interface WordDetailModalProps {
 }
 
 const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, wordDetails }) => {
+  const { user } = useAuth();
   const [showFullDetails, setShowFullDetails] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   
   if (!wordDetails) return null;
+
+  const handleAddToLibrary = async () => {
+    if (!user) {
+      toast.error("Please log in to save words to your library");
+      return;
+    }
+
+    setIsAdding(true);
+    try {
+      const collection = await getOrCreateGeneralCollection(user.id);
+      const success = await addWordToCollection(user.id, wordDetails, collection.id);
+
+      if (success) {
+        toast.success(`Added "${wordDetails.word}" to library`);
+      } else {
+        toast.error(`Failed to add "${wordDetails.word}" to library`);
+      }
+    } catch (error) {
+      console.error('Error adding word:', error);
+      toast.error("Failed to add word to library");
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   // Function to get styling based on part of speech
   const getPartOfSpeechStyle = (pos: string) => {
@@ -135,14 +164,21 @@ const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, w
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 mt-6" onClick={(e) => e.stopPropagation()}>
+            {wordDetails.pronunciation?.audio && (
+              <Button 
+                variant="secondary" 
+                className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                onClick={() => new Audio(wordDetails.pronunciation?.audio).play()}
+              >
+                <Volume2 className="h-4 w-4" />
+                <span className="text-sm">Listen</span>
+              </Button>
+            )}
             <Button 
-              variant="secondary" 
-              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+              className="flex items-center gap-2 bg-[#cd4631] hover:bg-[#cd4631]/90 text-white"
+              onClick={handleAddToLibrary}
+              disabled={isAdding}
             >
-              <Volume2 className="h-4 w-4" />
-              <span className="text-sm">Listen</span>
-            </Button>
-            <Button className="flex items-center gap-2 bg-[#cd4631] hover:bg-[#cd4631]/90 text-white">
               <Star className="h-4 w-4" />
               <span className="text-sm">Add to Study List</span>
             </Button>

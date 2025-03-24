@@ -93,6 +93,9 @@ create index words_word_idx on public.words(word);
 alter table public.words enable row level security;
 create policy "Words are readable by all authenticated users"
   on public.words for select using (auth.role() = 'authenticated');
+
+create policy "Authenticated users can insert words"
+  on public.words for insert with check (auth.role() = 'authenticated');
 ```
 
 ### word_meanings
