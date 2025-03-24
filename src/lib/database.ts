@@ -282,6 +282,19 @@ export async function searchWords(query: string) {
       return directMatches;
     }
 
+    interface DefinitionMatch {
+      id: string;
+      definition: string;
+      part_of_speech: string | null;
+      examples: string[] | null;
+      word: {
+        id: string;
+        word: string;
+        phonetic: string | null;
+        audio_url: string | null;
+      };
+    }
+
     // Otherwise try full-text search on definitions
     const { data: definitionMatches, error: definitionError } = await supabase
       .from("word_meanings")
@@ -293,7 +306,7 @@ export async function searchWords(query: string) {
         word:word_id(id, word, phonetic, audio_url)
       `)
       .textSearch("search_vector", query)
-      .limit(10);
+      .limit(10) as { data: DefinitionMatch[] | null; error: any };
 
     if (definitionError) {
       console.error("Error searching word meanings:", definitionError);
@@ -302,7 +315,20 @@ export async function searchWords(query: string) {
 
     // Restructure the data to match the format of directMatches
     if (definitionMatches && definitionMatches.length > 0) {
-      const restructured = definitionMatches.reduce((acc, meaning) => {
+      interface RestructuredWord {
+        id: string;
+        word: string;
+        phonetic: string | null;
+        audio_url: string | null;
+        meanings: Array<{
+          id: string;
+          definition: string;
+          part_of_speech: string | null;
+          examples: string[] | null;
+        }>;
+      }
+
+      const restructured = definitionMatches.reduce<RestructuredWord[]>((acc, meaning) => {
         const existingWord = acc.find(w => w.id === meaning.word.id);
         
         if (existingWord) {
@@ -328,7 +354,7 @@ export async function searchWords(query: string) {
         }
         
         return acc;
-      }, [] as any[]);
+      }, []);
       
       return restructured;
     }
