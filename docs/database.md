@@ -88,6 +88,7 @@ create table public.words (
 
 -- Indexes
 create index words_word_idx on public.words(word);
+create index words_stems_idx on public.words using gin(stems);
 
 -- RLS Policies
 alter table public.words enable row level security;
@@ -96,6 +97,33 @@ create policy "Words are readable by all authenticated users"
 
 create policy "Authenticated users can insert words"
   on public.words for insert with check (auth.role() = 'authenticated');
+```
+
+### user_words
+Tracks relationships between users and words independent of collections.
+```sql
+create table public.user_words (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id),
+  word_id uuid references public.words(id) on delete cascade,
+  meaning_id uuid references public.word_meanings(id) on delete cascade,
+  status text default 'new' check (status in ('new', 'learning', 'mastered')),
+  last_reviewed_at timestamp with time zone,
+  review_count int default 0,
+  next_review_at timestamp with time zone,
+  created_at timestamp with time zone default now(),
+  unique(user_id, word_id, meaning_id)
+);
+
+-- Indexes
+create index user_words_user_id_idx on public.user_words(user_id);
+create index user_words_word_id_idx on public.user_words(word_id);
+create index user_words_status_idx on public.user_words(status);
+
+-- RLS Policies
+alter table public.user_words enable row level security;
+create policy "Users can manage their saved words"
+  on public.user_words for all using (auth.uid() = user_id);
 ```
 
 ### word_meanings
@@ -323,6 +351,61 @@ $$ language plpgsql;
 create trigger update_user_practice_stats_trigger
 after update on public.practice_sessions
 for each row execute function update_user_practice_stats();
+```
+
+### Update User Words Practice Stats
+```sql
+-- Function to update user_words practice stats when a word is practiced
+create or replace function update_user_words_practice_stats()
+returns trigger as $$
+begin
+  -- First, ensure the word exists in user_words (insert if not exists)
+  insert into public.user_words (user_id, word_id, meaning_id, status, review_count, last_reviewed_at)
+  select 
+    (select user_id from public.practice_sessions where id = new.session_id),
+    new.word_id,
+    new.meaning_id,
+    'new',
+    0,
+    now()
+  where not exists (
+    select 1 from public.user_words 
+    where user_id = (select user_id from public.practice_sessions where id = new.session_id)
+    and word_id = new.word_id
+    and meaning_id = new.meaning_id
+  );
+
+  -- Then update the practice stats
+  update public.user_words
+  set review_count = review_count + 1,
+      last_reviewed_at = now(),
+      next_review_at = now() + interval '1 day' * 
+        case 
+          when status = 'new' then 1
+          when status = 'learning' then 3
+          when status = 'mastered' then 7
+          else 1
+        end,
+      status = case
+        when new.is_correct then
+          case 
+            when review_count >= 5 and status = 'learning' then 'mastered'
+            when status = 'new' then 'learning'
+            else status
+          end
+        else status
+      end
+  where user_id = (select user_id from public.practice_sessions where id = new.session_id)
+    and word_id = new.word_id
+    and meaning_id = new.meaning_id;
+
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger update_user_words_practice_stats_trigger
+after insert on public.practice_session_words
+for each row execute function update_user_words_practice_stats();
 ```
 
 ## Database Indexes
