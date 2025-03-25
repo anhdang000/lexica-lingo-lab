@@ -75,11 +75,12 @@ export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children
 
   // Handle removal of a word-meaning from the current collection
   const removeWordMeaning = async (wordId: string) => {
-    if (!selectedCollectionId) return false;
+    if (!selectedCollectionId || !user) return false;
     
     const success = await removeWordFromCollection(
       selectedCollectionId,
-      wordId
+      wordId,
+      user.id
     );
     
     if (success) {

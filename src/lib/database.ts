@@ -684,17 +684,20 @@ export async function addWordToCollection(
 // Function to remove a word-meaning from a collection
 export async function removeWordFromCollection(
   collectionId: string,
-  wordId: string
+  wordId: string,
+  userId: string
 ) {
   try {
-    const { error } = await supabase
+    // 1. Remove from collection_words
+    const { error: collectionError } = await supabase
       .from("collection_words")
       .delete()
       .eq("collection_id", collectionId)
-      .eq("word_id", wordId);
+      .eq("word_id", wordId)
+      .eq("user_id", userId);
 
-    if (error) {
-      console.error("Error removing word from collection:", error);
+    if (collectionError) {
+      console.error("Error removing word from collection:", collectionError);
       toast({
         title: "Error",
         description: "Failed to remove word from collection. Please try again.",
@@ -703,10 +706,44 @@ export async function removeWordFromCollection(
       return false;
     }
 
-    toast({
-      title: "Success",
-      description: "Word removed from collection.",
-    });
+    // 2. Remove from practice_session_words that reference this collection
+    const { error: practiceError } = await supabase
+      .from("practice_session_words")
+      .delete()
+      .eq("word_id", wordId)
+      .eq("collection_id", collectionId)
+      .eq("user_id", userId);
+
+    if (practiceError) {
+      console.error("Error removing word from practice sessions:", practiceError);
+      // Continue with next step even if this fails
+    }
+
+    // 3. Check if the word exists in any other collections for this user
+    const { data: otherCollections, error: checkError } = await supabase
+      .from("collection_words")
+      .select("id")
+      .eq("word_id", wordId)
+      .eq("user_id", userId);
+    
+    if (checkError) {
+      console.error("Error checking if word exists in other collections:", checkError);
+      // Continue with next step even if this fails
+    }
+
+    // 4. If word doesn't exist in any other collection, remove from user_words as well
+    if (!otherCollections || otherCollections.length === 0) {
+      const { error: userWordError } = await supabase
+        .from("user_words")
+        .delete()
+        .eq("word_id", wordId)
+        .eq("user_id", userId);
+
+      if (userWordError) {
+        console.error("Error removing word from user words:", userWordError);
+        // Continue even if this fails
+      }
+    }
 
     return true;
   } catch (error) {
