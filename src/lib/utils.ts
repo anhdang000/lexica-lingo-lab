@@ -108,6 +108,26 @@ export async function lookupWord(word: string): Promise<WordDefinition | null> {
                     dtElement[1].forEach((ex: { t: string }) => {
                       examples.push(cleanFormatting(ex.t));
                     });
+                  } else if (dtElement[0] === 'uns') {
+                    // Handle unstructured data which can contain both text and examples
+                    const unsData = dtElement[1];
+                    if (Array.isArray(unsData)) {
+                      unsData.forEach(unsGroup => {
+                        if (Array.isArray(unsGroup)) {
+                          unsGroup.forEach(item => {
+                            if (Array.isArray(item) && item.length >= 2) {
+                              if (item[0] === 'text') {
+                                meaning += ' ' + cleanFormatting(item[1]);
+                              } else if (item[0] === 'vis' && Array.isArray(item[1])) {
+                                item[1].forEach((ex: { t: string }) => {
+                                  examples.push(cleanFormatting(ex.t));
+                                });
+                              }
+                            }
+                          });
+                        }
+                      });
+                    }
                   }
                 });
               }
@@ -130,6 +150,7 @@ export async function lookupWord(word: string): Promise<WordDefinition | null> {
       }));
     }
 
+    // console.log('Word definition result:', JSON.stringify(wordDef, null, 2));
     return wordDef;
   } catch (error) {
     console.error('Error looking up word:', error);
