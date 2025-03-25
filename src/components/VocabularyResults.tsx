@@ -184,198 +184,169 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
 
           <div className="space-y-6">
             {results.map((item, index) => {
-              const isExpanded = expandedWords.has(index);
-              const hasAudio = item.pronunciation?.audio;
+                  const isExpanded = expandedWords.has(index);
+                  const hasAudio = item.pronunciation?.audio;
 
-              return (
-                <div
-                  key={index}
-                  onClick={() => handleDetailClick(index)}
-                  className={cn(
-                    'collection-card relative group rounded-xl p-6',
-                    'border',
-                    isExpanded 
-                      ? 'border-[#cd4631]/90 shadow-xl' 
-                      : 'border-gray-200 dark:border-gray-700',
-                    'backdrop-blur-sm bg-white/30 dark:bg-gray-800/30',
-                    'cursor-pointer',
-                    'transition-all duration-300 ease-in-out'
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h4 className="text-xl font-bold text-[#cd4631] dark:text-[#de6950]">
-                        {item.word}
-                      </h4>
-                      {item.pronunciation?.text && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                            /{item.pronunciation.text}/
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        'collection-card relative group rounded-xl p-6',
+                        'border',
+                        isExpanded 
+                          ? 'border-[#cd4631]/90 shadow-xl' 
+                          : 'border-gray-200 dark:border-gray-700',
+                        'backdrop-blur-sm bg-white/30 dark:bg-gray-800/30',
+                        'cursor-pointer',
+                        'transition-all duration-300 ease-in-out'
+                      )}
+                      onClick={() => handleDetailClick(index)}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <h4 className="text-xl font-bold text-[#cd4631] dark:text-[#de6950]">
+                            {item.word}
+                          </h4>
+                          {item.pronunciation?.text && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                /{item.pronunciation.text}/
+                              </span>
+                              {hasAudio && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:text-[#cd4631] hover:bg-[#cd4631]/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    playAudio(item.pronunciation?.audio);
+                                  }}
+                                >
+                                  <Volume2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                          <span
+                            className={cn(
+                              'text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors',
+                              getPartOfSpeechStyle(item.partOfSpeech)
+                            )}
+                          >
+                            {item.partOfSpeech}
                           </span>
-                          {hasAudio && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 hover:text-[#cd4631] hover:bg-[#cd4631]/10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                playAudio(item.pronunciation?.audio);
-                              }}
+                        </div>
+                        <button 
+                          className="text-[#cd4631] transition-transform duration-300 ease-in-out"
+                          aria-label={isExpanded ? "Collapse" : "Expand"}
+                        >
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="24" 
+                            height="24" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                            className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+                          >
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* First definition - always visible when collapsed */}
+                      {!isExpanded && (
+                        <div className="group/def space-y-2">
+                          <p className="text-gray-800 dark:text-gray-200 text-base">
+                            {item.definitions[0].meaning}
+                          </p>
+                          {item.definitions[0].examples && item.definitions[0].examples.length > 0 && (
+                            <div
+                              className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
+                                        transition-colors duration-300"
                             >
-                              <Volume2 className="h-4 w-4" />
-                            </Button>
+                              <p className="text-gray-600 dark:text-gray-400 italic text-sm">
+                                {item.definitions[0].examples[0]}
+                              </p>
+                            </div>
                           )}
                         </div>
                       )}
-                      <span
-                        className={cn(
-                          'text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors',
-                          getPartOfSpeechStyle(item.partOfSpeech)
-                        )}
-                      >
-                        {item.partOfSpeech}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        className={cn(
-                          'w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200',
-                          addedWords.has(index)
-                            ? 'text-[#cd4631] bg-[#cd4631]/10'
-                            : 'text-gray-400 hover:text-[#cd4631] hover:bg-[#cd4631]/10'
-                        )}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddWord(index, item);
-                        }}
-                        disabled={addedWords.has(index)}
-                      >
-                        {addedWords.has(index) ? (
-                          <Check className="h-5 w-5" />
-                        ) : (
-                          <Plus className="h-5 w-5" />
-                        )}
-                      </button>
-                      <button 
-                        className="text-[#cd4631] transition-transform duration-300 ease-in-out"
-                        aria-label={isExpanded ? "Collapse" : "Expand"}
-                      >
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          width="24" 
-                          height="24" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                          className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
-                        >
-                          <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
 
-                  <div className="space-y-4 overflow-hidden transition-all duration-500 ease-in-out">
-                    {/* Show only first definition when collapsed, or all definitions when expanded */}
-                    {(isExpanded 
-                      ? [] // When expanded, don't render any definitions here (they'll be shown below)
-                      : item.definitions.slice(0, 1)
-                    ).map((def, defIdx) => (
-                      <div key={defIdx} className="group/def space-y-2">
-                        <p className="text-gray-800 dark:text-gray-200 text-base">
-                          {def.meaning}
+                      {/* Show indication of more definitions in compact mode */}
+                      {!isExpanded && item.definitions.length > 1 && (
+                        <p className="text-xs text-gray-500 mt-3 pl-4 border-l-2 border-gray-200">
+                          + {item.definitions.length - 1} more definition
+                          {item.definitions.length > 2 ? 's' : ''}
                         </p>
-                        {def.examples && def.examples.length > 0 && (
-                          <div
-                            className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
-                                      transition-colors duration-300"
-                          >
-                            <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                              {def.examples[0]}
+                      )}
+
+                      {/* All definitions - with smooth animation */}
+                      <div
+                        className={cn(
+                          'mt-4 space-y-4',
+                          'overflow-hidden transition-all duration-500 ease-in-out',
+                          isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                        )}
+                      >
+                        {item.definitions.map((def, idx) => (
+                          <div key={idx} className="group/def space-y-2">
+                            <p className="text-gray-800 dark:text-gray-200 text-base">
+                              {item.definitions.length > 1 ? `${idx + 1}. ` : ''}{def.meaning}
                             </p>
+                            {def.examples && def.examples.length > 0 && (
+                              <div
+                                className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
+                                          transition-colors duration-300"
+                              >
+                                <p className="text-gray-600 dark:text-gray-400 italic text-sm">
+                                  {def.examples[0]}
+                                </p>
+                              </div>
+                            )}
                           </div>
+                        ))}
+                      </div>
+
+                      {/* Word Forms & Phrases section - with smooth animation */}
+                      <div
+                        className={cn(
+                          'mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50',
+                          'overflow-hidden transition-all duration-500 ease-in-out',
+                          isExpanded ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0 border-t-0'
+                        )}
+                      >
+                        {item.stems && item.stems.length > 0 && (
+                          <>
+                            <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-3">
+                              Word Forms & Phrases:
+                            </h5>
+                            <div className="flex flex-wrap gap-2">
+                              {item.stems.map((stem, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2.5 py-1 text-xs bg-[#f8f2dc] dark:bg-[#cd4631]/10
+                                           text-[#9e6240] dark:text-[#dea47e] rounded-full
+                                           hover:bg-[#f8f2dc]/70 dark:hover:bg-[#cd4631]/20
+                                           transition-colors duration-200"
+                                >
+                                  {stem}
+                                </span>
+                              ))}
+                            </div>
+                          </>
                         )}
                       </div>
-                    ))}
 
-                    {!isExpanded && item.definitions.length > 1 && (
-                      <p className="text-xs text-gray-500 mt-3 pl-4 border-l-2 border-gray-200">
-                        + {item.definitions.length - 1} more definition
-                        {item.definitions.length > 2 ? 's' : ''}
-                      </p>
-                    )}
-
-                    {/* All definitions - shown only when expanded */}
-                    <div
-                      className={cn(
-                        'mt-4 space-y-4',
-                        'overflow-hidden transition-all duration-500 ease-in-out',
-                        isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-                      )}
-                    >
-                      {isExpanded && (
-                        <div className="space-y-4">
-                          {item.definitions.map((def, idx) => (
-                            <div key={idx} className="group/def space-y-2">
-                              <p className="text-gray-800 dark:text-gray-200 text-base">
-                                {item.definitions.length > 1 ? `${idx + 1}. ` : ''}{def.meaning}
-                              </p>
-                              {def.examples && def.examples.length > 0 && (
-                                <div
-                                  className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
-                                            transition-colors duration-300"
-                                >
-                                  <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                                    {def.examples[0]}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <div className="absolute bottom-2 right-4 text-xs text-gray-400 dark:text-gray-500 transition-opacity duration-200 group-hover:opacity-100 opacity-50">
+                        Click to {isExpanded ? 'hide' : 'view'} details
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Word Forms & Phrases section */}
-                  <div
-                    className={cn(
-                      'mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50',
-                      'overflow-hidden transition-all duration-500 ease-in-out',
-                      isExpanded ? 'max-h-[300px] opacity-100' : 'max-h-0 opacity-0 border-t-0'
-                    )}
-                  >
-                    {isExpanded && item.stems && item.stems.length > 0 && (
-                      <>
-                        <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-3">
-                          Word Forms & Phrases:
-                        </h5>
-                        <div className="flex flex-wrap gap-2">
-                          {item.stems.map((stem, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2.5 py-1 text-xs bg-[#f8f2dc] dark:bg-[#cd4631]/10
-                                       text-[#9e6240] dark:text-[#dea47e] rounded-full
-                                       hover:bg-[#f8f2dc]/70 dark:hover:bg-[#cd4631]/20
-                                       transition-colors duration-200"
-                            >
-                              {stem}
-                            </span>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="absolute bottom-2 right-4 text-xs text-gray-400 dark:text-gray-500 transition-opacity duration-200 group-hover:opacity-100 opacity-50">
-                    Click to {isExpanded ? 'hide' : 'view'} details
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
           </div>
         </CardContent>
       </Card>
