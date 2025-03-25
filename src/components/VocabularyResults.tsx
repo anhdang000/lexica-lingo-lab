@@ -203,59 +203,81 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                       onClick={() => handleDetailClick(index)}
                     >
                       <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <h4 className="text-xl font-bold text-[#cd4631] dark:text-[#de6950]">
-                            {item.word}
-                          </h4>
-                          {item.pronunciation?.text && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                                /{item.pronunciation.text}/
-                              </span>
-                              {hasAudio && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 hover:text-[#cd4631] hover:bg-[#cd4631]/10"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    playAudio(item.pronunciation?.audio);
-                                  }}
-                                >
-                                  <Volume2 className="h-4 w-4" />
-                                </Button>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <h4 className="text-xl font-bold text-[#cd4631] dark:text-[#de6950]">
+                                {item.word}
+                              </h4>
+                              {item.pronunciation?.text && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                    /{item.pronunciation.text}/
+                                  </span>
+                                  {hasAudio && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 hover:text-[#cd4631] hover:bg-[#cd4631]/10"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        playAudio(item.pronunciation?.audio);
+                                      }}
+                                    >
+                                      <Volume2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
                               )}
+                              <span
+                                className={cn(
+                                  'text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors',
+                                  getPartOfSpeechStyle(item.partOfSpeech)
+                                )}
+                              >
+                                {item.partOfSpeech}
+                              </span>
                             </div>
-                          )}
-                          <span
-                            className={cn(
-                              'text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors',
-                              getPartOfSpeechStyle(item.partOfSpeech)
-                            )}
-                          >
-                            {item.partOfSpeech}
-                          </span>
-                        </div>
-                        <button 
-                          className="text-[#cd4631] transition-transform duration-300 ease-in-out"
-                          aria-label={isExpanded ? "Collapse" : "Expand"}
-                        >
-                          <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            width="24" 
-                            height="24" 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                            className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
-                          >
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                          </svg>
-                        </button>
-                      </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {/* Add to Library Button */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 rounded-full hover:bg-[#cd4631]/10 hover:text-[#cd4631]"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddWord(index, item);
+                                }}
+                                disabled={addedWords.has(index) || isProcessing}
+                              >
+                                {addedWords.has(index) ? (
+                                  <Check className="h-4 w-4" />
+                                ) : (
+                                  <Plus className="h-4 w-4" />
+                                )}
+                              </Button>
+                              
+                              {/* Expand/Collapse Button */}
+                              <button 
+                                className="text-[#cd4631] transition-transform duration-300 ease-in-out"
+                                aria-label={isExpanded ? "Collapse" : "Expand"}
+                              >
+                                <svg 
+                                  xmlns="http://www.w3.org/2000/svg" 
+                                  width="24" 
+                                  height="24" 
+                                  viewBox="0 0 24 24" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  strokeWidth="2" 
+                                  strokeLinecap="round" 
+                                  strokeLinejoin="round"
+                                  className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+                                >
+                                  <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
 
                       {/* First definition - always visible when collapsed */}
                       {!isExpanded && (
