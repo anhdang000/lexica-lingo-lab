@@ -593,3 +593,42 @@ export async function addWordToCollection(
     return false;
   }
 }
+
+// Function to remove a word-meaning from a collection
+export async function removeWordFromCollection(
+  collectionId: string,
+  wordId: string
+) {
+  try {
+    const { error } = await supabase
+      .from("collection_words")
+      .delete()
+      .eq("collection_id", collectionId)
+      .eq("word_id", wordId);
+
+    if (error) {
+      console.error("Error removing word from collection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove word from collection. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    toast({
+      title: "Success",
+      description: "Word removed from collection.",
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Exception removing word from collection:", error);
+    toast({
+      title: "Error",
+      description: "An unexpected error occurred. Please try again later.",
+      variant: "destructive",
+    });
+    return false;
+  }
+}

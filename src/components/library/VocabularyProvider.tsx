@@ -1,6 +1,5 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getUserCollections, getCollectionWords } from '@/lib/database';
+import { getUserCollections, getCollectionWords, removeWordFromCollection } from '@/lib/database';
 import { useAuth } from '@/contexts/AuthContext';
 
 type Collection = {
@@ -25,6 +24,7 @@ type VocabularyContextType = {
   setSelectedCollectionId: (id: string | null) => void;
   collectionWords: any[];
   isLoadingWords: boolean;
+  removeWordMeaning: (wordId: string) => Promise<boolean>;
 };
 
 const VocabularyContext = createContext<VocabularyContextType | undefined>(undefined);
@@ -73,6 +73,25 @@ export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children
     }
   };
 
+  // Handle removal of a word-meaning from the current collection
+  const removeWordMeaning = async (wordId: string) => {
+    if (!selectedCollectionId) return false;
+    
+    const success = await removeWordFromCollection(
+      selectedCollectionId,
+      wordId
+    );
+    
+    if (success) {
+      // Update the local state to filter out all entries with this word_id
+      setCollectionWords(prevWords => 
+        prevWords.filter(word => word.word_id !== wordId)
+      );
+    }
+    
+    return success;
+  };
+
   useEffect(() => {
     if (user) {
       fetchCollections();
@@ -99,6 +118,7 @@ export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children
     setSelectedCollectionId,
     collectionWords,
     isLoadingWords,
+    removeWordMeaning,
   };
 
   return (

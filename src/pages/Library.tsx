@@ -12,7 +12,8 @@ import {
   Plus,
   Check,
   Wand2,
-  Book
+  Book,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -28,12 +29,17 @@ const Library: React.FC = () => {
     selectedCollectionId,
     setSelectedCollectionId,
     collectionWords,
-    isLoadingWords 
+    isLoadingWords,
+    removeWordMeaning
   } = useVocabulary();
 
   // State management
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedWords, setExpandedWords] = useState<Set<string>>(new Set());
+  
+  // State for delete confirmation
+  const [wordToDelete, setWordToDelete] = useState<{ wordId: string; meaningId: string; word: string } | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   // Group words by word_id to avoid duplicates
   const groupedWords = useMemo(() => {
@@ -265,6 +271,8 @@ const Library: React.FC = () => {
                           )}
                           onClick={() => handleWordDetailClick(item.word_id)}
                         >
+                          {/* Remove top-right positioned trash icon */}
+                          {/* Add styling for expanded details to ensure the trash icon is properly positioned */}
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-3 flex-wrap">
                               <h4 
@@ -406,6 +414,68 @@ const Library: React.FC = () => {
                                   ))}
                                 </div>
                               </>
+                            )}
+                          </div>
+                          
+                          {/* Trash bin icon positioned at bottom right with inline confirmation */}
+                          <div 
+                            className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 rounded-full hover:bg-[#cd4631]/10 hover:text-[#cd4631] text-gray-400"
+                              onClick={() => {
+                                setWordToDelete({
+                                  wordId: item.word_id,
+                                  meaningId: "", // No longer needed but keeping structure for compatibility
+                                  word: item.words.word
+                                });
+                                setConfirmDeleteId(confirmDeleteId === item.id ? null : item.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remove from collection</span>
+                            </Button>
+                            
+                            {/* Inline confirmation box */}
+                            {confirmDeleteId === item.id && (
+                              <div className="absolute bottom-8 right-0 bg-white dark:bg-gray-800 rounded-md shadow-md border border-gray-200 dark:border-gray-700 p-2 w-[240px] z-10">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs text-gray-600 dark:text-gray-300">
+                                    Remove all meanings from collection?
+                                  </p>
+                                  <div className="flex gap-2">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-6 px-2 text-xs"
+                                      onClick={() => setConfirmDeleteId(null)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button 
+                                      variant="destructive" 
+                                      size="sm" 
+                                      className="h-6 px-2 text-xs bg-[#cd4631] hover:bg-[#cd4631]/90"
+                                      onClick={async () => {
+                                        if (wordToDelete) {
+                                          const success = await removeWordMeaning(
+                                            wordToDelete.wordId
+                                          );
+                                          if (success) {
+                                            toast.success(`Removed "${wordToDelete.word}" from collection`);
+                                            setConfirmDeleteId(null);
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      Remove
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
