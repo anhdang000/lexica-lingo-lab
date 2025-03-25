@@ -441,9 +441,9 @@ const Library: React.FC = () => {
                             
                             {/* Inline confirmation box */}
                             {confirmDeleteId === item.id && (
-                              <div className="absolute bottom-8 right-0 bg-white dark:bg-gray-800 rounded-md shadow-md border border-gray-200 dark:border-gray-700 p-2 w-[240px] z-10">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-xs text-gray-600 dark:text-gray-300">
+                              <div className="absolute bottom-8 right-0 bg-white dark:bg-gray-800 rounded-md shadow-md border border-gray-200 dark:border-gray-700 p-2 w-[150px] z-10">
+                                <div className="flex flex-col items-center gap-2">
+                                  <p className="text-xs text-gray-600 dark:text-gray-300 text-center">
                                     Confirm to remove?
                                   </p>
                                   <div className="flex gap-2">
