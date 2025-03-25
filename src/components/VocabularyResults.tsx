@@ -279,13 +279,14 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                   </div>
 
                   <div className="space-y-4 overflow-hidden transition-all duration-500 ease-in-out">
-                    {(isExpanded
-                      ? item.definitions
+                    {/* Show only first definition when collapsed, or all definitions when expanded */}
+                    {(isExpanded 
+                      ? [] // When expanded, don't render any definitions here (they'll be shown below)
                       : item.definitions.slice(0, 1)
                     ).map((def, defIdx) => (
                       <div key={defIdx} className="group/def space-y-2">
                         <p className="text-gray-800 dark:text-gray-200 text-base">
-                          {isExpanded && item.definitions.length > 1 ? `${defIdx + 1}. ` : ''}{def.meaning}
+                          {def.meaning}
                         </p>
                         {def.examples && def.examples.length > 0 && (
                           <div
@@ -307,7 +308,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                       </p>
                     )}
 
-                    {/* Additional definitions - with smooth animation */}
+                    {/* All definitions - shown only when expanded */}
                     <div
                       className={cn(
                         'mt-4 space-y-4',
@@ -315,12 +316,12 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                         isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
                       )}
                     >
-                      {item.definitions.length > 1 && isExpanded && (
+                      {isExpanded && (
                         <div className="space-y-4">
-                          {item.definitions.slice(1).map((def, idx) => (
+                          {item.definitions.map((def, idx) => (
                             <div key={idx} className="group/def space-y-2">
                               <p className="text-gray-800 dark:text-gray-200 text-base">
-                                {def.meaning}
+                                {item.definitions.length > 1 ? `${idx + 1}. ` : ''}{def.meaning}
                               </p>
                               {def.examples && def.examples.length > 0 && (
                                 <div
