@@ -209,6 +209,7 @@ Records words practiced in each session, including which meaning was tested.
 create table public.practice_session_words (
   id uuid default gen_random_uuid() primary key,
   session_id uuid references public.practice_sessions(id) on delete cascade,
+  user_id uuid references auth.users(id),
   word_id uuid references public.words(id),
   meaning_id uuid references public.word_meanings(id),
   collection_id uuid references public.collections(id),
@@ -218,18 +219,15 @@ create table public.practice_session_words (
 
 -- Indexes
 create index practice_session_words_session_id_idx on public.practice_session_words(session_id);
+create index practice_session_words_user_id_idx on public.practice_session_words(user_id);
 create index practice_session_words_word_id_idx on public.practice_session_words(word_id);
 create index practice_session_words_collection_id_idx on public.practice_session_words(collection_id);
 
 -- RLS Policies
 alter table public.practice_session_words enable row level security;
-create policy "Users can view their practice session words"
-  on public.practice_session_words for select
-  using (exists (
-    select 1 from public.practice_sessions
-    where id = practice_session_words.session_id
-    and user_id = auth.uid()
-  ));
+create policy "Users can manage their practice session words"
+  on public.practice_session_words for all 
+  using (auth.uid() = user_id);
 ```
 
 ## Functions and Triggers

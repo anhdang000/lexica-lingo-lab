@@ -163,6 +163,41 @@ export interface Database {
           updated_at?: string;
         };
       };
+      user_words: {
+        Row: {
+          id: string;
+          user_id: string;
+          word_id: string;
+          meaning_id: string;
+          status: string;
+          last_reviewed_at: string | null;
+          review_count: number;
+          next_review_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          word_id: string;
+          meaning_id: string;
+          status?: string;
+          last_reviewed_at?: string | null;
+          review_count?: number;
+          next_review_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          word_id?: string;
+          meaning_id?: string;
+          status?: string;
+          last_reviewed_at?: string | null;
+          review_count?: number;
+          next_review_at?: string | null;
+          created_at?: string;
+        };
+      };
       practice_sessions: {
         Row: {
           id: string;
@@ -199,6 +234,7 @@ export interface Database {
         Row: {
           id: string;
           session_id: string;
+          user_id: string;
           word_id: string;
           meaning_id: string;
           collection_id: string;
@@ -208,6 +244,7 @@ export interface Database {
         Insert: {
           id?: string;
           session_id: string;
+          user_id: string;
           word_id: string;
           meaning_id: string;
           collection_id: string;
@@ -217,6 +254,7 @@ export interface Database {
         Update: {
           id?: string;
           session_id?: string;
+          user_id?: string;
           word_id?: string;
           meaning_id?: string;
           collection_id?: string;

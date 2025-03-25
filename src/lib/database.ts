@@ -275,10 +275,23 @@ export async function recordPracticeWordResult(
   isCorrect: boolean
 ) {
   try {
+    // Get user_id from the practice session
+    const { data: session, error: sessionError } = await supabase
+      .from("practice_sessions")
+      .select("user_id")
+      .eq("id", sessionId)
+      .single();
+
+    if (sessionError) {
+      console.error("Error getting practice session:", sessionError);
+      return false;
+    }
+
     const { error } = await supabase
       .from("practice_session_words")
       .insert({
         session_id: sessionId,
+        user_id: session.user_id,
         word_id: wordId,
         meaning_id: meaningId,
         collection_id: collectionId,
@@ -529,62 +542,136 @@ export async function addWordToCollection(
       .select()
       .single();
 
-    if (wordError && wordError.code !== "23505") { // Not a unique violation
-      console.error("Error creating word:", wordError);
-      throw wordError;
-    }
-
-    // If word already exists, get it
+    // Handle case where word already exists (unique violation)
     let existingWord = word;
-    if (wordError?.code === "23505") {
-      const { data: existing, error: getError } = await supabase
-        .from("words")
-        .select("*")
-        .eq("word", wordData.word)
-        .single();
-      
-      if (getError) {
-        console.error("Error getting existing word:", getError);
-        throw getError;
+    if (wordError) {
+      if (wordError.code === "23505") { // Unique violation - word already exists
+        const { data: existing, error: getError } = await supabase
+          .from("words")
+          .select("*")
+          .eq("word", wordData.word)
+          .single();
+        
+        if (getError) {
+          console.error("Error getting existing word:", getError);
+          throw getError;
+        }
+        existingWord = existing;
+      } else {
+        console.error("Error creating word:", wordError);
+        throw wordError;
       }
-      existingWord = existing;
     }
 
-    // 2. Create meanings for the word
-    const meaningsToInsert = wordData.definitions.map((def, index) => ({
-      word_id: existingWord.id,
-      ordinal_index: index + 1,
-      part_of_speech: wordData.partOfSpeech,
-      definition: def.meaning,
-      examples: def.examples || [],
-    }));
-
-    const { data: meanings, error: meaningsError } = await supabase
+    // 2. Check if meanings already exist for this word
+    const { data: existingMeanings, error: checkMeaningsError } = await supabase
       .from("word_meanings")
-      .insert(meaningsToInsert)
-      .select();
+      .select("*")
+      .eq("word_id", existingWord.id);
+    
+    if (checkMeaningsError) {
+      console.error("Error checking existing meanings:", checkMeaningsError);
+      throw checkMeaningsError;
+    }
+    
+    let meanings = existingMeanings;
+    
+    // Only create new meanings if they don't exist
+    if (!existingMeanings || existingMeanings.length === 0) {
+      // Create meanings for the word
+      const meaningsToInsert = wordData.definitions.map((def, index) => ({
+        word_id: existingWord.id,
+        ordinal_index: index + 1,
+        part_of_speech: wordData.partOfSpeech,
+        definition: def.meaning,
+        examples: def.examples || [],
+      }));
 
-    if (meaningsError) {
-      console.error("Error creating word meanings:", meaningsError);
-      throw meaningsError;
+      const { data: newMeanings, error: meaningsError } = await supabase
+        .from("word_meanings")
+        .insert(meaningsToInsert)
+        .select();
+
+      if (meaningsError) {
+        console.error("Error creating word meanings:", meaningsError);
+        throw meaningsError;
+      }
+      
+      meanings = newMeanings;
     }
 
-    // 3. Add all word meanings to the collection (previously only added the first meaning)
-    const collectionWordsToInsert = meanings.map(meaning => ({
-      collection_id: collectionId,
-      word_id: existingWord.id,
-      meaning_id: meaning.id,
-      user_id: userId,
-      status: "new",
-    }));
+    // 3. Add all word meanings to the collection (if not already added)
+    for (const meaning of meanings) {
+      // Check if this meaning is already in the collection for this user
+      const { data: existingCollectionWord, error: checkCollectionWordError } = await supabase
+        .from("collection_words")
+        .select("*")
+        .eq("collection_id", collectionId)
+        .eq("word_id", existingWord.id)
+        .eq("meaning_id", meaning.id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      
+      if (checkCollectionWordError) {
+        console.error("Error checking collection word:", checkCollectionWordError);
+        // Continue with other meanings even if one fails
+        continue;
+      }
+      
+      // Skip if this meaning is already in the collection
+      if (existingCollectionWord) continue;
+      
+      // Add to collection_words if not exists
+      const { error: collectionWordError } = await supabase
+        .from("collection_words")
+        .insert({
+          collection_id: collectionId,
+          word_id: existingWord.id,
+          meaning_id: meaning.id,
+          user_id: userId,
+          status: "new",
+        });
 
-    const { error: collectionWordError } = await supabase
-      .from("collection_words")
-      .insert(collectionWordsToInsert);
+      if (collectionWordError && collectionWordError.code !== "23505") { // Not a unique violation
+        console.error("Error adding word meaning to collection:", collectionWordError);
+        // Continue with other meanings even if one fails
+      }
+    }
+    
+    // 4. Add all word meanings to user_words table (new functionality)
+    for (const meaning of meanings) {
+      // Check if this meaning is already in user_words
+      const { data: existingUserWord, error: checkUserWordError } = await supabase
+        .from("user_words")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("word_id", existingWord.id)
+        .eq("meaning_id", meaning.id)
+        .maybeSingle();
+      
+      if (checkUserWordError) {
+        console.error("Error checking user word:", checkUserWordError);
+        // Continue with other meanings even if one fails
+        continue;
+      }
+      
+      // Skip if this meaning is already in user_words
+      if (existingUserWord) continue;
+      
+      // Add to user_words if not exists
+      const { error: userWordError } = await supabase
+        .from("user_words")
+        .insert({
+          user_id: userId,
+          word_id: existingWord.id,
+          meaning_id: meaning.id,
+          status: "new",
+        });
 
-    if (collectionWordError && collectionWordError.code !== "23505") { // Not a unique violation
-      console.error("Error adding word meanings to collection:", collectionWordError);
-      throw collectionWordError;
+      if (userWordError && userWordError.code !== "23505") { // Not a unique violation
+        console.error("Error adding word to user words:", userWordError);
+        // Continue with other meanings even if one fails
+      }
     }
 
     return true;
