@@ -2,6 +2,12 @@ import React, { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 import {
   Search,
@@ -9,21 +15,24 @@ import {
   Link as LinkIcon,
   Loader2,
   X,
-  Type
+  Type,
+  Sparkles,
+  GripHorizontal
 } from 'lucide-react';
 
 interface InputBoxProps {
-  onAnalyze: (text: string) => Promise<void>;
+  onAnalyze: (text: string, tool: 'lexigrab' | 'lexigen') => Promise<void>;
   isAnalyzing: boolean;
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const [inputValue, setInputValue] = useState('');
-  const [inputType, setInputType] = useState<'text' | 'url' | 'image'>('text');
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [fontSize, setFontSize] = useState(24); // Initial large font size
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeTool, setActiveTool] = useState<'lexigrab' | 'lexigen'>('lexigrab');
+  const [fontSize, setFontSize] = useState(24);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const calculateFontSize = (text: string) => {
     const lines = text.split('\n').length;
@@ -58,8 +67,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFileName(e.target.files[0].name);
-      setInputType('image');
+      handleFileSelection(e.target.files[0]);
     }
   };
 
@@ -70,25 +78,17 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   };
 
   const clearImage = () => {
-    setFileName(null);
-    setInputType('text');
+    setImagePreview(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
   const handleAnalyze = async () => {
-    if (!inputValue && !fileName) return;
+    if (!inputValue && !imagePreview) return;
 
-    if (inputType === 'text' && inputValue) {
-      await onAnalyze(inputValue.trim());
-    }
-  };
-
-  const selectInputType = (type: 'text' | 'url' | 'image') => {
-    setInputType(type);
-    if (type !== 'image' && fileName) {
-      clearImage();
+    if (inputValue) {
+      await onAnalyze(inputValue.trim(), activeTool);
     }
   };
 
@@ -102,56 +102,169 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     }
   };
 
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith('image/')) {
+        handleFileSelection(file);
+      }
+    }
+  };
+
+  const handleFileSelection = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto animate-slide-in-up">
-      <div
-        className={cn(
-          "relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#cd4631] focus-within:border-[#cd4631]"
-        )}
-      >
-        {/* Tabs */}
-        <div className="flex p-3 gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "rounded-full text-sm px-4 transition-all",
-              inputType === 'text'
-                ? "bg-[#dea47e]/20 text-[#9e6240] hover:bg-[#dea47e]/30 dark:bg-[#dea47e]/10 dark:text-[#dea47e]"
-                : ""
-            )}
-            onClick={() => selectInputType('text')}
-          >
-            <Type className="w-3.5 h-3.5 mr-1.5" />
-            Text
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "rounded-full text-sm px-4 transition-all",
-              inputType === 'image'
-                ? "bg-[#f8f2dc]/60 text-[#9e6240] hover:bg-[#f8f2dc]/80 dark:bg-[#f8f2dc]/20 dark:text-[#dea47e]"
-                : ""
-            )}
-            onClick={() => selectInputType('image')}
-          >
-            <FileUp className="w-3.5 h-3.5 mr-1.5" />
-            Image
-          </Button>
-        </div>
+      {/* Tool Selection Tabs */}
+      <div className="flex justify-center mb-4">
+        <div className="inline-flex space-x-1 bg-white/10 backdrop-blur-sm p-1 rounded-lg">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant={activeTool === 'lexigrab' ? 'default' : 'outline'}
+                  size="sm"
+                  className={cn(
+                    "relative px-6 min-w-[140px] transition-all",
+                    activeTool === 'lexigrab' 
+                      ? "bg-gradient-to-r from-[#cd4631] to-[#dea47e] text-white shadow-md" 
+                      : "hover:bg-white/10"
+                  )}
+                  onClick={() => setActiveTool('lexigrab')}
+                >
+                  <div className="flex items-center space-x-2">
+                    <GripHorizontal className="w-4 h-4" />
+                    <span className="font-medium">LexiGrab</span>
+                  </div>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[300px] p-4">
+                <p>Instantly capture and save new vocabulary from any source. Whether it's a text, website, or document, LexiGrab helps you collect, organize, and expand your word bank effortlessly. 🚀</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        {/* Content */}
-        <div className="px-4 pb-4">
-          {inputType !== 'image' && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant={activeTool === 'lexigen' ? 'default' : 'outline'}
+                  size="sm"
+                  className={cn(
+                    "relative px-6 min-w-[140px] transition-all",
+                    activeTool === 'lexigen'
+                      ? "bg-gradient-to-r from-[#cd4631] to-[#dea47e] text-white shadow-md"
+                      : "hover:bg-white/10"
+                  )}
+                  onClick={() => setActiveTool('lexigen')}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="w-4 h-4" />
+                    <span className="font-medium">LexiGen</span>
+                  </div>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[300px] p-4">
+                <p>Generate fresh vocabulary from any topic ✨</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
+
+      <div className="relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#cd4631] focus-within:border-[#cd4631]">
+        <div 
+          className={cn(
+            "p-4 relative",
+            dragActive ? "bg-gray-50 dark:bg-gray-700/50" : ""
+          )}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+        >
+          {activeTool === 'lexigrab' ? (
+            <>
+              <div className="flex flex-col gap-4">
+                {imagePreview ? (
+                  <div className="relative">
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      className="max-h-[300px] w-full object-contain rounded-lg" 
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                      onClick={clearImage}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Textarea
+                    ref={textareaRef}
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Paste text, drop an image, or enter a URL to extract vocabulary..."
+                    className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200"
+                    style={{ 
+                      fontSize: `${fontSize}px`, 
+                      lineHeight: '1.5',
+                      outlineWidth: '0px',
+                      outline: 'none',
+                      boxShadow: 'none'
+                    }}
+                  />
+                )}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+                {dragActive && (
+                  <div className="absolute inset-0 bg-gray-100/80 dark:bg-gray-700/80 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                    <div className="text-center">
+                      <FileUp className="mx-auto h-12 w-12 text-gray-400" />
+                      <p className="mt-2 text-sm text-gray-500">Drop your image here</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
             <Textarea
               ref={textareaRef}
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Paste text, URLs, or type vocabulary you want to learn..."
+              placeholder="Enter a topic or theme to generate relevant vocabulary..."
               className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200"
               style={{ 
                 fontSize: `${fontSize}px`, 
@@ -162,55 +275,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
               }}
             />
           )}
-
-          {inputType === 'image' && (
-            <div
-              className="min-h-[150px] flex flex-col items-center justify-center p-5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-dashed border-gray-200 dark:border-gray-700 transition-all hover:border-[#cd4631] dark:hover:border-[#dea47e] cursor-pointer mt-3"
-              onClick={triggerFileInput}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/*"
-                className="hidden"
-              />
-              {!fileName ? (
-                <>
-                  <FileUp className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" />
-                  <p className="text-gray-500 dark:text-gray-400 text-center text-sm">
-                    Click to upload or drag and drop<br />
-                    <span className="text-xs text-gray-400 dark:text-gray-500">Supports PNG, JPG, GIF files</span>
-                  </p>
-                </>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <div className="flex items-center mb-2">
-                    <span className="text-md font-medium text-[#9e6240] dark:text-[#dea47e]">{fileName}</span>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="ml-2 h-6 w-6"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearImage();
-                      }}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Click to replace</p>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Analyze button */}
-        <div className="flex justify-center pb-5">
+        <div className="flex justify-center p-4">
           <Button
             onClick={handleAnalyze}
-            disabled={isAnalyzing || (!inputValue && !fileName)}
+            disabled={isAnalyzing || !inputValue}
             className="bg-gradient-to-r from-[#cd4631] to-[#dea47e] hover:from-[#cd4631]/90 hover:to-[#dea47e]/90 text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
           >
             {isAnalyzing ? (
@@ -218,7 +289,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             ) : (
               <Search className="mr-2 h-4 w-4" />
             )}
-            Analyze Vocabulary
+            {activeTool === 'lexigrab' ? 'Extract Vocabulary' : 'Generate Vocabulary'}
           </Button>
         </div>
       </div>
