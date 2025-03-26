@@ -183,7 +183,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                 >
                   <div className="flex items-center space-x-2">
                     <GripHorizontal className="w-4 h-4" />
-                    <span className="font-medium">LexiGrab</span>
+                    <span className="font-medium">Lexi<span className="font-['Pacifico'] text-lg">grab</span></span>
                   </div>
                 </Button>
               </TooltipTrigger>
@@ -210,7 +210,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                 >
                   <div className="flex items-center space-x-2">
                     <Sparkles className="w-4 h-4" />
-                    <span className="font-medium">LexiGen</span>
+                    <span className="font-medium">Lexi<span className="font-['Pacifico'] text-lg">gen</span></span>
                   </div>
                 </Button>
               </TooltipTrigger>
@@ -358,7 +358,11 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             ) : (
               <Search className="mr-2 h-4 w-4" />
             )}
-            {activeTool === 'lexigrab' ? "Let's Grab" : "Let's Generate"}
+            {activeTool === 'lexigrab' ? (
+              <span>Let's <span className="font-['Pacifico'] text-lg">grab</span>!</span>
+            ) : (
+              <span>Let's <span className="font-['Pacifico'] text-lg">gen</span>!</span>
+            )}
           </Button>
         </div>
       </div>
