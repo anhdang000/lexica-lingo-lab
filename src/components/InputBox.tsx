@@ -1,4 +1,4 @@
-import React, { useState, useRef, KeyboardEvent, useEffect } from 'react';
+import React, { useState, useRef, KeyboardEvent, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,6 +29,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const [inputValue, setInputValue] = useState('');
   const [activeTool, setActiveTool] = useState<'lexigrab' | 'lexigen'>('lexigrab');
   const [fontSize, setFontSize] = useState(24);
+  const [recognizedUrls, setRecognizedUrls] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -61,8 +62,15 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     adjustTextareaHeight();
   }, [inputValue]);
 
+  const extractUrls = (text: string): string[] => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.match(urlRegex) || [];
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    setRecognizedUrls(extractUrls(newValue));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,6 +157,10 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     });
   };
 
+  const removeUrl = (urlToRemove: string) => {
+    setRecognizedUrls(prev => prev.filter(url => url !== urlToRemove));
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto animate-slide-in-up">
       {/* Tool Selection Tabs */}
@@ -221,6 +233,28 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
           onDragOver={handleDrag}
           onDrop={handleDrop}
         >
+          {recognizedUrls.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3 p-2 border-b border-gray-100 dark:border-gray-700">
+              {recognizedUrls.map((url, index) => (
+                <div
+                  key={index}
+                  className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700/50 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group"
+                >
+                  <LinkIcon className="w-3 h-3 mr-2" />
+                  <span className="truncate max-w-[200px]">{url}</span>
+                  <button
+                    onClick={() => removeUrl(url)}
+                    className="ml-2 p-0.5 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    aria-label="Remove this source"
+                    title="Remove this source"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {activeTool === 'lexigrab' ? (
             <>
               <div className="flex flex-col gap-4">
