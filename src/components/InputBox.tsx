@@ -152,9 +152,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   return (
     <div className="w-full max-w-4xl mx-auto animate-slide-in-up">
       {/* Tool Selection Tabs */}
-      <div className="flex justify-center mb-4">
+      <div className="flex justify-center mb-4 relative z-[2]">
         <div className="inline-flex space-x-1 bg-white/10 backdrop-blur-sm p-1 rounded-lg">
-          <TooltipProvider>
+          <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -176,12 +176,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[300px] p-4">
-                <p>Instantly capture and save new vocabulary from any source. Whether it's a text, website, or document, LexiGrab helps you collect, organize, and expand your word bank effortlessly. 🚀</p>
+                <p>Instantly capture and save new vocabulary from any source 🚀</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
-          <TooltipProvider>
+          <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -210,7 +210,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         </div>
       </div>
 
-      <div className="relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#cd4631] focus-within:border-[#cd4631]">
+      <div className="relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#cd4631] focus-within:border-[#cd4631] z-[1]">
         <div 
           className={cn(
             "p-4 relative",
