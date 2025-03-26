@@ -358,7 +358,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             ) : (
               <Search className="mr-2 h-4 w-4" />
             )}
-            {activeTool === 'lexigrab' ? 'Extract Vocabulary' : 'Generate Vocabulary'}
+            {activeTool === 'lexigrab' ? "Let's Grab" : "Let's Generate"}
           </Button>
         </div>
       </div>
