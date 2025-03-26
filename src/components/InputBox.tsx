@@ -32,7 +32,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<Array<{ id: string; preview: string }>>([]);
 
   const calculateFontSize = (text: string) => {
     const lines = text.split('\n').length;
@@ -66,8 +66,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFileSelection(e.target.files[0]);
+    if (e.target.files) {
+      Array.from(e.target.files).forEach(file => {
+        if (file.type.startsWith('image/')) {
+          handleFileSelection(file);
+        }
+      });
     }
   };
 
@@ -77,15 +81,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     }
   };
 
-  const clearImage = () => {
-    setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
   const handleAnalyze = async () => {
-    if (!inputValue && !imagePreview) return;
+    if (!inputValue && images.length === 0) return;
 
     if (inputValue) {
       await onAnalyze(inputValue.trim(), activeTool);
@@ -117,20 +114,39 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type.startsWith('image/')) {
-        handleFileSelection(file);
-      }
+    if (e.dataTransfer.files) {
+      Array.from(e.dataTransfer.files).forEach(file => {
+        if (file.type.startsWith('image/')) {
+          handleFileSelection(file);
+        }
+      });
     }
   };
 
   const handleFileSelection = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      setImagePreview(e.target?.result as string);
+      const newImage = {
+        id: Math.random().toString(36).substring(7),
+        preview: e.target?.result as string
+      };
+      setImages(prev => [...prev, newImage]);
     };
     reader.readAsDataURL(file);
+  };
+
+  const removeImage = (idToRemove: string) => {
+    setImages(prev => prev.filter(img => img.id !== idToRemove));
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items);
+    items.forEach(item => {
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) handleFileSelection(file);
+      }
+    });
   };
 
   return (
@@ -208,51 +224,58 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
           {activeTool === 'lexigrab' ? (
             <>
               <div className="flex flex-col gap-4">
-                {imagePreview ? (
-                  <div className="relative">
-                    <img 
-                      src={imagePreview} 
-                      alt="Preview" 
-                      className="max-h-[300px] w-full object-contain rounded-lg" 
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full"
-                      onClick={clearImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Textarea
-                    ref={textareaRef}
-                    value={inputValue}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Paste text, drop an image, or enter a URL to extract vocabulary..."
-                    className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200"
-                    style={{ 
-                      fontSize: `${fontSize}px`, 
-                      lineHeight: '1.5',
-                      outlineWidth: '0px',
-                      outline: 'none',
-                      boxShadow: 'none'
-                    }}
-                  />
-                )}
+                <Textarea
+                  ref={textareaRef}
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                  placeholder="Paste text, drop an image, or enter a URL to extract vocabulary..."
+                  className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200"
+                  style={{ 
+                    fontSize: `${fontSize}px`, 
+                    lineHeight: '1.5',
+                    outlineWidth: '0px',
+                    outline: 'none',
+                    boxShadow: 'none'
+                  }}
+                />
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   accept="image/*"
+                  multiple
                   className="hidden"
                 />
+                {images.length > 0 && (
+                  <div className="relative mt-2 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <div className="flex flex-wrap gap-4">
+                      {images.map((img) => (
+                        <div key={img.id} className="relative w-24 h-24 overflow-hidden rounded-lg">
+                          <img 
+                            src={img.preview} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-1 right-1 bg-black/30 hover:bg-black/50 text-white rounded-full w-6 h-6 p-1"
+                            onClick={() => removeImage(img.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {dragActive && (
                   <div className="absolute inset-0 bg-gray-100/80 dark:bg-gray-700/80 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
                     <div className="text-center">
                       <FileUp className="mx-auto h-12 w-12 text-gray-400" />
-                      <p className="mt-2 text-sm text-gray-500">Drop your image here</p>
+                      <p className="mt-2 text-sm text-gray-500">Drop your images here</p>
                     </div>
                   </div>
                 )}
@@ -277,11 +300,23 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
           )}
         </div>
 
-        {/* Analyze button */}
-        <div className="flex justify-center p-4">
+        {/* Bottom action bar */}
+        <div className="flex justify-between items-center p-4">
+          {/* Left side - Attach button */}
+          <Button
+            onClick={triggerFileInput}
+            variant="ghost"
+            size="sm"
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          >
+            <FileUp className="h-4 w-4 mr-2" />
+            <span>Attach</span>
+          </Button>
+
+          {/* Right side - Analyze button */}
           <Button
             onClick={handleAnalyze}
-            disabled={isAnalyzing || !inputValue}
+            disabled={isAnalyzing || (!inputValue && images.length === 0)}
             className="bg-gradient-to-r from-[#cd4631] to-[#dea47e] hover:from-[#cd4631]/90 hover:to-[#dea47e]/90 text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
           >
             {isAnalyzing ? (
