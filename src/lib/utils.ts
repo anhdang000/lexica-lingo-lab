@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, SchemaType } from "@google/generative-ai"
+import { GoogleAIFileManager } from "@google/generative-ai/server"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -178,7 +179,12 @@ export async function analyzeVocabulary(input: string): Promise<WordDefinition[]
   return analyzeText(input);
 }
 
-export async function analyzeText(text: string): Promise<WordDefinition[]> {
+export interface FileInput {
+  path: string;
+  mimeType?: string;
+}
+
+export async function analyzeText(text: string, files: FileInput[] = []): Promise<WordDefinition[]> {
   // Get a random API key from the comma-separated list
   const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
   const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
@@ -189,30 +195,60 @@ export async function analyzeText(text: string): Promise<WordDefinition[]> {
 
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-1.5-pro';
+  const fileManager = new GoogleAIFileManager(apiKey);
+  
+  // Function to upload files to Gemini
+  async function uploadToGemini(fileInput: FileInput) {
+    try {
+      const mimeType = fileInput.mimeType || 
+        fileInput.path.endsWith('.png') ? 'image/png' :
+        fileInput.path.endsWith('.jpg') || fileInput.path.endsWith('.jpeg') ? 'image/jpeg' :
+        fileInput.path.endsWith('.pdf') ? 'application/pdf' :
+        fileInput.path.endsWith('.txt') ? 'text/plain' :
+        fileInput.path.endsWith('.html') ? 'text/html' :
+        'application/octet-stream';
+      
+      const uploadResult = await fileManager.uploadFile(fileInput.path, {
+        mimeType,
+        displayName: fileInput.path,
+      });
+      
+      console.log(`Uploaded file ${uploadResult.file.displayName} as: ${uploadResult.file.name}`);
+      return uploadResult.file;
+    } catch (error) {
+      console.error(`Error uploading file ${fileInput.path}:`, error);
+      throw error;
+    }
+  }
+  
+  // Function to wait for files to be active
+  async function waitForFilesActive(uploadedFiles) {
+    console.log("Waiting for file processing...");
+    for (const name of uploadedFiles.map((file) => file.name)) {
+      let file = await fileManager.getFile(name);
+      while (file.state === "PROCESSING") {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        file = await fileManager.getFile(name);
+      }
+      if (file.state !== "ACTIVE") {
+        throw Error(`File ${file.name} failed to process`);
+      }
+    }
+    console.log("...all files ready");
+    return uploadedFiles;
+  }
 
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    generationConfig: {
-      temperature: 0.7,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.ARRAY,
-        description: "List of vocabulary words",
-        items: {
-          type: SchemaType.STRING,
-          description: "A vocabulary word that would be valuable for a language learner",
-        },
-      },
-    },
-    safetySettings: [
-      {
-        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-      },
-    ],
-  });
-
-  const prompt = `You are an expert language teacher. Your task is to identify up to 10 words from the provided text that would be valuable for a language learner to study.
+  try {
+    // Only upload and process files if files array is not empty
+    const uploadedFiles = files.length > 0 ? await Promise.all(files.map(uploadToGemini)) : [];
+    
+    // Wait for files to be processed if there are any
+    if (uploadedFiles.length > 0) {
+      await waitForFilesActive(uploadedFiles);
+    }
+    
+    // Base prompt text
+    const promptText = `You are an expert language teacher. Your task is to identify up to 10 words from the provided ${files.length > 0 ? 'text and/or files' : 'text'} that would be valuable for a language learner to study.
 
 Select words that are:
 1. Advanced and relatively uncommon
@@ -221,11 +257,75 @@ Select words that are:
 
 Return only an array of words, without any additional explanation.
 
-Text to analyze:
-${text}`;
+${text ? `Text to analyze:\n${text}` : ''}`;
 
-  try {
-    const result = await model.generateContent(prompt);
+    const generationConfig = {
+      temperature: 0.7,
+      topP: 0.95,
+      topK: 40,
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json",
+    };
+    
+    // Schema for structural generation
+    const responseSchema = {
+      type: SchemaType.ARRAY,
+      description: "List of vocabulary words",
+      items: {
+        type: SchemaType.STRING,
+        description: "A vocabulary word that would be valuable for a language learner",
+      },
+    };
+    
+    // If we have files, use a chat session
+    let result;
+    if (uploadedFiles.length > 0) {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+      });
+      
+      // Prepare the initial parts array with file data
+      const initialParts = uploadedFiles.map(file => ({
+        fileData: {
+          mimeType: file.mimeType,
+          fileUri: file.uri,
+        }
+      }));
+      
+      const chatSession = model.startChat({
+        generationConfig,
+        history: [
+          {
+            role: "user",
+            parts: initialParts,
+          }
+        ],
+        safetySettings: [
+          {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+          },
+        ],
+      });
+      
+      // Send the prompt text as a separate message
+      result = await chatSession.sendMessage(promptText);
+    } else {
+      // For text-only, use standard prompt with schema in model config
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig,
+        safetySettings: [
+          {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+          },
+        ],
+      });
+      
+      result = await model.generateContent(promptText);
+    }
+
     const words: string[] = JSON.parse(result.response.text());
     
     // Look up each word and filter out any null results
@@ -235,7 +335,7 @@ ${text}`;
     
     return definitions.filter((def): def is WordDefinition => def !== null);
   } catch (error) {
-    console.error('Error analyzing text:', error);
+    console.error('Error analyzing text/files:', error);
     throw error;
   }
 }
