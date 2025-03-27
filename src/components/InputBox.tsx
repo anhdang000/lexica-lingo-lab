@@ -49,6 +49,27 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     uploadError?: string;
   }>>([]);
 
+  // Tool-specific themes
+  const themes = {
+    lexigrab: {
+      gradient: "from-[#cd4631] to-[#dea47e]",
+      hoverGradient: "from-[#cd4631]/90 to-[#dea47e]/90",
+      ring: "ring-[#cd4631] border-[#cd4631]",
+      iconColor: "text-[#cd4631]",
+      borderColor: "border-[#cd4631]"
+    },
+    lexigen: {
+      gradient: "from-[#6366f1] to-[#a855f7]",
+      hoverGradient: "from-[#6366f1]/90 to-[#a855f7]/90",
+      ring: "ring-[#6366f1] border-[#6366f1]",
+      iconColor: "text-[#6366f1]",
+      borderColor: "border-[#6366f1]"
+    }
+  };
+
+  // Get current theme based on active tool
+  const currentTheme = themes[activeTool];
+
   // Acceptable file types
   const acceptableDocTypes = [
     'application/pdf',
@@ -103,6 +124,20 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     setFontSize(newFontSize);
     adjustTextareaHeight();
   }, [inputValue]);
+
+  useEffect(() => {
+    // Reset input box focus ring when tool changes
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Force blur and focus to update ring color if it's currently focused
+      if (document.activeElement === textarea) {
+        textarea.blur();
+        setTimeout(() => {
+          textarea.focus();
+        }, 10);
+      }
+    }
+  }, [activeTool]);
 
   const extractUrls = (text: string): string[] => {
     const urlRegex = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi;
@@ -394,7 +429,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                   className={cn(
                     "relative px-6 min-w-[140px] transition-all",
                     activeTool === 'lexigrab' 
-                      ? "bg-gradient-to-r from-[#cd4631] to-[#dea47e] text-white shadow-md" 
+                      ? `bg-gradient-to-r ${themes.lexigrab.gradient} text-white shadow-md` 
                       : "hover:bg-white/10"
                   )}
                   onClick={() => setActiveTool('lexigrab')}
@@ -421,7 +456,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                   className={cn(
                     "relative px-6 min-w-[140px] transition-all",
                     activeTool === 'lexigen'
-                      ? "bg-gradient-to-r from-[#cd4631] to-[#dea47e] text-white shadow-md"
+                      ? `bg-gradient-to-r ${themes.lexigen.gradient} text-white shadow-md`
                       : "hover:bg-white/10"
                   )}
                   onClick={() => setActiveTool('lexigen')}
@@ -440,7 +475,15 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         </div>
       </div>
 
-      <div className="relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all focus-within:ring-1 focus-within:ring-[#cd4631] focus-within:border-[#cd4631] z-[1]">
+      <div className={cn(
+        "relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-300 z-[1]",
+        `focus-within:ring-1 focus-within:ring-opacity-100 focus-within:${currentTheme.ring}`
+      )}>
+        {/* Mode indicator - top bar (subtle) */}
+        <div className={cn(
+          "absolute top-0 left-0 right-0 h-[3px] opacity-75 z-10",
+          `bg-gradient-to-r ${currentTheme.gradient}`
+        )} />
         <div 
           className={cn(
             "p-4 relative",
@@ -490,7 +533,10 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                   onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
                   placeholder="Paste text, drop files (images, PDF, docx), or enter a URL to extract vocabulary..."
-                  className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200"
+                  className={cn(
+                    "min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200",
+                    `placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:${currentTheme.iconColor}`
+                  )}
                   style={{ 
                     fontSize: `${fontSize}px`, 
                     lineHeight: '1.5',
@@ -581,7 +627,10 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Enter a topic or theme to generate relevant vocabulary..."
-              className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200"
+              className={cn(
+                "min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200",
+                `placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:${currentTheme.iconColor}`
+              )}
               style={{ 
                 fontSize: `${fontSize}px`, 
                 lineHeight: '1.5',
@@ -600,7 +649,10 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             onClick={triggerFileInput}
             variant="ghost"
             size="sm"
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            className={cn(
+              "hover:text-gray-700 dark:hover:text-gray-300",
+              activeTool === 'lexigrab' ? 'text-gray-500 dark:text-gray-400' : currentTheme.iconColor
+            )}
             disabled={isAnalyzing || isUrlFetching}
           >
             <FileUp className="h-4 w-4 mr-2" />
@@ -616,12 +668,17 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
               (!inputValue && files.length === 0 && recognizedUrls.length === 0) ||
               files.some(file => file.isUploading)
             }
-            className="bg-gradient-to-r from-[#cd4631] to-[#dea47e] hover:from-[#cd4631]/90 hover:to-[#dea47e]/90 text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
+            className={cn(
+              `bg-gradient-to-r ${currentTheme.gradient} hover:${currentTheme.hoverGradient}`,
+              "text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
+            )}
           >
             {isAnalyzing || isUrlFetching ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : activeTool === 'lexigrab' ? (
+              <GripHorizontal className="mr-2 h-4 w-4" />
             ) : (
-              <Search className="mr-2 h-4 w-4" />
+              <Sparkles className="mr-2 h-4 w-4" />
             )}
             {activeTool === 'lexigrab' ? (
               <span>Let's <span className="font-['Pacifico'] text-lg">grab</span>!</span>
