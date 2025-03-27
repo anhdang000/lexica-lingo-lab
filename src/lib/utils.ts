@@ -199,20 +199,20 @@ export async function analyzeText(text: string, files: FileInput[] = []): Promis
   
   // Create prompt text for vocabulary extraction
   const promptText = `
-You are a language learning assistant tasked with identifying useful vocabulary words from the provided content.
+You are an advanced vocabulary instructor tasked with identifying the most valuable and sophisticated words from the provided content.
 
-Please analyze the following text and extract a list of vocabulary words that would be valuable for an English language learner:
+Analyze the following text and extract ONLY the most significant vocabulary words that would substantially enhance an English language learner's lexicon:
 
 ${text}
 
-Return ONLY an array of individual words that are most valuable for vocabulary building. 
-Focus on words that are:
-- Common but not extremely basic
-- Important for understanding the context
-- Potentially challenging for language learners
+Return a carefully curated array of words that meet these specific criteria:
+1. Advanced and relatively uncommon
+2. Useful in various contexts
+3. Worth adding to one's vocabulary
 
-Return the words as strings in a JSON array format.
-  `;
+Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
+Return the words as strings in a JSON array format, using only the base dictionary form of each word.
+`;
 
   try {
     // Define the generation config for structured output
