@@ -17,9 +17,10 @@ import {
   X,
   Type,
   Sparkles,
-  GripHorizontal
+  GripHorizontal,
+  RefreshCw
 } from 'lucide-react';
-import { FileInput } from '@/lib/utils';
+import { FileInput, fetchUrlContent } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface InputBoxProps {
@@ -32,6 +33,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const [activeTool, setActiveTool] = useState<'lexigrab' | 'lexigen'>('lexigrab');
   const [fontSize, setFontSize] = useState(24);
   const [recognizedUrls, setRecognizedUrls] = useState<string[]>([]);
+  const [isUrlFetching, setIsUrlFetching] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -70,8 +72,22 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   }, [inputValue]);
 
   const extractUrls = (text: string): string[] => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    return text.match(urlRegex) || [];
+    // More comprehensive URL regex that handles various URL formats
+    const urlRegex = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi;
+    
+    // Extract all URLs
+    const matches = text.match(urlRegex) || [];
+    
+    // Normalize URLs (ensure they start with http/https)
+    return matches.map(url => {
+      if (url.startsWith('www.')) {
+        return 'https://' + url;
+      }
+      return url;
+    }).filter((url, index, self) => {
+      // Remove duplicates
+      return self.indexOf(url) === index;
+    });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -113,30 +129,122 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   };
 
   const handleAnalyze = async () => {
-    if (!inputValue && images.length === 0) return;
-    
-    // Set all images to uploading state
-    setImages(prev => prev.map(img => ({
-      ...img,
-      isUploading: true,
-      uploadError: undefined
-    })));
+    if (!inputValue && images.length === 0 && recognizedUrls.length === 0) return;
     
     try {
+      // First set loading state for images and start URL processing
+      setImages(prev => prev.map(img => ({
+        ...img,
+        isUploading: true,
+        uploadError: undefined
+      })));
+      
       // Create FileInput objects from the files
       const fileInputs: FileInput[] = images.map(img => ({
         file: img.file,
         mimeType: img.file.type
       }));
       
-      // Mark upload as successful
+      // Fetch content from recognized URLs
+      let aggregatedText = inputValue.trim();
+      let urlContentSuccess = false;
+      
+      if (recognizedUrls.length > 0) {
+        // Show loading state for URL processing
+        setIsUrlFetching(true);
+        toast.loading(`Fetching content from ${recognizedUrls.length} URLs...`, { id: 'url-fetching' });
+        
+        // Fetch content from each URL and aggregate
+        try {
+          const urlContents = await Promise.allSettled(
+            recognizedUrls.map(url => 
+              fetchUrlContent(url, { render: 'html' })
+                .then(content => ({ url, content, success: true }))
+                .catch(error => {
+                  console.error(`Error fetching content from ${url}:`, error);
+                  return { url, content: '', success: false };
+                })
+            )
+          );
+          
+          // Process results
+          const successfulFetches = urlContents.filter(
+            result => result.status === 'fulfilled' && result.value.success
+          ) as PromiseFulfilledResult<{ url: string; content: string; success: boolean }>[];
+          
+          // Check if we're using metadata or direct content
+          const usingMetadataOnly = successfulFetches.every(result => 
+            result.value.content.includes('Direct content extraction failed due to CORS restrictions')
+          );
+          
+          // Build the aggregated text
+          if (successfulFetches.length > 0) {
+            urlContentSuccess = true;
+            const contentTexts = successfulFetches.map(result => {
+              // Limit content size to prevent overwhelming the API
+              let content = result.value.content;
+              const maxContentLength = 5000; // Reasonable limit to prevent overwhelming the API
+              if (content.length > maxContentLength) {
+                content = content.slice(0, maxContentLength) + 
+                  `... [Content truncated, original length: ${content.length} characters]`;
+              }
+              return `\n\nContent from ${result.value.url}:\n${content}`;
+            });
+            aggregatedText += '\n\n' + contentTexts.join('\n\n');
+          }
+          
+          // Show appropriate feedback
+          toast.dismiss('url-fetching');
+          if (successfulFetches.length > 0) {
+            const containsDirectContent = successfulFetches.some(result => 
+              !result.value.content.includes('Direct content extraction failed due to CORS restrictions')
+            );
+            
+            if (containsDirectContent) {
+              toast.success(`Fetched content from ${successfulFetches.length} of ${recognizedUrls.length} URLs`);
+            } else {
+              toast.success(`Processed ${successfulFetches.length} URLs (metadata only)`);
+            }
+          } else if (recognizedUrls.length > 0) {
+            toast.error('Could not extract content from any URLs');
+          }
+          
+          // Update URL display to indicate metadata-only mode
+          if (usingMetadataOnly && successfulFetches.length > 0) {
+            toast.info('Using URL metadata only due to browser security restrictions', { duration: 5000 });
+          }
+          
+          // List failed URLs
+          const failedUrls = urlContents
+            .filter(result => result.status !== 'fulfilled' || !result.value.success)
+            .map(result => result.status === 'fulfilled' ? result.value.url : 'unknown');
+          
+          if (failedUrls.length > 0 && failedUrls.length < recognizedUrls.length) {
+            toast.error(`Failed to fetch: ${failedUrls.join(', ')}`, { duration: 5000 });
+          }
+        } catch (error) {
+          console.error('Error processing URLs:', error);
+          toast.dismiss('url-fetching');
+          toast.error('Failed to process URLs');
+        } finally {
+          setIsUrlFetching(false);
+        }
+      }
+      
+      // Mark image uploads as successful
       setImages(prev => prev.map(img => ({
         ...img,
         isUploading: false
       })));
       
-      // Call the analyze function with text and files
-      await onAnalyze(inputValue.trim(), fileInputs, activeTool);
+      // If no input text, no successful URL fetches, and no images, stop here
+      if (!aggregatedText && !urlContentSuccess && images.length === 0) {
+        toast.error('No content to analyze');
+        return;
+      }
+      
+      // Call the analyze function with aggregated text and files
+      await onAnalyze(aggregatedText, fileInputs, activeTool);
     } catch (error) {
       console.error('Error during analysis:', error);
       
@@ -147,7 +255,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         uploadError: 'Failed to process'
       })));
       
-      toast.error('Failed to process files for analysis');
+      setIsUrlFetching(false);
+      toast.error('Failed to process content for analysis');
     }
   };
 
@@ -278,6 +387,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         >
           {recognizedUrls.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3 p-2 border-b border-gray-100 dark:border-gray-700">
+              {isUrlFetching && (
+                <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-sm text-blue-700 dark:text-blue-300">
+                  <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
+                  <span>Fetching URLs...</span>
+                </div>
+              )}
               {recognizedUrls.map((url, index) => (
                 <div
                   key={index}
@@ -290,6 +405,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                     className="ml-2 p-0.5 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                     aria-label="Remove this source"
                     title="Remove this source"
+                    disabled={isUrlFetching || isAnalyzing}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -408,7 +524,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             variant="ghost"
             size="sm"
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-            disabled={isAnalyzing}
+            disabled={isAnalyzing || isUrlFetching}
           >
             <FileUp className="h-4 w-4 mr-2" />
             <span>Attach</span>
@@ -419,12 +535,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             onClick={handleAnalyze}
             disabled={
               isAnalyzing || 
-              (!inputValue && images.length === 0) ||
+              isUrlFetching ||
+              (!inputValue && images.length === 0 && recognizedUrls.length === 0) ||
               images.some(img => img.isUploading)
             }
             className="bg-gradient-to-r from-[#cd4631] to-[#dea47e] hover:from-[#cd4631]/90 hover:to-[#dea47e]/90 text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
           >
-            {isAnalyzing ? (
+            {isAnalyzing || isUrlFetching ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Search className="mr-2 h-4 w-4" />
