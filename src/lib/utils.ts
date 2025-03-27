@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, SchemaType } from "@google/generative-ai"
 import { GoogleAIFileManager } from "@google/generative-ai/server"
+import https from "https"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -338,4 +339,71 @@ ${text ? `Text to analyze:\n${text}` : ''}`;
     console.error('Error analyzing text/files:', error);
     throw error;
   }
+}
+
+/**
+ * Fetches content from a specified URL using the Oxylabs API
+ * 
+ * @param url - The URL to fetch content from
+ * @param options - Optional configuration for the request
+ * @returns Promise resolving to the content from the URL
+ */
+export async function fetchUrlContent(url: string, options?: { render?: 'html' }): Promise<string> {
+  const username = import.meta.env.VITE_OXYLABS_USERNAME;
+  const password = import.meta.env.VITE_OXYLABS_PASSWORD;
+
+  if (!username || !password) {
+    throw new Error('Oxylabs credentials not found in environment variables');
+  }
+
+  const body = {
+    "source": "universal",
+    "url": url,
+    ...(options?.render && { "render": options.render })
+  };
+
+  const requestOptions = {
+    "hostname": "realtime.oxylabs.io",
+    "path": "/v1/queries",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Basic " + Buffer.from(`${username}:${password}`).toString("base64")
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const request = https.request(requestOptions, (response) => {
+      let data = "";
+      
+      response.on("data", (chunk) => {
+        data += chunk;
+      });
+      
+      response.on("end", () => {
+        try {
+          const responseData = JSON.parse(data);
+          
+          // Check if the results array exists and has at least one entry with content
+          if (responseData.results && 
+              Array.isArray(responseData.results) && 
+              responseData.results.length > 0 && 
+              responseData.results[0].content) {
+            resolve(responseData.results[0].content);
+          } else {
+            reject(new Error('No content found in the response'));
+          }
+        } catch (error) {
+          reject(new Error(`Failed to parse response: ${error.message}`));
+        }
+      });
+    });
+
+    request.on("error", (error) => {
+      reject(new Error(`Request failed: ${error.message}`));
+    });
+
+    request.write(JSON.stringify(body));
+    request.end();
+  });
 }
