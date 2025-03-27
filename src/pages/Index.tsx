@@ -13,15 +13,17 @@ import { useAppState } from '@/contexts/AppStateContext';
 const Index = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const {
-    vocabularyResults,
-    topicResults,
-    showResults,
-    currentWord,
+    currentTool,
     setVocabularyResults,
     setTopicResults,
     setShowResults,
-    setCurrentWord
+    setCurrentWord,
+    getCurrentResults,
+    currentWord
   } = useAppState();
+
+  // Get current tab's results
+  const { vocabularyResults, topicResults, showResults } = getCurrentResults();
 
   // Sample progress data
   const progressData = {
@@ -51,28 +53,32 @@ const Index = () => {
       if (tool === 'lexigrab') {
         // For lexigrab, use pre-analyzed results if provided
         if (analysisResults) {
-          setVocabularyResults(analysisResults.vocabulary);
-          setTopicResults(analysisResults.topics);
+          setVocabularyResults(analysisResults.vocabulary, tool);
+          setTopicResults(analysisResults.topics, tool);
         } else {
           // If no pre-analyzed results, analyze the text/files now
           const results = await analyzeVocabulary(text, files);
-          setVocabularyResults(results.vocabulary);
-          setTopicResults(results.topics);
+          setVocabularyResults(results.vocabulary, tool);
+          setTopicResults(results.topics, tool);
         }
       } else {
         // For lexigen, generate vocabulary based on the topic
         const results = await analyzeVocabulary(text);
-        setVocabularyResults(results.vocabulary);
-        setTopicResults(results.topics);
+        setVocabularyResults(results.vocabulary, tool);
+        setTopicResults(results.topics, tool);
       }
       
-      setShowResults(true);
+      setShowResults(true, tool);
     } catch (error) {
       console.error("Error analyzing vocabulary:", error);
       toast.error("Failed to analyze vocabulary. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleCloseResults = () => {
+    setShowResults(false, currentTool);
   };
 
   return (
@@ -91,12 +97,12 @@ const Index = () => {
         isAnalyzing={isAnalyzing}
       />
 
-      {/* Analysis Results */}
+      {/* Analysis Results - Only show for the current tool */}
       <VocabularyResults 
         results={vocabularyResults}
         topics={topicResults}
         isVisible={showResults}
-        onClose={() => setShowResults(false)}
+        onClose={handleCloseResults}
         isSingleWordOrPhrases={vocabularyResults.length > 0 && isSingleWordOrPhrases(vocabularyResults[0].word)}
       />
 

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { FileInput, fetchUrlContent, AnalysisResults, analyzeVocabulary } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useAppState } from '@/contexts/AppStateContext';
 
 interface InputBoxProps {
   onAnalyze: (text: string, files: FileInput[], tool: 'lexigrab' | 'lexigen', analysisResults?: AnalysisResults) => Promise<void>;
@@ -31,8 +32,9 @@ interface InputBoxProps {
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
+  const { currentTool, setCurrentTool } = useAppState();
   const [inputValue, setInputValue] = useState('');
-  const [activeTool, setActiveTool] = useState<'lexigrab' | 'lexigen'>('lexigrab');
+  const [activeTool, setActiveTool] = useState<'lexigrab' | 'lexigen'>(currentTool);
   const [fontSize, setFontSize] = useState(24);
   const [recognizedUrls, setRecognizedUrls] = useState<string[]>([]);
   const [isUrlFetching, setIsUrlFetching] = useState(false);
@@ -48,6 +50,38 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     isUploading: boolean;
     uploadError?: string;
   }>>([]);
+  const [resultsAnimating, setResultsAnimating] = useState(false);
+
+  // Add local loading state
+  const [localIsAnalyzing, setLocalIsAnalyzing] = useState(false);
+
+  // Combine both loading states
+  const isLoadingState = isAnalyzing || localIsAnalyzing || isUrlFetching;
+
+  // Sync tool state with AppState context
+  useEffect(() => {
+    setActiveTool(currentTool);
+  }, [currentTool]);
+
+  // Update the context when the active tool changes
+  const handleToolChange = (tool: 'lexigrab' | 'lexigen') => {
+    if (tool !== activeTool) {
+      // Clear input field when switching tabs
+      setInputValue('');
+      setFiles([]);
+      setRecognizedUrls([]);
+      setFontSize(24);
+      
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '150px';
+      }
+      
+      // Update tool state
+      setActiveTool(tool);
+      setCurrentTool(tool);
+    }
+  };
 
   // Tool-specific themes
   const themes = {
@@ -210,11 +244,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const handleAnalyze = async () => {
     if (!inputValue && files.length === 0 && recognizedUrls.length === 0) return;
     
-    // CRITICAL CHANGE: Add immediate visual feedback using DOM
-    const button = document.querySelector("[data-loading-button]");
-    if (button) {
-      button.classList.add("is-loading");
-    }
+    // Set local loading state immediately when the button is clicked
+    setLocalIsAnalyzing(true);
     
     try {
       // First set loading state for files
@@ -340,6 +371,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         } catch (error) {
           console.error("Error in InputBox lexigrab analysis:", error);
           toast.error("Failed to analyze vocabulary.");
+          throw error; // Re-throw to be caught by outer catch
         }
       } else {
         // For lexigen mode, just pass the text and let the parent component handle it
@@ -348,6 +380,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         } catch (error) {
           console.error("Error in InputBox lexigen analysis:", error);
           toast.error("Failed to generate vocabulary.");
+          throw error; // Re-throw to be caught by outer catch
         }
       }
     } catch (error) {
@@ -361,12 +394,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
       })));
       
       toast.error('Failed to process content for analysis');
-      
-      // Important: Remove loading state on error in the outer catch
-      const button = document.querySelector("[data-loading-button]");
-      if (button) {
-        button.classList.remove("is-loading");
-      }
+    } finally {
+      // Clear the local loading state
+      setLocalIsAnalyzing(false);
     }
   };
 
@@ -445,50 +475,156 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     }
   };
 
-  // Add an effect to update the button loading state when isAnalyzing changes
+  // Add effect to manage loading state based on isAnalyzing, localIsAnalyzing and isUrlFetching
   useEffect(() => {
     const button = document.querySelector("[data-loading-button]");
     if (button) {
-      if (isAnalyzing) {
+      if (isLoadingState) {
         button.classList.add("is-loading");
       } else {
         button.classList.remove("is-loading");
       }
     }
-  }, [isAnalyzing]);
+    
+    // Cleanup function to ensure loading state is removed when component unmounts
+    return () => {
+      const button = document.querySelector("[data-loading-button]");
+      if (button) {
+        button.classList.remove("is-loading");
+      }
+    };
+  }, [isLoadingState]);
 
-  // Add a CSS hack to ensure loading state is visible
+  // Update CSS for reliable loading indicator display
   useEffect(() => {
-    // Add a style element to the document
+    // Create and append style element
     const style = document.createElement('style');
     style.textContent = `
-      .is-loading .loading-indicator {
-        display: block !important;
+      /* Loading indicator styles - ensures proper display */
+      .loading-indicator {
+        display: none !important;
       }
+      
+      .normal-indicator {
+        display: inline-flex !important;
+      }
+      
+      .is-loading .loading-indicator {
+        display: inline-flex !important;
+      }
+      
       .is-loading .normal-indicator {
         display: none !important;
       }
+      
+      /* Animation styles for tab transitions */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+      
+      @keyframes fadeOutResults {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+
+      .tool-tab-active {
+        animation: fadeIn 0.3s ease-out forwards;
+      }
+
+      .tool-tab-inactive {
+        animation: fadeOut 0.3s ease-out forwards;
+        pointer-events: none;
+      }
+      
+      .results-fadeout {
+        animation: fadeOutResults 0.3s ease-out forwards;
+      }
     `;
     document.head.appendChild(style);
-    
+
     return () => {
       document.head.removeChild(style);
     };
   }, []);
 
-  // Modify the LoadingIndicator component to use the CSS hack
-  const LoadingIndicator = ({isAnalyzing, isUrlFetching, activeTool}) => {
+  // Update the LoadingIndicator component for better visibility handling
+  const LoadingIndicator = ({activeTool}) => {
     return (
       <>
-        <Loader2 className={`loading-indicator mr-2 h-4 w-4 animate-spin ${!(isAnalyzing || isUrlFetching) ? 'hidden' : ''}`} />
+        <Loader2 className="loading-indicator mr-2 h-4 w-4 animate-spin" />
         {activeTool === 'lexigrab' ? (
-          <GripHorizontal className={`normal-indicator mr-2 h-4 w-4 ${isAnalyzing || isUrlFetching ? 'hidden' : ''}`} />
+          <GripHorizontal className="normal-indicator mr-2 h-4 w-4" />
         ) : (
-          <Sparkles className={`normal-indicator mr-2 h-4 w-4 ${isAnalyzing || isUrlFetching ? 'hidden' : ''}`} />
+          <Sparkles className="normal-indicator mr-2 h-4 w-4" />
         )}
       </>
     );
   };
+
+  // Define placeholders for each tool
+  const placeholders = {
+    lexigrab: "Paste text, drop files (images, PDF, docx), or enter a URL to extract vocabulary...",
+    lexigen: "Enter a topic or theme to generate relevant vocabulary..."
+  };
+
+  // Modify the useEffect for tab switching to include animation
+  useEffect(() => {
+    if (currentTool !== activeTool) {
+      // If the results are currently visible, animate them out
+      if (inputValue.trim() !== '') {
+        // Set animating state to true to trigger fade out
+        setResultsAnimating(true);
+        
+        // Add a small delay to allow for animation to complete before clearing
+        setTimeout(() => {
+          setInputValue('');
+          setFiles([]);
+          setRecognizedUrls([]);
+          setFontSize(16);
+          if (textareaRef.current) {
+            textareaRef.current.style.height = '150px';
+          }
+          // Reset animation state
+          setResultsAnimating(false);
+        }, 300);
+      } else {
+        // If no results are showing, just clear immediately
+        setInputValue('');
+        setFiles([]);
+        setRecognizedUrls([]);
+        setFontSize(16);
+        if (textareaRef.current) {
+          textareaRef.current.style.height = '150px';
+        }
+      }
+      
+      setActiveTool(currentTool);
+    }
+  }, [currentTool]);
 
   return (
     <div className="w-full max-w-4xl mx-auto animate-slide-in-up">
@@ -508,7 +644,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                       ? `bg-gradient-to-r ${themes.lexigrab.gradient} text-white shadow-md` 
                       : "hover:bg-white/10"
                   )}
-                  onClick={() => setActiveTool('lexigrab')}
+                  onClick={() => handleToolChange('lexigrab')}
                 >
                   <div className="flex items-center space-x-2">
                     <GripHorizontal className="w-4 h-4" />
@@ -535,7 +671,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                       ? `bg-gradient-to-r ${themes.lexigen.gradient} text-white shadow-md`
                       : "hover:bg-white/10"
                   )}
-                  onClick={() => setActiveTool('lexigen')}
+                  onClick={() => handleToolChange('lexigen')}
                 >
                   <div className="flex items-center space-x-2">
                     <Sparkles className="w-4 h-4" />
@@ -553,7 +689,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
 
       <div className={cn(
         "relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-300 z-[1]",
-        `focus-within:ring-1 focus-within:ring-opacity-100 focus-within:${currentTheme.ring}`
+        `focus-within:ring-1 focus-within:ring-opacity-100 focus-within:${currentTheme.ring}`,
+        resultsAnimating ? "results-fadeout" : ""
       )}>
         {/* Mode indicator - top bar (subtle) */}
         <div className={cn(
@@ -608,10 +745,11 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
-                  placeholder="Paste text, drop files (images, PDF, docx), or enter a URL to extract vocabulary..."
+                  placeholder={placeholders.lexigrab}
                   className={cn(
                     "min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200",
-                    `placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:${currentTheme.iconColor}`
+                    `placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:${currentTheme.iconColor}`,
+                    "placeholder:transition-opacity placeholder:duration-300"
                   )}
                   style={{ 
                     fontSize: `${fontSize}px`, 
@@ -702,10 +840,12 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Enter a topic or theme to generate relevant vocabulary..."
+              onPaste={handlePaste}
+              placeholder={placeholders.lexigen}
               className={cn(
                 "min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200",
-                `placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:${currentTheme.iconColor}`
+                `placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:${currentTheme.iconColor}`,
+                "placeholder:transition-opacity placeholder:duration-300"
               )}
               style={{ 
                 fontSize: `${fontSize}px`, 
@@ -739,22 +879,18 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
           <Button
             onClick={handleAnalyze}
             disabled={
-              isAnalyzing || 
-              isUrlFetching ||
+              isLoadingState ||
               (!inputValue && files.length === 0 && recognizedUrls.length === 0) ||
               files.some(file => file.isUploading)
             }
             className={cn(
               `bg-gradient-to-r ${currentTheme.gradient} hover:${currentTheme.hoverGradient}`,
               "text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md",
-              isAnalyzing ? "is-loading" : "",
-              isUrlFetching ? "is-loading" : ""
+              isLoadingState ? "is-loading" : ""
             )}
             data-loading-button
           >
             <LoadingIndicator 
-              isAnalyzing={isAnalyzing} 
-              isUrlFetching={isUrlFetching} 
               activeTool={activeTool} 
             />
             {activeTool === 'lexigrab' ? (

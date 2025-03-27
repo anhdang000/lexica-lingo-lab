@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Volume2, Plus, ArrowUpRight, X, Check, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,8 +28,23 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
   const [allSaved, setAllSaved] = useState(false);
   const [expandedWords, setExpandedWords] = useState<Set<number>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
+  const [visuallyVisible, setVisuallyVisible] = useState(false);
 
-  React.useEffect(() => {
+  // Handle animation and visibility
+  useEffect(() => {
+    if (isVisible) {
+      // Show immediately when results are ready
+      setVisuallyVisible(true);
+    } else {
+      // Add a small delay before hiding to allow exit animation
+      const timer = setTimeout(() => {
+        setVisuallyVisible(false);
+      }, 300); // Match this with your CSS transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible]);
+
+  useEffect(() => {
     setExpandedWords(new Set(results.length === 1 ? [0] : []));
     setAddedWords(new Set());
     setAllSaved(false);
@@ -142,7 +157,10 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
   };
 
   return (
-    <div className="mt-8 w-full max-w-4xl mx-auto page-transition-in">
+    <div className={cn(
+      "mt-8 w-full max-w-4xl mx-auto transition-all duration-300 ease-in-out",
+      visuallyVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+    )}>
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
