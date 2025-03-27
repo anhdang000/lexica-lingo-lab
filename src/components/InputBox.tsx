@@ -18,7 +18,9 @@ import {
   Type,
   Sparkles,
   GripHorizontal,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  File
 } from 'lucide-react';
 import { FileInput, fetchUrlContent } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -37,13 +39,44 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [images, setImages] = useState<Array<{ 
+  const [files, setFiles] = useState<Array<{ 
     id: string; 
     preview: string;
     file: File;
+    fileType: 'image' | 'document';
+    fileExtension?: string;
     isUploading: boolean;
     uploadError?: string;
   }>>([]);
+
+  // Acceptable file types
+  const acceptableDocTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+    'text/csv',
+    'text/html',
+    'application/rtf',
+    'application/vnd.oasis.opendocument.text'
+  ];
+
+  const isAcceptableFileType = (file: File): boolean => {
+    return file.type.startsWith('image/') || acceptableDocTypes.includes(file.type);
+  };
+
+  const getFileType = (file: File): 'image' | 'document' => {
+    return file.type.startsWith('image/') ? 'image' : 'document';
+  };
+  
+  const getFileExtension = (file: File): string => {
+    const nameParts = file.name.split('.');
+    return nameParts.length > 1 ? nameParts[nameParts.length - 1].toLowerCase() : '';
+  };
 
   const calculateFontSize = (text: string) => {
     const lines = text.split('\n').length;
@@ -72,20 +105,16 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   }, [inputValue]);
 
   const extractUrls = (text: string): string[] => {
-    // More comprehensive URL regex that handles various URL formats
     const urlRegex = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi;
     
-    // Extract all URLs
     const matches = text.match(urlRegex) || [];
     
-    // Normalize URLs (ensure they start with http/https)
     return matches.map(url => {
       if (url.startsWith('www.')) {
         return 'https://' + url;
       }
       return url;
     }).filter((url, index, self) => {
-      // Remove duplicates
       return self.indexOf(url) === index;
     });
   };
@@ -99,8 +128,10 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       Array.from(e.target.files).forEach(file => {
-        if (file.type.startsWith('image/')) {
+        if (isAcceptableFileType(file)) {
           handleFileSelection(file);
+        } else {
+          toast.error(`File type not supported: ${file.name}`);
         }
       });
     }
@@ -115,34 +146,47 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const handleFileSelection = async (file: File) => {
     const reader = new FileReader();
     const id = Math.random().toString(36).substring(7);
+    const fileType = getFileType(file);
+    const fileExtension = getFileExtension(file);
     
-    // Add the image to state immediately with uploading flag
     reader.onload = (e) => {
-      setImages(prev => [...prev, {
+      setFiles(prev => [...prev, {
         id,
-        preview: e.target?.result as string,
+        preview: fileType === 'image' ? (e.target?.result as string) : '',
         file,
+        fileType,
+        fileExtension,
         isUploading: false
       }]);
     };
-    reader.readAsDataURL(file);
+
+    if (fileType === 'image') {
+      reader.readAsDataURL(file);
+    } else {
+      // For non-image files, we don't need a preview data URL
+      // Just trigger the onload event manually
+      setTimeout(() => {
+        const mockEvent = { target: { result: '' } } as unknown as ProgressEvent<FileReader>;
+        reader.onload?.(mockEvent);
+      }, 0);
+    }
   };
 
   const handleAnalyze = async () => {
-    if (!inputValue && images.length === 0 && recognizedUrls.length === 0) return;
+    if (!inputValue && files.length === 0 && recognizedUrls.length === 0) return;
     
     try {
-      // First set loading state for images and start URL processing
-      setImages(prev => prev.map(img => ({
-        ...img,
+      // First set loading state for files and start URL processing
+      setFiles(prev => prev.map(file => ({
+        ...file,
         isUploading: true,
         uploadError: undefined
       })));
       
       // Create FileInput objects from the files
-      const fileInputs: FileInput[] = images.map(img => ({
-        file: img.file,
-        mimeType: img.file.type
+      const fileInputs: FileInput[] = files.map(fileObj => ({
+        file: fileObj.file,
+        mimeType: fileObj.file.type
       }));
       
       // Fetch content from recognized URLs
@@ -231,14 +275,14 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         }
       }
       
-      // Mark image uploads as successful
-      setImages(prev => prev.map(img => ({
-        ...img,
+      // Mark file uploads as successful
+      setFiles(prev => prev.map(file => ({
+        ...file,
         isUploading: false
       })));
       
-      // If no input text, no successful URL fetches, and no images, stop here
-      if (!aggregatedText && !urlContentSuccess && images.length === 0) {
+      // If no input text, no successful URL fetches, and no files, stop here
+      if (!aggregatedText && !urlContentSuccess && files.length === 0) {
         toast.error('No content to analyze');
         return;
       }
@@ -249,8 +293,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
       console.error('Error during analysis:', error);
       
       // Mark all as failed
-      setImages(prev => prev.map(img => ({
-        ...img,
+      setFiles(prev => prev.map(file => ({
+        ...file,
         isUploading: false,
         uploadError: 'Failed to process'
       })));
@@ -287,30 +331,52 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
 
     if (e.dataTransfer.files) {
       Array.from(e.dataTransfer.files).forEach(file => {
-        if (file.type.startsWith('image/')) {
+        if (isAcceptableFileType(file)) {
           handleFileSelection(file);
+        } else {
+          toast.error(`File type not supported: ${file.name}`);
         }
       });
     }
   };
 
-  const removeImage = (idToRemove: string) => {
-    // Simply remove the image from state
-    setImages(prev => prev.filter(img => img.id !== idToRemove));
+  const removeFile = (idToRemove: string) => {
+    setFiles(prev => prev.filter(file => file.id !== idToRemove));
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = Array.from(e.clipboardData.items);
     items.forEach(item => {
-      if (item.type.indexOf('image') !== -1) {
-        const file = item.getAsFile();
-        if (file) handleFileSelection(file);
+      const file = item.getAsFile();
+      if (file && isAcceptableFileType(file)) {
+        handleFileSelection(file);
       }
     });
   };
 
   const removeUrl = (urlToRemove: string) => {
     setRecognizedUrls(prev => prev.filter(url => url !== urlToRemove));
+  };
+
+  // Get appropriate file icon based on extension
+  const getFileIcon = (fileExtension: string = '') => {
+    switch(fileExtension.toLowerCase()) {
+      case 'pdf':
+        return <FileText className="h-6 w-6 text-red-500" />;
+      case 'doc':
+      case 'docx':
+        return <FileText className="h-6 w-6 text-blue-500" />;
+      case 'xls':
+      case 'xlsx':
+        return <FileText className="h-6 w-6 text-green-500" />;
+      case 'ppt':
+      case 'pptx':
+        return <FileText className="h-6 w-6 text-orange-500" />;
+      case 'txt':
+        return <FileText className="h-6 w-6 text-gray-500" />;
+      default:
+        return <File className="h-6 w-6 text-gray-500" />;
+    }
   };
 
   return (
@@ -423,7 +489,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
-                  placeholder="Paste text, drop an image, or enter a URL to extract vocabulary..."
+                  placeholder="Paste text, drop files (images, PDF, docx), or enter a URL to extract vocabulary..."
                   className="min-h-[150px] bg-transparent border-none shadow-none p-2 resize-none transition-all duration-200"
                   style={{ 
                     fontSize: `${fontSize}px`, 
@@ -437,29 +503,40 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept="image/*"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.csv,.html"
                   multiple
                   className="hidden"
                 />
-                {images.length > 0 && (
+                {files.length > 0 && (
                   <div className="relative mt-2 border-t border-gray-200 dark:border-gray-700 pt-4">
                     <div className="flex flex-wrap gap-4">
-                      {images.map((img) => (
-                        <div key={img.id} className="relative w-24 h-24 overflow-hidden rounded-lg">
-                          <img 
-                            src={img.preview} 
-                            alt="Preview" 
-                            className={cn(
-                              "w-full h-full object-cover",
-                              img.isUploading && "opacity-50"
-                            )}
-                          />
-                          {img.isUploading && (
-                            <div className="absolute inset-0 flex items-center justify-center">
+                      {files.map((file) => (
+                        <div key={file.id} className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                          {file.fileType === 'image' ? (
+                            <img 
+                              src={file.preview} 
+                              alt="Preview" 
+                              className={cn(
+                                "w-full h-full object-cover",
+                                file.isUploading && "opacity-50"
+                              )}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 p-2">
+                              {getFileIcon(file.fileExtension)}
+                              <span className="text-xs mt-1 text-center truncate w-full">
+                                {file.file.name.length > 15 ? 
+                                  file.file.name.substring(0, 12) + '...' : 
+                                  file.file.name}
+                              </span>
+                            </div>
+                          )}
+                          {file.isUploading && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                               <Loader2 className="h-6 w-6 animate-spin text-white" />
                             </div>
                           )}
-                          {img.uploadError && (
+                          {file.uploadError && (
                             <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -468,7 +545,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{img.uploadError}</p>
+                                  <p>{file.uploadError}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </div>
@@ -477,8 +554,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                             variant="ghost"
                             size="icon"
                             className="absolute top-1 right-1 bg-black/30 hover:bg-black/50 text-white rounded-full w-6 h-6 p-1"
-                            onClick={() => removeImage(img.id)}
-                            disabled={img.isUploading}
+                            onClick={() => removeFile(file.id)}
+                            disabled={file.isUploading}
                           >
                             <X className="h-3 w-3" />
                           </Button>
@@ -491,7 +568,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                   <div className="absolute inset-0 bg-gray-100/80 dark:bg-gray-700/80 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
                     <div className="text-center">
                       <FileUp className="mx-auto h-12 w-12 text-gray-400" />
-                      <p className="mt-2 text-sm text-gray-500">Drop your images here</p>
+                      <p className="mt-2 text-sm text-gray-500">Drop your files here</p>
                     </div>
                   </div>
                 )}
@@ -536,8 +613,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             disabled={
               isAnalyzing || 
               isUrlFetching ||
-              (!inputValue && images.length === 0 && recognizedUrls.length === 0) ||
-              images.some(img => img.isUploading)
+              (!inputValue && files.length === 0 && recognizedUrls.length === 0) ||
+              files.some(file => file.isUploading)
             }
             className="bg-gradient-to-r from-[#cd4631] to-[#dea47e] hover:from-[#cd4631]/90 hover:to-[#dea47e]/90 text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
           >
