@@ -56,12 +56,6 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
 
   if (!isVisible || results.length === 0) return null;
 
-  const formatTopicName = (name: string) => {
-    return name.split(/\s+/).map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    ).join(' ');
-  };
-
   const handleAddWord = async (index: number, wordData: WordDefinition) => {
     if (!user) {
       toast.error("Please log in to save words to your library");
@@ -76,7 +70,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
       let collection;
       if (tool === 'lexigen' && topicName) {
         collection = await getOrCreateCollection(user.id, topicName);
-        const displayName = formatTopicName(topicName);
+        const displayName = topicName;
         toast.info(`Adding to "${displayName}" collection`);
       } else {
         collection = await getOrCreateGeneralCollection(user.id);
@@ -112,7 +106,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
       let collection;
       if (tool === 'lexigen' && topicName) {
         collection = await getOrCreateCollection(user.id, topicName);
-        const displayName = formatTopicName(topicName);
+        const displayName = topicName;
         toast.info(`Adding to "${displayName}" collection`);
       } else {
         collection = await getOrCreateGeneralCollection(user.id);
@@ -193,7 +187,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold">
               {results.length === 1 ? 'Word Definition' : 
-               tool === 'lexigen' && topicName ? `Topic: ${formatTopicName(topicName)}` : 
+               tool === 'lexigen' && topicName ? `Topic: ${topicName}` : 
                tool === 'lexigen' ? 'Generated Vocabulary' : 
                'Analysis Results'}
             </h3>
