@@ -172,12 +172,36 @@ export interface FileInput {
   mimeType?: string;
 }
 
-export async function analyzeVocabulary(input: string, files: FileInput[] = []): Promise<WordDefinition[]> {
+export interface AnalysisResults {
+  vocabulary: WordDefinition[];
+  topics: string[];
+}
+
+// Helper function to read file as data URL
+function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        resolve(reader.result.toString());
+      } else {
+        reject(new Error('Failed to read file as data URL'));
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function analyzeVocabulary(input: string, files: FileInput[] = []): Promise<AnalysisResults> {
   // If input is a single word or short phrase and no files are provided, try lookupWord first
   if (isSingleWordOrPhrases(input) && files.length === 0) {
     const lookupResult = await lookupWord(input);
     if (lookupResult) {
-      return [lookupResult];
+      return {
+        vocabulary: [lookupResult],
+        topics: []
+      };
     }
   }
   
@@ -185,7 +209,7 @@ export async function analyzeVocabulary(input: string, files: FileInput[] = []):
   return analyzeText(input, files);
 }
 
-export async function analyzeText(text: string, files: FileInput[] = []): Promise<WordDefinition[]> {
+export async function analyzeText(text: string, files: FileInput[] = []): Promise<AnalysisResults> {
   // Get a random API key from the comma-separated list
   const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
   const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
@@ -197,21 +221,30 @@ export async function analyzeText(text: string, files: FileInput[] = []): Promis
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-2.0-flash-lite';
   
-  // Create prompt text for vocabulary extraction
+  // Create prompt text for vocabulary and topic extraction
   const promptText = `
-You are an advanced vocabulary instructor tasked with identifying the most valuable and sophisticated words from the provided content.
+You are an advanced vocabulary instructor tasked with identifying the most valuable vocabulary words and related topics from the provided content.
 
-Analyze the following text and extract ONLY the most significant vocabulary words that would substantially enhance an English language learner's lexicon:
+Analyze the following text:
 
 ${text}
 
-Return a carefully curated array of words that meet these specific criteria:
-1. Advanced and relatively uncommon
-2. Useful in various contexts
-3. Worth adding to one's vocabulary
+Your task is to extract two things:
+1. Vocabulary: A carefully curated array of sophisticated words that would enhance an English language learner's lexicon
+2. Topics: 3-5 relevant topics or themes that categorize the content
+
+For vocabulary, select words that meet these criteria:
+- Advanced and relatively uncommon
+- Useful in various contexts
+- Worth adding to one's vocabulary
+
+For topics, identify key themes that:
+- Accurately categorize the content
+- Would be useful as study categories
+- Are concise (1-3 words each)
 
 Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
-Return the words as strings in a JSON array format, using only the base dictionary form of each word.
+Return the results in JSON format with two fields: "vocabulary" (array of strings) and "topics" (array of strings).
 `;
 
   try {
@@ -223,12 +256,24 @@ Return the words as strings in a JSON array format, using only the base dictiona
       maxOutputTokens: 8192,
       responseMimeType: "application/json",
       responseSchema: {
-        type: SchemaType.ARRAY as const,
-        description: "List of vocabulary words",
-        items: {
-          type: SchemaType.STRING as const,
-          description: "A vocabulary word that would be valuable for a language learner",
+        type: SchemaType.OBJECT as const,
+        properties: {
+          vocabulary: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.STRING as const,
+              description: "A vocabulary word that would be valuable for a language learner",
+            },
+          },
+          topics: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.STRING as const,
+              description: "A relevant topic or theme that categorizes the content",
+            },
+          },
         },
+        required: ["vocabulary", "topics"],
       },
     };
     
@@ -269,34 +314,23 @@ Return the words as strings in a JSON array format, using only the base dictiona
     }
     
     // Parse the JSON result
-    const words: string[] = JSON.parse(result.response.text());
+    const analysisResult = JSON.parse(result.response.text());
+    const words: string[] = analysisResult.vocabulary || [];
+    const topics: string[] = analysisResult.topics || [];
     
     // Look up each word and filter out any null results
     const definitions = await Promise.all(
       words.map(word => lookupWord(word))
     );
     
-    return definitions.filter((def): def is WordDefinition => def !== null);
+    return {
+      vocabulary: definitions.filter((def): def is WordDefinition => def !== null),
+      topics: topics
+    };
   } catch (error) {
     console.error('Error analyzing text/files:', error);
     throw error;
   }
-}
-
-// Helper function to read file as data URL
-function readFileAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        resolve(reader.result.toString());
-      } else {
-        reject(new Error('Failed to read file as data URL'));
-      }
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
 }
 
 /**

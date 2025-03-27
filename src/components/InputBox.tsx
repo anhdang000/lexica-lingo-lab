@@ -22,11 +22,11 @@ import {
   FileText,
   File
 } from 'lucide-react';
-import { FileInput, fetchUrlContent } from '@/lib/utils';
+import { FileInput, fetchUrlContent, AnalysisResults, analyzeVocabulary } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface InputBoxProps {
-  onAnalyze: (text: string, files: FileInput[], tool: 'lexigrab' | 'lexigen') => Promise<void>;
+  onAnalyze: (text: string, files: FileInput[], tool: 'lexigrab' | 'lexigen', analysisResults?: AnalysisResults) => Promise<void>;
   isAnalyzing: boolean;
 }
 
@@ -210,8 +210,14 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const handleAnalyze = async () => {
     if (!inputValue && files.length === 0 && recognizedUrls.length === 0) return;
     
+    // CRITICAL CHANGE: Add immediate visual feedback using DOM
+    const button = document.querySelector("[data-loading-button]");
+    if (button) {
+      button.classList.add("is-loading");
+    }
+    
     try {
-      // First set loading state for files and start URL processing
+      // First set loading state for files
       setFiles(prev => prev.map(file => ({
         ...file,
         isUploading: true,
@@ -224,17 +230,17 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         mimeType: fileObj.file.type
       }));
       
-      // Fetch content from recognized URLs
+      // Variable to store aggregated text
       let aggregatedText = inputValue.trim();
       let urlContentSuccess = false;
       
+      // Process URLs if present
       if (recognizedUrls.length > 0) {
-        // Show loading state for URL processing
-        setIsUrlFetching(true);
-        toast.loading(`Fetching content from ${recognizedUrls.length} URLs...`, { id: 'url-fetching' });
-        
-        // Fetch content from each URL and aggregate
         try {
+          // Show loading state for URL processing
+          setIsUrlFetching(true);
+          toast.loading(`Fetching content from ${recognizedUrls.length} URLs...`, { id: 'url-fetching' });
+          
           const urlContents = await Promise.allSettled(
             recognizedUrls.map(url => 
               fetchUrlContent(url, { render: 'html' })
@@ -322,8 +328,28 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         return;
       }
       
-      // Call the analyze function with aggregated text and files
-      await onAnalyze(aggregatedText, fileInputs, activeTool);
+      // Now that we have all content, perform the analysis
+      if (activeTool === 'lexigrab') {
+        // For lexigrab mode with external analysis
+        try {
+          // Only analyze in the component if we need the pre-analysis
+          const analysisResults = await analyzeVocabulary(aggregatedText, fileInputs);
+          
+          // Call the parent's analyze function, which will handle the loading state
+          await onAnalyze(aggregatedText, fileInputs, activeTool, analysisResults);
+        } catch (error) {
+          console.error("Error in InputBox lexigrab analysis:", error);
+          toast.error("Failed to analyze vocabulary.");
+        }
+      } else {
+        // For lexigen mode, just pass the text and let the parent component handle it
+        try {
+          await onAnalyze(aggregatedText, fileInputs, activeTool);
+        } catch (error) {
+          console.error("Error in InputBox lexigen analysis:", error);
+          toast.error("Failed to generate vocabulary.");
+        }
+      }
     } catch (error) {
       console.error('Error during analysis:', error);
       
@@ -334,8 +360,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         uploadError: 'Failed to process'
       })));
       
-      setIsUrlFetching(false);
       toast.error('Failed to process content for analysis');
+      
+      // Important: Remove loading state on error in the outer catch
+      const button = document.querySelector("[data-loading-button]");
+      if (button) {
+        button.classList.remove("is-loading");
+      }
     }
   };
 
@@ -412,6 +443,51 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
       default:
         return <File className="h-6 w-6 text-gray-500" />;
     }
+  };
+
+  // Add an effect to update the button loading state when isAnalyzing changes
+  useEffect(() => {
+    const button = document.querySelector("[data-loading-button]");
+    if (button) {
+      if (isAnalyzing) {
+        button.classList.add("is-loading");
+      } else {
+        button.classList.remove("is-loading");
+      }
+    }
+  }, [isAnalyzing]);
+
+  // Add a CSS hack to ensure loading state is visible
+  useEffect(() => {
+    // Add a style element to the document
+    const style = document.createElement('style');
+    style.textContent = `
+      .is-loading .loading-indicator {
+        display: block !important;
+      }
+      .is-loading .normal-indicator {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // Modify the LoadingIndicator component to use the CSS hack
+  const LoadingIndicator = ({isAnalyzing, isUrlFetching, activeTool}) => {
+    return (
+      <>
+        <Loader2 className={`loading-indicator mr-2 h-4 w-4 animate-spin ${!(isAnalyzing || isUrlFetching) ? 'hidden' : ''}`} />
+        {activeTool === 'lexigrab' ? (
+          <GripHorizontal className={`normal-indicator mr-2 h-4 w-4 ${isAnalyzing || isUrlFetching ? 'hidden' : ''}`} />
+        ) : (
+          <Sparkles className={`normal-indicator mr-2 h-4 w-4 ${isAnalyzing || isUrlFetching ? 'hidden' : ''}`} />
+        )}
+      </>
+    );
   };
 
   return (
@@ -670,16 +746,17 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             }
             className={cn(
               `bg-gradient-to-r ${currentTheme.gradient} hover:${currentTheme.hoverGradient}`,
-              "text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
+              "text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md",
+              isAnalyzing ? "is-loading" : "",
+              isUrlFetching ? "is-loading" : ""
             )}
+            data-loading-button
           >
-            {isAnalyzing || isUrlFetching ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : activeTool === 'lexigrab' ? (
-              <GripHorizontal className="mr-2 h-4 w-4" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
+            <LoadingIndicator 
+              isAnalyzing={isAnalyzing} 
+              isUrlFetching={isUrlFetching} 
+              activeTool={activeTool} 
+            />
             {activeTool === 'lexigrab' ? (
               <span>Let's <span className="font-['Pacifico'] text-lg">grab</span>!</span>
             ) : (

@@ -2,10 +2,12 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { type WordDefinition } from '@/lib/utils';
 
 interface AppState {
-  analysisResults: WordDefinition[];
+  vocabularyResults: WordDefinition[];
+  topicResults: string[];
   showResults: boolean;
   currentWord: WordDefinition | null;
-  setAnalysisResults: (results: WordDefinition[]) => void;
+  setVocabularyResults: (results: WordDefinition[]) => void;
+  setTopicResults: (topics: string[]) => void;
   setShowResults: (show: boolean) => void;
   setCurrentWord: (word: WordDefinition | null) => void;
 }
@@ -13,15 +15,18 @@ interface AppState {
 const AppStateContext = createContext<AppState | undefined>(undefined);
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [analysisResults, setAnalysisResults] = useState<WordDefinition[]>([]);
+  const [vocabularyResults, setVocabularyResults] = useState<WordDefinition[]>([]);
+  const [topicResults, setTopicResults] = useState<string[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [currentWord, setCurrentWord] = useState<WordDefinition | null>(null);
 
   const value = {
-    analysisResults,
+    vocabularyResults,
+    topicResults,
     showResults,
     currentWord,
-    setAnalysisResults,
+    setVocabularyResults,
+    setTopicResults,
     setShowResults,
     setCurrentWord,
   };

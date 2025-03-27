@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Plus, ArrowUpRight, X, Check } from 'lucide-react';
+import { Volume2, Plus, ArrowUpRight, X, Check, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ interface VocabularyResultsProps {
   isVisible: boolean;
   onClose: () => void;
   isSingleWordOrPhrases: boolean;
+  topics?: string[];
 }
 
 const VocabularyResults: React.FC<VocabularyResultsProps> = ({
@@ -20,6 +21,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
   isVisible,
   onClose,
   isSingleWordOrPhrases,
+  topics = [],
 }) => {
   const { user } = useAuth();
   const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
@@ -175,6 +177,31 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
               </Button>
             </div>
           </div>
+
+          {topics.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Tag className="h-4 w-4 text-[#cd4631]" />
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Related Topics:
+                </h4>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {topics.map((topic, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1.5 text-sm bg-[#f8f2dc] dark:bg-[#cd4631]/10
+                            text-[#9e6240] dark:text-[#dea47e] rounded-full
+                            hover:bg-[#f8f2dc]/70 dark:hover:bg-[#cd4631]/20
+                            transition-colors duration-200"
+                  >
+                    {topic}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-6"></div>
+            </div>
+          )}
 
           {results.length > 1 && (
             <p className="text-base text-gray-500 mb-6">
