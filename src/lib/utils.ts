@@ -315,7 +315,9 @@ Return the results in JSON format with two fields: "vocabulary" (array of string
     
     // Parse the JSON result
     const analysisResult = JSON.parse(result.response.text());
-    const words: string[] = analysisResult.vocabulary || [];
+    
+    // Force vocabulary words to lowercase
+    const words: string[] = (analysisResult.vocabulary || []).map((word: string) => word.toLowerCase());
     const topics: string[] = analysisResult.topics || [];
     
     // Look up each word and filter out any null results
