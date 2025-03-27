@@ -22,7 +22,7 @@ import {
   FileText,
   File
 } from 'lucide-react';
-import { FileInput, fetchUrlContent, AnalysisResults, analyzeVocabulary } from '@/lib/utils';
+import { FileInput, fetchUrlContent, AnalysisResults, analyzeVocabulary, generateVocabularyFromTopic } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAppState } from '@/contexts/AppStateContext';
 
@@ -191,7 +191,13 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    setRecognizedUrls(extractUrls(newValue));
+    
+    // Only detect URLs in LexiGrab mode
+    if (activeTool === 'lexigrab') {
+      setRecognizedUrls(extractUrls(newValue));
+    } else {
+      setRecognizedUrls([]);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,7 +271,25 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
       let aggregatedText = inputValue.trim();
       let urlContentSuccess = false;
       
-      // Process URLs if present
+      // For LexiGen mode, we just need the input text
+      if (activeTool === 'lexigen') {
+        if (!aggregatedText) {
+          toast.error('Please enter a topic');
+          setLocalIsAnalyzing(false);
+          return;
+        }
+        
+        try {
+          await onAnalyze(aggregatedText, [], activeTool);
+        } catch (error) {
+          console.error("Error in InputBox lexigen analysis:", error);
+          toast.error("Failed to generate vocabulary.");
+          throw error; // Re-throw to be caught by outer catch
+        }
+        return;
+      }
+      
+      // Process URLs if present (only for LexiGrab)
       if (recognizedUrls.length > 0) {
         try {
           // Show loading state for URL processing
@@ -359,29 +383,17 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
         return;
       }
       
-      // Now that we have all content, perform the analysis
-      if (activeTool === 'lexigrab') {
-        // For lexigrab mode with external analysis
-        try {
-          // Only analyze in the component if we need the pre-analysis
-          const analysisResults = await analyzeVocabulary(aggregatedText, fileInputs);
-          
-          // Call the parent's analyze function, which will handle the loading state
-          await onAnalyze(aggregatedText, fileInputs, activeTool, analysisResults);
-        } catch (error) {
-          console.error("Error in InputBox lexigrab analysis:", error);
-          toast.error("Failed to analyze vocabulary.");
-          throw error; // Re-throw to be caught by outer catch
-        }
-      } else {
-        // For lexigen mode, just pass the text and let the parent component handle it
-        try {
-          await onAnalyze(aggregatedText, fileInputs, activeTool);
-        } catch (error) {
-          console.error("Error in InputBox lexigen analysis:", error);
-          toast.error("Failed to generate vocabulary.");
-          throw error; // Re-throw to be caught by outer catch
-        }
+      // For lexigrab mode with external analysis
+      try {
+        // Only analyze in the component if we need the pre-analysis
+        const analysisResults = await analyzeVocabulary(aggregatedText, fileInputs);
+        
+        // Call the parent's analyze function, which will handle the loading state
+        await onAnalyze(aggregatedText, fileInputs, activeTool, analysisResults);
+      } catch (error) {
+        console.error("Error in InputBox lexigrab analysis:", error);
+        toast.error("Failed to analyze vocabulary.");
+        throw error; // Re-throw to be caught by outer catch
       }
     } catch (error) {
       console.error('Error during analysis:', error);
@@ -867,9 +879,10 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             size="sm"
             className={cn(
               "hover:text-gray-700 dark:hover:text-gray-300",
-              activeTool === 'lexigrab' ? 'text-gray-500 dark:text-gray-400' : currentTheme.iconColor
+              activeTool === 'lexigrab' ? 'text-gray-500 dark:text-gray-400' : currentTheme.iconColor,
+              activeTool === 'lexigen' ? 'opacity-0 pointer-events-none' : 'opacity-100'
             )}
-            disabled={isAnalyzing || isUrlFetching}
+            disabled={isAnalyzing || isUrlFetching || activeTool === 'lexigen'}
           >
             <FileUp className="h-4 w-4 mr-2" />
             <span>Attach</span>
@@ -880,7 +893,9 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             onClick={handleAnalyze}
             disabled={
               isLoadingState ||
-              (!inputValue && files.length === 0 && recognizedUrls.length === 0) ||
+              (activeTool === 'lexigrab' 
+                ? (!inputValue && files.length === 0 && recognizedUrls.length === 0)
+                : !inputValue) || // For lexigen, only require input text
               files.some(file => file.isUploading)
             }
             className={cn(

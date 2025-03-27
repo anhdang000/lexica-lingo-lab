@@ -175,6 +175,7 @@ export interface FileInput {
 export interface AnalysisResults {
   vocabulary: WordDefinition[];
   topics: string[];
+  topicName?: string;
 }
 
 // Helper function to read file as data URL
@@ -200,13 +201,123 @@ export async function analyzeVocabulary(input: string, files: FileInput[] = []):
     if (lookupResult) {
       return {
         vocabulary: [lookupResult],
-        topics: []
+        topics: [],
+        topicName: lookupResult.word
       };
     }
   }
   
   // For longer text or if files are provided, analyze vocabulary
   return analyzeText(input, files);
+}
+
+export async function generateVocabularyFromTopic(inputText: string): Promise<AnalysisResults> {
+  // Get a random API key from the comma-separated list
+  const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
+  const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
+  
+  if (!apiKey) {
+    throw new Error('Gemini API key not found');
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-2.0-flash-lite';
+  
+  // Create prompt text for vocabulary generation from a topic
+  const promptText = `
+You are an advanced vocabulary instructor tasked with generating useful vocabulary words related to a given input.
+
+Input text: ${inputText}
+
+Your task is to:
+1. Generate a concise topic name (1-3 words) that best represents the input text
+2. Generate 10-15 vocabulary words that are clearly related to this topic
+3. Provide 2-3 broader themes/categories that encompass this topic
+
+For the topic name:
+- If the input is already a concise topic, you can keep it
+- If the input is longer text, extract the most relevant topic
+- Always keep it concise (1-3 words) and representative
+
+For vocabulary, select words that meet these criteria:
+- Range from intermediate to advanced level
+- Are genuinely useful for someone learning about this topic
+- Include a mix of nouns, verbs, adjectives, and other parts of speech
+- Avoid extremely rare or archaic terms
+
+For themes/categories:
+- Identify broader fields that this topic belongs to
+- Keep them concise (1-3 words each)
+
+Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
+Return the results in JSON format with three fields: "topicName" (string), "vocabulary" (array of strings), and "topics" (array of strings).
+`;
+
+  try {
+    // Define the generation config for structured output
+    const generationConfig = {
+      temperature: 0.8,
+      topP: 0.95,
+      topK: 40,
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.OBJECT as const,
+        properties: {
+          topicName: {
+            type: SchemaType.STRING as const,
+            description: "A concise topic name (1-3 words) that best represents the input text",
+          },
+          vocabulary: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.STRING as const,
+              description: "A vocabulary word related to the given topic",
+            },
+          },
+          topics: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.STRING as const,
+              description: "A broader theme or category that encompasses the topic",
+            },
+          },
+        },
+        required: ["topicName", "vocabulary", "topics"],
+      },
+    };
+    
+    // Create model
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig
+    });
+    
+    // Generate content with topic
+    const result = await model.generateContent(promptText);
+    
+    // Parse the JSON result
+    const generationResult = JSON.parse(result.response.text());
+    
+    // Force vocabulary words to lowercase
+    const words: string[] = (generationResult.vocabulary || []).map((word: string) => word.toLowerCase());
+    const topics: string[] = generationResult.topics || [];
+    const generatedTopicName: string = generationResult.topicName || "Vocabulary Collection";
+    
+    // Look up each word and filter out any null results
+    const definitions = await Promise.all(
+      words.map(word => lookupWord(word))
+    );
+    
+    return {
+      vocabulary: definitions.filter((def): def is WordDefinition => def !== null),
+      topics: topics,
+      topicName: generatedTopicName
+    };
+  } catch (error) {
+    console.error('Error generating vocabulary from topic:', error);
+    throw error;
+  }
 }
 
 export async function analyzeText(text: string, files: FileInput[] = []): Promise<AnalysisResults> {
@@ -327,7 +438,8 @@ Return the results in JSON format with two fields: "vocabulary" (array of string
     
     return {
       vocabulary: definitions.filter((def): def is WordDefinition => def !== null),
-      topics: topics
+      topics: topics,
+      topicName: ''
     };
   } catch (error) {
     console.error('Error analyzing text/files:', error);

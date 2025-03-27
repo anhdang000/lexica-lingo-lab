@@ -3,7 +3,7 @@ import InputBox from '@/components/InputBox';
 import VocabularyResults from '@/components/VocabularyResults';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { analyzeVocabulary, cn, isSingleWordOrPhrases, FileInput, analyzeText, AnalysisResults, WordDefinition } from '@/lib/utils';
+import { analyzeVocabulary, cn, isSingleWordOrPhrases, FileInput, analyzeText, AnalysisResults, WordDefinition, generateVocabularyFromTopic } from '@/lib/utils';
 import 'remixicon/fonts/remixicon.css';
 import WordDetailModal from '@/components/WordDetailModal';
 import { Trophy, Target, Brain, Sparkles, Play, Clock, Tag } from 'lucide-react';
@@ -12,6 +12,7 @@ import { useAppState } from '@/contexts/AppStateContext';
 
 const Index = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [topicName, setTopicName] = useState('');
   const {
     currentTool,
     setVocabularyResults,
@@ -55,17 +56,20 @@ const Index = () => {
         if (analysisResults) {
           setVocabularyResults(analysisResults.vocabulary, tool);
           setTopicResults(analysisResults.topics, tool);
+          setTopicName('');
         } else {
           // If no pre-analyzed results, analyze the text/files now
           const results = await analyzeVocabulary(text, files);
           setVocabularyResults(results.vocabulary, tool);
           setTopicResults(results.topics, tool);
+          setTopicName('');
         }
       } else {
         // For lexigen, generate vocabulary based on the topic
-        const results = await analyzeVocabulary(text);
+        const results = await generateVocabularyFromTopic(text);
         setVocabularyResults(results.vocabulary, tool);
         setTopicResults(results.topics, tool);
+        setTopicName(results.topicName || 'Vocabulary Collection');
       }
       
       setShowResults(true, tool);
@@ -104,6 +108,8 @@ const Index = () => {
         isVisible={showResults}
         onClose={handleCloseResults}
         isSingleWordOrPhrases={vocabularyResults.length > 0 && isSingleWordOrPhrases(vocabularyResults[0].word)}
+        tool={currentTool}
+        topicName={topicName}
       />
 
       {/* Progress Dashboard */}

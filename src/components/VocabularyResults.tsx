@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { WordDefinition } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrCreateGeneralCollection, addWordToCollection } from '@/lib/database';
+import { getOrCreateGeneralCollection, getOrCreateCollection, addWordToCollection } from '@/lib/database';
 
 interface VocabularyResultsProps {
   results: WordDefinition[];
@@ -14,6 +14,8 @@ interface VocabularyResultsProps {
   onClose: () => void;
   isSingleWordOrPhrases: boolean;
   topics?: string[];
+  tool?: 'lexigrab' | 'lexigen';
+  topicName?: string;
 }
 
 const VocabularyResults: React.FC<VocabularyResultsProps> = ({
@@ -22,6 +24,8 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
   onClose,
   isSingleWordOrPhrases,
   topics = [],
+  tool = 'lexigrab',
+  topicName = '',
 }) => {
   const { user } = useAuth();
   const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
@@ -52,6 +56,12 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
 
   if (!isVisible || results.length === 0) return null;
 
+  const formatTopicName = (name: string) => {
+    return name.split(/\s+/).map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   const handleAddWord = async (index: number, wordData: WordDefinition) => {
     if (!user) {
       toast.error("Please log in to save words to your library");
@@ -62,7 +72,16 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
 
     setIsProcessing(true);
     try {
-      const collection = await getOrCreateGeneralCollection(user.id);
+      // For LexiGen, use the topic name as collection name
+      let collection;
+      if (tool === 'lexigen' && topicName) {
+        collection = await getOrCreateCollection(user.id, topicName);
+        const displayName = formatTopicName(topicName);
+        toast.info(`Adding to "${displayName}" collection`);
+      } else {
+        collection = await getOrCreateGeneralCollection(user.id);
+      }
+      
       const success = await addWordToCollection(user.id, wordData, collection.id);
 
       if (success) {
@@ -89,7 +108,15 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
 
     setIsProcessing(true);
     try {
-      const collection = await getOrCreateGeneralCollection(user.id);
+      // For LexiGen, use the topic name as collection name
+      let collection;
+      if (tool === 'lexigen' && topicName) {
+        collection = await getOrCreateCollection(user.id, topicName);
+        const displayName = formatTopicName(topicName);
+        toast.info(`Adding to "${displayName}" collection`);
+      } else {
+        collection = await getOrCreateGeneralCollection(user.id);
+      }
       
       const newAddedWords = new Set<number>();
       for (let i = 0; i < results.length; i++) {
@@ -165,7 +192,10 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold">
-              {results.length === 1 ? 'Word Definition' : 'Analysis Results'}
+              {results.length === 1 ? 'Word Definition' : 
+               tool === 'lexigen' && topicName ? `Topic: ${formatTopicName(topicName)}` : 
+               tool === 'lexigen' ? 'Generated Vocabulary' : 
+               'Analysis Results'}
             </h3>
             <div className="flex gap-2">
               <Button

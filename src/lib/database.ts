@@ -480,6 +480,60 @@ export async function updateUserProfile(userId: string, updates: any) {
   }
 }
 
+// Function to get or create collection with a specific name
+export async function getOrCreateCollection(userId: string, name: string, description?: string) {
+  try {
+    // Sanitize collection name to ensure it's valid
+    const sanitizedName = name.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+    const collectionName = sanitizedName || 'unnamed-collection';
+    
+    // Create a display-friendly name with capitalized words for the description
+    const displayName = name.split(/\s+/).map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+    
+    const collectionDescription = description || `Vocabulary collection: ${displayName}`;
+    
+    // First try to find existing collection with this name
+    const { data: existingCollection, error: findError } = await supabase
+      .from("collections")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("name", collectionName)
+      .single();
+
+    if (findError && findError.code !== "PGRST116") { // PGRST116 is "not found" error
+      console.error(`Error finding collection '${collectionName}':`, findError);
+      throw findError;
+    }
+
+    if (existingCollection) {
+      return existingCollection;
+    }
+
+    // Create new collection if it doesn't exist
+    const { data: newCollection, error: createError } = await supabase
+      .from("collections")
+      .insert({
+        user_id: userId,
+        name: collectionName,
+        description: collectionDescription,
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error(`Error creating collection '${collectionName}':`, createError);
+      throw createError;
+    }
+
+    return newCollection;
+  } catch (error) {
+    console.error("Exception in getOrCreateCollection:", error);
+    throw error;
+  }
+}
+
 // Function to get or create general collection
 export async function getOrCreateGeneralCollection(userId: string) {
   try {
