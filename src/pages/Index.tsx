@@ -3,7 +3,7 @@ import InputBox from '@/components/InputBox';
 import VocabularyResults from '@/components/VocabularyResults';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { analyzeVocabulary, cn, isSingleWordOrPhrases } from '@/lib/utils';
+import { analyzeVocabulary, cn, isSingleWordOrPhrases, FileInput, analyzeText } from '@/lib/utils';
 import 'remixicon/fonts/remixicon.css';
 import WordDetailModal from '@/components/WordDetailModal';
 import { Trophy, Target, Brain, Sparkles, Play, Clock, Tag } from 'lucide-react';
@@ -29,10 +29,24 @@ const Index = () => {
     topicsExplored: 8
   };
 
-  const handleAnalyzeVocabulary = async (text: string) => {
+  const handleAnalyzeVocabulary = async (text: string, files: FileInput[], tool: 'lexigrab' | 'lexigen') => {
     setIsAnalyzing(true);
     try {
-      const results = await analyzeVocabulary(text);
+      let results;
+      if (tool === 'lexigrab') {
+        // For lexigrab, analyze the vocabulary from text and/or files
+        if (files.length > 0) {
+          // If we have files, use analyzeText directly with both text and files
+          results = await analyzeText(text, files);
+        } else {
+          // If we only have text, use analyzeVocabulary which may try lookupWord for short phrases
+          results = await analyzeVocabulary(text);
+        }
+      } else {
+        // For lexigen, generate vocabulary based on the topic
+        results = await analyzeVocabulary(text);
+      }
+      
       setAnalysisResults(results);
       setShowResults(true);
     } catch (error) {

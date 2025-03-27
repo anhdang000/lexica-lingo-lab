@@ -167,22 +167,22 @@ export function isSingleWordOrPhrases(text: string): boolean {
   return text.trim().length > 0 && words.length <= 4;
 }
 
-export async function analyzeVocabulary(input: string): Promise<WordDefinition[]> {
-  // If input is a single word or short phrase, try lookupWord first
-  if (isSingleWordOrPhrases(input)) {
+export interface FileInput {
+  file: File;
+  mimeType?: string;
+}
+
+export async function analyzeVocabulary(input: string, files: FileInput[] = []): Promise<WordDefinition[]> {
+  // If input is a single word or short phrase and no files are provided, try lookupWord first
+  if (isSingleWordOrPhrases(input) && files.length === 0) {
     const lookupResult = await lookupWord(input);
     if (lookupResult) {
       return [lookupResult];
     }
   }
   
-  // For longer text, analyze vocabulary
-  return analyzeText(input);
-}
-
-export interface FileInput {
-  path: string;
-  mimeType?: string;
+  // For longer text or if files are provided, analyze vocabulary
+  return analyzeText(input, files);
 }
 
 export async function analyzeText(text: string, files: FileInput[] = []): Promise<WordDefinition[]> {
@@ -195,138 +195,80 @@ export async function analyzeText(text: string, files: FileInput[] = []): Promis
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-1.5-pro';
-  const fileManager = new GoogleAIFileManager(apiKey);
+  const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-2.0-flash-lite';
   
-  // Function to upload files to Gemini
-  async function uploadToGemini(fileInput: FileInput) {
-    try {
-      const mimeType = fileInput.mimeType || 
-        fileInput.path.endsWith('.png') ? 'image/png' :
-        fileInput.path.endsWith('.jpg') || fileInput.path.endsWith('.jpeg') ? 'image/jpeg' :
-        fileInput.path.endsWith('.pdf') ? 'application/pdf' :
-        fileInput.path.endsWith('.txt') ? 'text/plain' :
-        fileInput.path.endsWith('.html') ? 'text/html' :
-        'application/octet-stream';
-      
-      const uploadResult = await fileManager.uploadFile(fileInput.path, {
-        mimeType,
-        displayName: fileInput.path,
-      });
-      
-      console.log(`Uploaded file ${uploadResult.file.displayName} as: ${uploadResult.file.name}`);
-      return uploadResult.file;
-    } catch (error) {
-      console.error(`Error uploading file ${fileInput.path}:`, error);
-      throw error;
-    }
-  }
-  
-  // Function to wait for files to be active
-  async function waitForFilesActive(uploadedFiles) {
-    console.log("Waiting for file processing...");
-    for (const name of uploadedFiles.map((file) => file.name)) {
-      let file = await fileManager.getFile(name);
-      while (file.state === "PROCESSING") {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        file = await fileManager.getFile(name);
-      }
-      if (file.state !== "ACTIVE") {
-        throw Error(`File ${file.name} failed to process`);
-      }
-    }
-    console.log("...all files ready");
-    return uploadedFiles;
-  }
+  // Create prompt text for vocabulary extraction
+  const promptText = `
+You are a language learning assistant tasked with identifying useful vocabulary words from the provided content.
+
+Please analyze the following text and extract a list of vocabulary words that would be valuable for an English language learner:
+
+${text}
+
+Return ONLY an array of individual words that are most valuable for vocabulary building. 
+Focus on words that are:
+- Common but not extremely basic
+- Important for understanding the context
+- Potentially challenging for language learners
+
+Return the words as strings in a JSON array format.
+  `;
 
   try {
-    // Only upload and process files if files array is not empty
-    const uploadedFiles = files.length > 0 ? await Promise.all(files.map(uploadToGemini)) : [];
-    
-    // Wait for files to be processed if there are any
-    if (uploadedFiles.length > 0) {
-      await waitForFilesActive(uploadedFiles);
-    }
-    
-    // Base prompt text
-    const promptText = `You are an expert language teacher. Your task is to identify up to 10 words from the provided ${files.length > 0 ? 'text and/or files' : 'text'} that would be valuable for a language learner to study.
-
-Select words that are:
-1. Advanced and relatively uncommon
-2. Useful in various contexts
-3. Worth adding to one's vocabulary
-
-Return only an array of words, without any additional explanation.
-
-${text ? `Text to analyze:\n${text}` : ''}`;
-
+    // Define the generation config for structured output
     const generationConfig = {
       temperature: 0.7,
       topP: 0.95,
       topK: 40,
       maxOutputTokens: 8192,
       responseMimeType: "application/json",
-    };
-    
-    // Schema for structural generation
-    const responseSchema = {
-      type: SchemaType.ARRAY,
-      description: "List of vocabulary words",
-      items: {
-        type: SchemaType.STRING,
-        description: "A vocabulary word that would be valuable for a language learner",
+      responseSchema: {
+        type: SchemaType.ARRAY as const,
+        description: "List of vocabulary words",
+        items: {
+          type: SchemaType.STRING as const,
+          description: "A vocabulary word that would be valuable for a language learner",
+        },
       },
     };
     
-    // If we have files, use a chat session
+    // Create model
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig
+    });
+    
+    // Start a chat session and send the message
     let result;
-    if (uploadedFiles.length > 0) {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-      });
-      
-      // Prepare the initial parts array with file data
-      const initialParts = uploadedFiles.map(file => ({
-        fileData: {
-          mimeType: file.mimeType,
-          fileUri: file.uri,
-        }
+    
+    if (files.length > 0) {
+      // If we have files, use content generation with files
+      // First, prepare file parts for each file
+      const fileParts = await Promise.all(files.map(async (fileInput) => {
+        // Read the file as data URL
+        const dataUrl = await readFileAsDataURL(fileInput.file);
+        return {
+          inlineData: {
+            data: dataUrl.split(',')[1], // Remove the "data:image/jpeg;base64," part
+            mimeType: fileInput.mimeType || fileInput.file.type
+          }
+        };
       }));
       
-      const chatSession = model.startChat({
-        generationConfig,
-        history: [
-          {
-            role: "user",
-            parts: initialParts,
-          }
-        ],
-        safetySettings: [
-          {
-            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-          },
-        ],
-      });
+      // Create content parts with text and files
+      const contentParts = [
+        { text: promptText },
+        ...fileParts
+      ];
       
-      // Send the prompt text as a separate message
-      result = await chatSession.sendMessage(promptText);
+      // Generate content with files
+      result = await model.generateContent(contentParts);
     } else {
-      // For text-only, use standard prompt with schema in model config
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig,
-        safetySettings: [
-          {
-            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-          },
-        ],
-      });
-      
+      // No files, just use text
       result = await model.generateContent(promptText);
     }
-
+    
+    // Parse the JSON result
     const words: string[] = JSON.parse(result.response.text());
     
     // Look up each word and filter out any null results
@@ -339,6 +281,22 @@ ${text ? `Text to analyze:\n${text}` : ''}`;
     console.error('Error analyzing text/files:', error);
     throw error;
   }
+}
+
+// Helper function to read file as data URL
+function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        resolve(reader.result.toString());
+      } else {
+        reject(new Error('Failed to read file as data URL'));
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 /**

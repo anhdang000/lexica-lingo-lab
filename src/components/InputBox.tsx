@@ -19,9 +19,11 @@ import {
   Sparkles,
   GripHorizontal
 } from 'lucide-react';
+import { FileInput } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface InputBoxProps {
-  onAnalyze: (text: string, tool: 'lexigrab' | 'lexigen') => Promise<void>;
+  onAnalyze: (text: string, files: FileInput[], tool: 'lexigrab' | 'lexigen') => Promise<void>;
   isAnalyzing: boolean;
 }
 
@@ -33,25 +35,30 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [images, setImages] = useState<Array<{ id: string; preview: string }>>([]);
+  const [images, setImages] = useState<Array<{ 
+    id: string; 
+    preview: string;
+    file: File;
+    isUploading: boolean;
+    uploadError?: string;
+  }>>([]);
 
   const calculateFontSize = (text: string) => {
     const lines = text.split('\n').length;
     const length = text.length;
 
-    if (lines >= 5) return 18; // Normal size after 4 lines
+    if (lines >= 5) return 18; 
     if (lines === 4) return 20;
     if (lines === 3) return 24;
     if (lines === 2) return 28;
     if (lines === 1) return 30;
-    if (lines === 0) return 30; // Default large size// Default large size
+    if (lines === 0) return 30;
     return 16;
   };
 
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {
-      // Set a fixed height regardless of content length
       textarea.style.height = '150px';
     }
   };
@@ -89,11 +96,58 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     }
   };
 
+  const handleFileSelection = async (file: File) => {
+    const reader = new FileReader();
+    const id = Math.random().toString(36).substring(7);
+    
+    // Add the image to state immediately with uploading flag
+    reader.onload = (e) => {
+      setImages(prev => [...prev, {
+        id,
+        preview: e.target?.result as string,
+        file,
+        isUploading: false
+      }]);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAnalyze = async () => {
     if (!inputValue && images.length === 0) return;
-
-    if (inputValue) {
-      await onAnalyze(inputValue.trim(), activeTool);
+    
+    // Set all images to uploading state
+    setImages(prev => prev.map(img => ({
+      ...img,
+      isUploading: true,
+      uploadError: undefined
+    })));
+    
+    try {
+      // Create FileInput objects from the files
+      const fileInputs: FileInput[] = images.map(img => ({
+        file: img.file,
+        mimeType: img.file.type
+      }));
+      
+      // Mark upload as successful
+      setImages(prev => prev.map(img => ({
+        ...img,
+        isUploading: false
+      })));
+      
+      // Call the analyze function with text and files
+      await onAnalyze(inputValue.trim(), fileInputs, activeTool);
+    } catch (error) {
+      console.error('Error during analysis:', error);
+      
+      // Mark all as failed
+      setImages(prev => prev.map(img => ({
+        ...img,
+        isUploading: false,
+        uploadError: 'Failed to process'
+      })));
+      
+      toast.error('Failed to process files for analysis');
     }
   };
 
@@ -131,19 +185,8 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     }
   };
 
-  const handleFileSelection = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const newImage = {
-        id: Math.random().toString(36).substring(7),
-        preview: e.target?.result as string
-      };
-      setImages(prev => [...prev, newImage]);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const removeImage = (idToRemove: string) => {
+    // Simply remove the image from state
     setImages(prev => prev.filter(img => img.id !== idToRemove));
   };
 
@@ -290,13 +333,36 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
                           <img 
                             src={img.preview} 
                             alt="Preview" 
-                            className="w-full h-full object-cover"
+                            className={cn(
+                              "w-full h-full object-cover",
+                              img.isUploading && "opacity-50"
+                            )}
                           />
+                          {img.isUploading && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Loader2 className="h-6 w-6 animate-spin text-white" />
+                            </div>
+                          )}
+                          {img.uploadError && (
+                            <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="text-red-500 bg-white rounded-full p-1">
+                                    <X className="h-4 w-4" />
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{img.uploadError}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
                             className="absolute top-1 right-1 bg-black/30 hover:bg-black/50 text-white rounded-full w-6 h-6 p-1"
                             onClick={() => removeImage(img.id)}
+                            disabled={img.isUploading}
                           >
                             <X className="h-3 w-3" />
                           </Button>
@@ -342,6 +408,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
             variant="ghost"
             size="sm"
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            disabled={isAnalyzing}
           >
             <FileUp className="h-4 w-4 mr-2" />
             <span>Attach</span>
@@ -350,7 +417,11 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
           {/* Right side - Analyze button */}
           <Button
             onClick={handleAnalyze}
-            disabled={isAnalyzing || (!inputValue && images.length === 0)}
+            disabled={
+              isAnalyzing || 
+              (!inputValue && images.length === 0) ||
+              images.some(img => img.isUploading)
+            }
             className="bg-gradient-to-r from-[#cd4631] to-[#dea47e] hover:from-[#cd4631]/90 hover:to-[#dea47e]/90 text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md"
           >
             {isAnalyzing ? (
