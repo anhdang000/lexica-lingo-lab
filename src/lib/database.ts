@@ -483,14 +483,12 @@ export async function updateUserProfile(userId: string, updates: any) {
 // Function to get or create collection with a specific name
 export async function getOrCreateCollection(userId: string, name: string, description?: string) {
   try {
-    // Sanitize collection name to ensure it's valid
+    // Sanitize collection name to ensure it's valid for use as a key
     const sanitizedName = name.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
     const collectionName = sanitizedName || 'unnamed-collection';
     
-    // Create a display-friendly name with capitalized words for the description
-    const displayName = name.split(/\s+/).map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    ).join(' ');
+    // Use the original name as provided for display
+    const displayName = name.trim();
     
     const collectionDescription = description || `Vocabulary collection: ${displayName}`;
     
@@ -499,7 +497,7 @@ export async function getOrCreateCollection(userId: string, name: string, descri
       .from("collections")
       .select("*")
       .eq("user_id", userId)
-      .eq("name", collectionName)
+      .eq("name", displayName)  // Look for the original display name
       .single();
 
     if (findError && findError.code !== "PGRST116") { // PGRST116 is "not found" error
@@ -516,14 +514,14 @@ export async function getOrCreateCollection(userId: string, name: string, descri
       .from("collections")
       .insert({
         user_id: userId,
-        name: collectionName,
+        name: displayName, // Use the original display name instead of sanitized name
         description: collectionDescription,
       })
       .select()
       .single();
 
     if (createError) {
-      console.error(`Error creating collection '${collectionName}':`, createError);
+      console.error(`Error creating collection '${displayName}':`, createError);
       throw createError;
     }
 
@@ -542,7 +540,7 @@ export async function getOrCreateGeneralCollection(userId: string) {
       .from("collections")
       .select("*")
       .eq("user_id", userId)
-      .eq("name", "general")
+      .eq("name", "General")
       .single();
 
     if (findError && findError.code !== "PGRST116") { // PGRST116 is "not found" error
@@ -559,7 +557,7 @@ export async function getOrCreateGeneralCollection(userId: string) {
       .from("collections")
       .insert({
         user_id: userId,
-        name: "general",
+        name: "General",
         description: "Default collection for vocabulary",
       })
       .select()
