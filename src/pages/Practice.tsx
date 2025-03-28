@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Brain, Target, Trophy, Calendar, Play, BookOpen, Shuffle, ArrowLeft, TextSearch } from 'lucide-react';
-import { FlashcardGame } from '@/components/practice/FlashcardGame';
-import { QuizGame } from '@/components/practice/QuizGame';
+import { FlashcardGame, FlashcardGameRef } from '@/components/practice/FlashcardGame';
+import { QuizGame, QuizGameRef } from '@/components/practice/QuizGame';
 
 const Practice = () => {
   const [currentGame, setCurrentGame] = useState<string | null>(null);
+  const flashcardRef = useRef<FlashcardGameRef>(null);
+  const quizRef = useRef<QuizGameRef>(null);
 
   // Sample learning stats
   const learningStats = {
@@ -54,7 +56,12 @@ const Practice = () => {
     setCurrentGame(gameType);
   };
 
-  const handleBackToPractice = () => {
+  const handleReturnToPracticeMenu = async () => {
+    if (currentGame === "Flashcards" && flashcardRef.current) {
+      await flashcardRef.current.handleBack();
+    } else if (currentGame === "Quizz with AI" && quizRef.current) {
+      await quizRef.current.handleBack();
+    }
     setCurrentGame(null);
   };
 
@@ -64,14 +71,14 @@ const Practice = () => {
         <Button 
           variant="ghost" 
           className="mb-8 hover:bg-gray-100"
-          onClick={handleBackToPractice}
+          onClick={handleReturnToPracticeMenu}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Practice
         </Button>
         
-        {currentGame === "Flashcards" && <FlashcardGame onBack={handleBackToPractice} />}
-        {currentGame === "Quizz with AI" && <QuizGame onBack={handleBackToPractice} />}
+        {currentGame === "Flashcards" && <FlashcardGame ref={flashcardRef} onBack={handleReturnToPracticeMenu} />}
+        {currentGame === "Quizz with AI" && <QuizGame ref={quizRef} onBack={handleReturnToPracticeMenu} />}
       </div>
     );
   }

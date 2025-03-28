@@ -249,11 +249,6 @@ export async function completePracticeSession(
       return null;
     }
 
-    toast({
-      title: "Success",
-      description: "Practice session completed!",
-    });
-
     return data;
   } catch (error) {
     console.error("Exception updating practice session:", error);
@@ -262,6 +257,33 @@ export async function completePracticeSession(
       description: "An unexpected error occurred. Please try again later.",
       variant: "destructive",
     });
+    return null;
+  }
+}
+
+// Function to update total words count in a practice session
+export async function updatePracticeSessionTotalWords(
+  sessionId: string,
+  totalWords: number
+) {
+  try {
+    const { data, error } = await supabase
+      .from("practice_sessions")
+      .update({
+        total_words: totalWords
+      })
+      .eq("id", sessionId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating practice session total words:", error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Exception updating practice session total words:", error);
     return null;
   }
 }
@@ -806,5 +828,178 @@ export async function removeWordFromCollection(
       variant: "destructive",
     });
     return false;
+  }
+}
+
+// Function to fetch random words for flashcard practice
+export async function getFlashcardWords(userId: string, count: number = 5): Promise<any[]> {
+  try {
+    const { data: collections, error: collectionsError } = await supabase
+      .from('collections')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (collectionsError) throw collectionsError;
+    if (!collections.length) return [];
+
+    const collectionIds = collections.map(c => c.id);
+
+    // Get random words from user's collections through collection_words join
+    const { data: collectionWords, error: collectionWordsError } = await supabase
+      .from('collection_words')
+      .select(`
+        id,
+        collection_id,
+        word_id,
+        meaning_id,
+        words:word_id(
+          id,
+          word,
+          phonetic
+        ),
+        meanings:meaning_id(
+          id,
+          word_id,
+          definition,
+          part_of_speech,
+          examples
+        )
+      `)
+      .in('collection_id', collectionIds)
+      .eq('user_id', userId)
+      .limit(count);
+
+    if (collectionWordsError) throw collectionWordsError;
+    if (!collectionWords.length) return [];
+
+    // Transform to the format expected by the flashcard component
+    return collectionWords.map(item => {
+      // Type assertions to help TypeScript understand the structure
+      const wordsData = item.words as any;
+      const meaningsData = item.meanings as any;
+      
+      // Determine if we're dealing with arrays or objects
+      const wordInfo = Array.isArray(wordsData) ? wordsData[0] : wordsData;
+      const meaningInfo = Array.isArray(meaningsData) ? meaningsData[0] : meaningsData;
+      
+      return {
+        id: item.word_id,
+        meaningId: item.meaning_id,
+        word: wordInfo?.word,
+        phonetic: {
+          text: wordInfo?.phonetic || '',
+          audio: '' // No audio available in current schema
+        },
+        partOfSpeech: meaningInfo?.part_of_speech || '',
+        definition: meaningInfo?.definition,
+        example: meaningInfo?.examples && Array.isArray(meaningInfo.examples) && meaningInfo.examples.length > 0
+          ? meaningInfo.examples[0]
+          : '',
+        collectionId: item.collection_id
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching flashcard words:', error);
+    return [];
+  }
+}
+
+export async function getQuizQuestions(userId: string, count: number = 3): Promise<any[]> {
+  try {
+    const { data: collections, error: collectionsError } = await supabase
+      .from('collections')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (collectionsError) throw collectionsError;
+    if (!collections.length) return [];
+
+    const collectionIds = collections.map(c => c.id);
+
+    // Get words from user's collections through collection_words join
+    const { data: collectionWords, error: collectionWordsError } = await supabase
+      .from('collection_words')
+      .select(`
+        id,
+        collection_id,
+        word_id,
+        meaning_id,
+        words:word_id(
+          id,
+          word,
+          phonetic
+        ),
+        meanings:meaning_id(
+          id,
+          word_id,
+          definition,
+          part_of_speech,
+          examples
+        )
+      `)
+      .in('collection_id', collectionIds)
+      .eq('user_id', userId)
+      .limit(count * 3); // Get more words for options
+
+    if (collectionWordsError) throw collectionWordsError;
+    if (!collectionWords.length) return [];
+
+    // Shuffle the words array client-side
+    const shuffledWords = [...collectionWords].sort(() => Math.random() - 0.5);
+
+    // Ensure we have enough words for the quiz (at least count)
+    if (shuffledWords.length < count) return [];
+
+    // Transform data into quiz questions
+    const quizQuestions = [];
+    
+    // Use the first 'count' words as correct answers
+    for (let i = 0; i < count; i++) {
+      if (i >= shuffledWords.length) break;
+      
+      const correctWord = shuffledWords[i];
+      const wordObj = Array.isArray(correctWord.words) ? correctWord.words[0] : correctWord.words;
+      const meaningObj = Array.isArray(correctWord.meanings) ? correctWord.meanings[0] : correctWord.meanings;
+      
+      // Get 3 random words for incorrect options (excluding the correct one)
+      const incorrectOptions = shuffledWords
+        .filter((w, idx) => idx !== i && idx >= count)
+        .slice(0, 3)
+        .map(w => {
+          const wordData = Array.isArray(w.words) ? w.words[0] : w.words;
+          return wordData?.word;
+        });
+      
+      // If we don't have enough incorrect options, skip this question
+      if (incorrectOptions.length < 3) continue;
+      
+      // Create options including the correct one
+      const options = [...incorrectOptions, wordObj?.word];
+      
+      // Shuffle options
+      for (let j = options.length - 1; j > 0; j--) {
+        const k = Math.floor(Math.random() * (j + 1));
+        [options[j], options[k]] = [options[k], options[j]];
+      }
+      
+      // Create a context-based question based on the definition
+      const question = `Which word best matches this definition: "${meaningObj?.definition}"?`;
+      
+      quizQuestions.push({
+        word: wordObj?.word,
+        definition: meaningObj?.definition,
+        question,
+        options,
+        correct_option_idx: options.indexOf(wordObj?.word),
+        wordId: correctWord.word_id,
+        meaningId: correctWord.meaning_id,
+        collectionId: correctWord.collection_id
+      });
+    }
+    
+    return quizQuestions;
+  } catch (error) {
+    console.error('Error fetching quiz questions:', error);
+    return [];
   }
 }
