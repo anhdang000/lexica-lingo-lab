@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +9,8 @@ import NotFound from "./pages/NotFound";
 import Library from "./pages/Library";
 import Practice from "./pages/Practice";
 import Auth from "./pages/Auth";
+import LexiGrab from "./pages/LexiGrab";
+import LexiGen from "./pages/LexiGen";
 import { useIsMobile } from "./hooks/use-mobile";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AppStateProvider } from "./contexts/AppStateContext";
@@ -48,10 +49,18 @@ const App = () => (
                 {/* Auth route - this should always be accessible */}
                 <Route path="/auth" element={<Auth />} />
                 
+                {/* Redirect root to lexigrab */}
+                <Route path="/" element={<Navigate to="/lexigrab" replace />} />
+                
                 {/* Protected routes - these require authentication */}
-                <Route path="/" element={
+                <Route path="/lexigrab" element={
                   <ProtectedRoute>
-                    <Layout><Index /></Layout>
+                    <Layout><LexiGrab /></Layout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/lexigen" element={
+                  <ProtectedRoute>
+                    <Layout><LexiGen /></Layout>
                   </ProtectedRoute>
                 } />
                 <Route path="/library" element={

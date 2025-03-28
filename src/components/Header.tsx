@@ -1,12 +1,13 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Home, Folder, Keyboard, Menu, X, User, LogOut } from 'lucide-react';
+import { Menu, X, LogOut, GripHorizontal, Sparkles } from 'lucide-react';
+import { Library, Dumbbell } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import 'remixicon/fonts/remixicon.css';
 
 const Header: React.FC = () => {
@@ -23,10 +24,13 @@ const Header: React.FC = () => {
     await signOut();
   };
 
+  // Updated navigation links with LexiGrab and LexiGen on top
   const navLinks = [
-    { name: 'Home', path: '/', icon: <Home className="h-5 w-5" /> },
-    { name: 'Library', path: '/library', icon: <Folder className="h-5 w-5" /> },
-    { name: 'Practice', path: '/practice', icon: <Keyboard className="h-5 w-5" /> },
+    { name: 'LexiGrab', path: '/lexigrab', icon: <GripHorizontal className="h-5 w-5" />, color: "text-[#cd4631]" },
+    { name: 'LexiGen', path: '/lexigen', icon: <Sparkles className="h-5 w-5" />, color: "text-[#6366f1]" },
+    // Separator is handled separately in the UI
+    { name: 'Library', path: '/library', icon: <Library className="h-5 w-5" />, color: "text-gray-600" },
+    { name: 'Practice', path: '/practice', icon: <Dumbbell className="h-5 w-5" />, color: "text-gray-600" },
   ];
 
   // Get user initials for avatar fallback
@@ -62,7 +66,31 @@ const Header: React.FC = () => {
         {/* Mobile navigation menu */}
         {mobileMenuOpen && (
           <nav className="bg-white dark:bg-gray-800 shadow-lg">
-            {navLinks.map((link) => (
+            {/* First two links - LexiGrab and LexiGen */}
+            {navLinks.slice(0, 2).map((link) => (
+              <Link
+                key={link.name}
+                to={link.path}
+                className={cn(
+                  "flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700",
+                  location.pathname === link.path 
+                    ? `${link.color} dark:${link.color} bg-light dark:bg-gray-700` 
+                    : "text-gray-600 dark:text-gray-200",
+                )}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <div className="w-6 h-6 flex items-center justify-center">
+                  {link.icon}
+                </div>
+                <span className="ml-3">{link.name}</span>
+              </Link>
+            ))}
+            
+            {/* Separator */}
+            <Separator className="my-2 bg-gray-200 dark:bg-gray-700" />
+            
+            {/* Remaining links */}
+            {navLinks.slice(2).map((link) => (
               <Link
                 key={link.name}
                 to={link.path}
@@ -110,7 +138,30 @@ const Header: React.FC = () => {
       </div>
       
       <div className="flex-1 px-4">
-        {navLinks.map((link) => (
+        {/* First two links - LexiGrab and LexiGen */}
+        {navLinks.slice(0, 2).map((link) => (
+          <Link
+            key={link.name}
+            to={link.path}
+            className={cn(
+              "flex items-center px-4 py-3 rounded-button mb-2 hover:bg-gray-50 dark:hover:bg-gray-700",
+              location.pathname === link.path 
+                ? `${link.color} dark:${link.color} bg-light dark:bg-gray-700` 
+                : "text-gray-600 dark:text-gray-200"
+            )}
+          >
+            <div className="w-6 h-6 flex items-center justify-center">
+              {link.icon}
+            </div>
+            <span className="ml-3 font-medium">{link.name}</span>
+          </Link>
+        ))}
+        
+        {/* Separator */}
+        <Separator className="my-3 bg-gray-200 dark:bg-gray-700" />
+        
+        {/* Remaining links */}
+        {navLinks.slice(2).map((link) => (
           <Link
             key={link.name}
             to={link.path}
