@@ -65,9 +65,9 @@ const LexiGrab = () => {
       {/* Hero Section */}
       <div className="text-center mb-12">
         <h2 className="text-4xl font-bold mb-4">
-          <span className="font-bold">Lexi</span><span className="font-['Pacifico'] text-[#cd4631]">Grab</span>
+          Grab vocabulary from <span className="font-['Pacifico'] text-primary">any sources</span>
         </h2>
-        <p className="text-gray-600">Easily extract and save vocabulary from any text, website, or document.</p>
+        <p className="text-gray-600 text-lg">Easily extract and learn vocabulary from texts, websites, and documents in seconds.</p>
       </div>
 
       {/* Input Box */}

@@ -61,9 +61,9 @@ const LexiGen = () => {
       {/* Hero Section */}
       <div className="text-center mb-12">
         <h2 className="text-4xl font-bold mb-4">
-          <span className="font-bold">Lexi</span><span className="font-['Pacifico'] text-[#6366f1]">Gen</span>
+          Generate vocabulary from <span className="font-['Pacifico'] text-primary">any topic</span>
         </h2>
-        <p className="text-gray-600">Generate vocabulary lists from any topic to expand your lexicon.</p>
+        <p className="text-gray-600 text-lg">Create customized vocabulary lists from any subject to enhance your language learning journey.</p>
       </div>
 
       {/* Input Box */}
