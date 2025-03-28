@@ -91,11 +91,8 @@ export const FlashcardGame = ({ onBack }: { onBack: () => void }) => {
 
   const currentWord = sampleWords[currentWordIndex];
 
-  const [[page, direction], setPage] = useState([0, 0]);
-
   const handleNextWord = () => {
     if (currentWordIndex < sampleWords.length - 1) {
-      setPage([page + 1, 1]);
       setCurrentWordIndex((prev) => prev + 1);
     }
   };
@@ -107,7 +104,6 @@ export const FlashcardGame = ({ onBack }: { onBack: () => void }) => {
   const handleContinueSession = () => {
     setSessionCount(prev => prev + 1);
     setCurrentWordIndex(0);
-    setPage([0, 0]);
   };
 
   const handleFinishSession = () => {
@@ -140,37 +136,22 @@ export const FlashcardGame = ({ onBack }: { onBack: () => void }) => {
     );
   };
 
-  // Update the swipe variants
-  const swipeVariants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? "100%" : "-100%",
-      opacity: 0
-    }),
-    center: {
-      x: 0,
-      opacity: 1
-    },
-    exit: (direction: number) => ({
-      x: direction < 0 ? "100%" : "-100%",
-      opacity: 0
-    })
+  const fadeVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 }
   };
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-8">
       <div className="relative h-[400px] mb-8">
-        <AnimatePresence initial={false} custom={direction} mode="popLayout">
+        <AnimatePresence mode="wait">
           <motion.div
             key={currentWordIndex}
-            custom={direction}
-            variants={swipeVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 }
-            }}
+            variants={fadeVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            transition={{ duration: 0.3 }}
             className="absolute w-full h-full"
             style={{ perspective: '1000px' }}
           >
@@ -179,7 +160,7 @@ export const FlashcardGame = ({ onBack }: { onBack: () => void }) => {
               onClick={handleCardClick}
               style={{ transformStyle: 'preserve-3d' }}
               animate={{ rotateY: isFlipped ? 180 : 0 }}
-              transition={{ duration: 0.6, type: 'spring', stiffness: 300, damping: 30 }}
+              transition={{ duration: 0.5 }}
             >
               {/* Front Side */}
               <div
