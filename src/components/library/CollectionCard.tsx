@@ -60,7 +60,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   const getProgressBadge = () => {
     if (progressPercentage >= 90) return { icon: <Sparkles className="h-3 w-3 mr-1" />, text: 'Mastered', class: 'bg-emerald-100 text-emerald-700' };
     if (progressPercentage >= 70) return { icon: <GraduationCap className="h-3 w-3 mr-1" />, text: 'Advanced', class: 'bg-blue-100 text-blue-700' };
-    if (progressPercentage >= 30) return { icon: null, text: 'In Progress', class: 'bg-amber-100 text-amber-700' };
+    if (progressPercentage >= 10) return { icon: null, text: 'In Progress', class: 'bg-amber-100 text-amber-700' };
     return { icon: null, text: 'Just Started', class: 'bg-gray-100 text-gray-700' };
   };
   
