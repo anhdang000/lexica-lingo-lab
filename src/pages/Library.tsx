@@ -13,7 +13,8 @@ import {
   Check,
   Wand2,
   Book,
-  Trash2
+  Trash2,
+  GraduationCap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -30,7 +31,8 @@ const Library: React.FC = () => {
     setSelectedCollectionId,
     collectionWords,
     isLoadingWords,
-    removeWordMeaning
+    removeWordMeaning,
+    collectionPracticeStats
   } = useVocabulary();
 
   // State management
@@ -223,7 +225,7 @@ const Library: React.FC = () => {
             {/* Right Panel - Vocabulary List */}
             {selectedCollectionId ? (
               <div className="flex-1 bg-white rounded-xl p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold">
                     {collections.find(c => c.id === selectedCollectionId)?.name && 
                      capitalizeTitle(collections.find(c => c.id === selectedCollectionId)?.name || '')}
@@ -240,9 +242,31 @@ const Library: React.FC = () => {
                   </div>
                 </div>
 
-                <blockquote className="mb-6 border-l-2 border-gray-200 pl-4 italic text-gray-600">
-                  {collections.find(c => c.id === selectedCollectionId)?.description}
-                </blockquote>
+                {/* Progress Line with information */}
+                <div className="mb-6 w-full">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <div className="text-sm font-medium flex items-center gap-1.5">
+                      <GraduationCap className="h-4 w-4 text-primary" />
+                      <span>Learning Progress</span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {collectionPracticeStats?.get(selectedCollectionId || '')?.practicedWords || 0} of {collectionPracticeStats?.get(selectedCollectionId || '')?.totalWords || 0} words practiced
+                    </div>
+                  </div>
+                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full transition-all duration-500 ease-in-out"
+                      style={{ 
+                        width: `${Math.min(collectionPracticeStats?.get(selectedCollectionId || '')?.percentage || 0, 100)}%` 
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-end mt-1">
+                    <span className="text-xs text-gray-500">
+                      {Math.round(collectionPracticeStats?.get(selectedCollectionId || '')?.percentage || 0)}% complete
+                    </span>
+                  </div>
+                </div>
                 
                 {isLoadingWords ? (
                   <div className="text-center py-8">

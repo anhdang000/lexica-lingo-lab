@@ -2,7 +2,9 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
-import { Book, Clock } from 'lucide-react';
+import { Book, Clock, GraduationCap, Sparkles } from 'lucide-react';
+import { useVocabulary } from './VocabularyProvider';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Collection {
   id: string;
@@ -32,30 +34,106 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
   isSelected = false,
   onSelect,
 }) => {
+  const { collectionPracticeStats } = useVocabulary();
+  const stats = collectionPracticeStats.get(collection.id);
+  const progressPercentage = stats?.percentage || 0;
+  const practicedWords = stats?.practicedWords || 0;
+  const totalWords = stats?.totalWords || collection.word_count || 0;
+  
+  // Determine card gradient based on progress
+  const getProgressGradient = () => {
+    if (progressPercentage >= 80) return 'from-emerald-50 to-emerald-100/50';
+    if (progressPercentage >= 50) return 'from-blue-50 to-blue-100/50';
+    if (progressPercentage >= 20) return 'from-amber-50 to-amber-100/50';
+    return 'from-white to-white';
+  };
+  
+  // Determine progress bar color based on progress
+  const getProgressColor = () => {
+    if (progressPercentage >= 80) return 'bg-emerald-500';
+    if (progressPercentage >= 50) return 'bg-blue-500';
+    if (progressPercentage >= 20) return 'bg-amber-500';
+    return 'bg-primary';
+  };
+  
+  // Badge label for progress state
+  const getProgressBadge = () => {
+    if (progressPercentage >= 90) return { icon: <Sparkles className="h-3 w-3 mr-1" />, text: 'Mastered', class: 'bg-emerald-100 text-emerald-700' };
+    if (progressPercentage >= 70) return { icon: <GraduationCap className="h-3 w-3 mr-1" />, text: 'Advanced', class: 'bg-blue-100 text-blue-700' };
+    if (progressPercentage >= 30) return { icon: null, text: 'In Progress', class: 'bg-amber-100 text-amber-700' };
+    return { icon: null, text: 'Just Started', class: 'bg-gray-100 text-gray-700' };
+  };
+  
+  const progressBadge = getProgressBadge();
+  
   return (
     <Card
       className={cn(
-        'p-4 cursor-pointer transition-all hover:border-primary/50',
-        isSelected && 'border-primary bg-primary/5'
+        'overflow-hidden transition-all duration-300 hover:shadow-md',
+        'border hover:border-primary/70',
+        isSelected ? 'border-primary shadow-md' : 'border-gray-200',
+        progressPercentage > 0 ? `bg-gradient-to-br ${getProgressGradient()}` : ''
       )}
       onClick={onSelect}
     >
-      <div className="flex items-start gap-3">
-        <div className="p-2 bg-primary/10 rounded">
-          <Book className="h-5 w-5 text-primary" />
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-3">
+          <div className={cn(
+            "p-2 rounded-lg",
+            isSelected ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
+          )}>
+            <Book className="h-5 w-5" />
+          </div>
+          
+          {progressPercentage > 0 && (
+            <div className={cn(
+              "text-xs px-2 py-1 rounded-full flex items-center",
+              progressBadge.class
+            )}>
+              {progressBadge.icon}
+              {progressBadge.text}
+            </div>
+          )}
         </div>
-        <div className="flex-1">
-          <h4 className="font-bold line-clamp-1">{capitalizeTitle(collection.name)}</h4>
-          <blockquote className="my-2 border-l-2 border-gray-200 pl-3 italic text-sm text-gray-600 line-clamp-2">
-            {collection.description}
-          </blockquote>
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            <span>{collection.word_count} words</span>
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              Updated {formatDistanceToNow(new Date(collection.updated_at))} ago
-            </span>
+        
+        <h4 className="font-bold text-lg mb-1 line-clamp-1">{capitalizeTitle(collection.name)}</h4>
+        
+        {collection.description && (
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{collection.description}</p>
+        )}
+        
+        {/* Progress Line with tooltip */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="my-3 w-full">
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500 ease-in-out",
+                      getProgressColor()
+                    )}
+                    style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+                  />
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Learning Progress: {Math.round(progressPercentage)}%</p>
+              <p className="text-xs text-gray-500">Practiced {practicedWords} of {totalWords} words</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-2">
+          <div className="flex items-center">
+            <div className="w-2 h-2 bg-primary rounded-full mr-1.5"></div>
+            <span>{totalWords} words</span>
+          </div>
+          
+          <div className="flex items-center">
+            <Clock className="h-3.5 w-3.5 mr-1 text-gray-400" />
+            <span>{formatDistanceToNow(new Date(collection.updated_at))} ago</span>
           </div>
         </div>
       </div>

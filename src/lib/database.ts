@@ -33,6 +33,70 @@ export async function getUserCollections(userId: string) {
   }
 }
 
+// Function to get practice statistics for a collection
+export async function getCollectionPracticeStats(userId: string, collectionId: string) {
+  try {
+    console.log(`[DEBUG] getCollectionPracticeStats - Starting for userId: ${userId}, collectionId: ${collectionId}`);
+    
+    // Get all word_ids in the collection
+    const { data: collectionWords, error: totalError } = await supabase
+      .from("collection_words")
+      .select("word_id")
+      .eq("collection_id", collectionId)
+      .eq("user_id", userId);
+
+    if (totalError) {
+      console.error("Error fetching collection words:", totalError);
+      console.log("[DEBUG] getCollectionPracticeStats - Error fetching collection words");
+      return { totalWords: 0, practicedWords: 0, percentage: 0 };
+    }
+    
+    // Count distinct word_ids for total words
+    const distinctWordIds = new Set(collectionWords?.map(item => item.word_id) || []);
+    const totalWords = distinctWordIds.size;
+    
+    console.log(`[DEBUG] getCollectionPracticeStats - Total words in collection: ${totalWords}`);
+    console.log(`[DEBUG] getCollectionPracticeStats - Distinct word IDs in collection: ${JSON.stringify(Array.from(distinctWordIds))}`);
+    
+    if (totalWords === 0) {
+      console.log("[DEBUG] getCollectionPracticeStats - No words in collection, returning zeros");
+      return { totalWords: 0, practicedWords: 0, percentage: 0 };
+    }
+
+    // Get all practice session words for this collection
+    const { data: practicedWordsData, error: practicedError } = await supabase
+      .from("practice_session_words")
+      .select("word_id")
+      .eq("collection_id", collectionId)
+      .eq("user_id", userId);
+
+    if (practicedError) {
+      console.error("Error fetching practiced words:", practicedError);
+      console.log("[DEBUG] getCollectionPracticeStats - Error fetching practiced words");
+      return { totalWords, practicedWords: 0, percentage: 0 };
+    }
+
+    console.log(`[DEBUG] getCollectionPracticeStats - Raw practiced words data:`, practicedWordsData);
+    
+    // Count distinct practiced word_ids
+    const distinctPracticedWordIds = new Set(practicedWordsData?.map(item => item.word_id) || []);
+    const practicedWords = distinctPracticedWordIds.size;
+    
+    console.log(`[DEBUG] getCollectionPracticeStats - Distinct practiced word IDs: ${JSON.stringify(Array.from(distinctPracticedWordIds))}`);
+    console.log(`[DEBUG] getCollectionPracticeStats - Practiced words count: ${practicedWords}`);
+
+    // Calculate percentage
+    const percentage = totalWords > 0 ? (practicedWords / totalWords) * 100 : 0;
+    console.log(`[DEBUG] getCollectionPracticeStats - Calculated percentage: ${percentage}%`);
+
+    return { totalWords, practicedWords, percentage };
+  } catch (error) {
+    console.error("Exception fetching collection practice stats:", error);
+    console.log("[DEBUG] getCollectionPracticeStats - Caught exception", error);
+    return { totalWords: 0, practicedWords: 0, percentage: 0 };
+  }
+}
+
 // Function to create a new collection
 export async function createCollection(userId: string, name: string, description?: string) {
   try {
