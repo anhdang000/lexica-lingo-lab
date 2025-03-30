@@ -16,8 +16,7 @@ import {
   createPracticeSession, 
   recordPracticeWordResult, 
   getFlashcardWords,
-  completePracticeSession,
-  updatePracticeSessionTotalWords 
+  completePracticeSession
 } from '@/lib/database';
 
 interface Word {
@@ -169,13 +168,6 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
             updated.add(wordKey);
             return updated;
           });
-          
-          // Update the practice session:
-          // 1. Increment the total_words count to match recorded words
-          // 2. Also update correct_answers to ensure they stay in sync
-          const newCount = recordedWords.size + 1; // +1 for the word we just added
-          await updatePracticeSessionTotalWords(sessionId, newCount);
-          await completePracticeSession(sessionId, newCount, false);
         }
         
         return success;
@@ -190,19 +182,12 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
       if (!sessionId || !user || practicedWords.length === 0) return;
       
       try {
-        // For flashcards, correct_answers should always equal total_words
-        // since all flashcard interactions are considered correct
-        const correctCount = practicedWords.length;
-        
-        // Update practice session status with actual number of practiced words
+        // Update practice session status with completion flag
         await completePracticeSession(
           sessionId,
-          correctCount, // All flashcard reviews are considered correct
+          0, // The trigger will update this count correctly
           isFullyCompleted
         );
-        
-        // Ensure total_words matches correct_answers to fix the database issue
-        await updatePracticeSessionTotalWords(sessionId, correctCount);
         
         // Mark the session as inactive after completion
         isSessionActive.current = false;

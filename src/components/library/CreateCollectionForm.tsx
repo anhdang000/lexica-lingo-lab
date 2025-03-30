@@ -1,7 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -9,7 +8,6 @@ import * as z from 'zod';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
-  description: z.string().max(500).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -27,7 +25,6 @@ const CreateCollectionForm: React.FC<CreateCollectionFormProps> = ({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
-      description: '',
     },
   });
 
@@ -42,24 +39,6 @@ const CreateCollectionForm: React.FC<CreateCollectionFormProps> = ({
               <FormLabel>Collection Name</FormLabel>
               <FormControl>
                 <Input placeholder="Enter collection name" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Enter a description for your collection"
-                  className="resize-none"
-                  {...field}
-                />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -7,13 +7,9 @@ type Collection = {
   name: string;
   description: string | null;
   word_count: number;
+  reviewed_word_count: number; // Added field from new schema
   created_at: string;
   updated_at: string;
-  practiceStats?: {
-    totalWords: number;
-    practicedWords: number;
-    percentage: number;
-  };
 };
 
 type VocabularyProviderProps = {
@@ -59,10 +55,26 @@ export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children
       const collections = await getUserCollections(user.id);
       setCollections(collections);
       
+      // Create practice stats from collection data directly
       const statsMap = new Map();
       for (const collection of collections) {
+        // Either use the getCollectionPracticeStats function or calculate directly
+        // Option 1: Using the updated helper function
         const stats = await getCollectionPracticeStats(user.id, collection.id);
         statsMap.set(collection.id, stats);
+        
+        // Option 2: Calculate directly from collection fields (alternative)
+        /*
+        const totalWords = collection.word_count || 0;
+        const practicedWords = collection.reviewed_word_count || 0;
+        const percentage = totalWords > 0 ? (practicedWords / totalWords) * 100 : 0;
+        
+        statsMap.set(collection.id, {
+          totalWords,
+          practicedWords,
+          percentage
+        });
+        */
       }
       setCollectionPracticeStats(statsMap);
       

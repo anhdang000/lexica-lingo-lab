@@ -59,8 +59,8 @@ create table public.collections (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users(id),
   name text not null,
-  description text,
   word_count int default 0,
+  reviewed_word_count int default 0,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
@@ -99,33 +99,6 @@ create policy "Authenticated users can insert words"
   on public.words for insert with check (auth.role() = 'authenticated');
 ```
 
-### user_words
-Tracks relationships between users and words independent of collections.
-```sql
-create table public.user_words (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users(id),
-  word_id uuid references public.words(id) on delete cascade,
-  meaning_id uuid references public.word_meanings(id) on delete cascade,
-  status text default 'new' check (status in ('new', 'learning', 'mastered')),
-  last_reviewed_at timestamp with time zone,
-  review_count int default 0,
-  next_review_at timestamp with time zone,
-  created_at timestamp with time zone default now(),
-  unique(user_id, word_id, meaning_id)
-);
-
--- Indexes
-create index user_words_user_id_idx on public.user_words(user_id);
-create index user_words_word_id_idx on public.user_words(word_id);
-create index user_words_status_idx on public.user_words(status);
-
--- RLS Policies
-alter table public.user_words enable row level security;
-create policy "Users can manage their saved words"
-  on public.user_words for all using (auth.uid() = user_id);
-```
-
 ### word_meanings
 Stores multiple meanings/definitions for each word, along with its examples.
 ```sql
@@ -136,7 +109,6 @@ create table public.word_meanings (
   part_of_speech text,
   definition text not null,
   examples text[],
-  created_at timestamp with time zone default now(),
   unique(word_id, ordinal_index)
 );
 
@@ -233,24 +205,101 @@ create policy "Users can manage their practice session words"
 ## Functions and Triggers
 
 ### Update Collection Word Count
+
 ```sql
 create or replace function update_collection_word_count()
 returns trigger as $$
 begin
+  -- Update the collection word count
   update public.collections
-  set word_count = (
-    select count(*)
-    from public.collection_words
-    where collection_id = new.collection_id
-  )
+  set 
+    word_count = (
+      select count(*)
+      from public.collection_words
+      where collection_id = new.collection_id
+      and user_id = new.user_id
+    ),
+    updated_at = now()
   where id = new.collection_id;
+  
   return new;
 end;
 $$ language plpgsql;
 
+-- Trigger to update collection word count when words are added or removed
 create trigger update_collection_word_count_trigger
 after insert or delete on public.collection_words
 for each row execute function update_collection_word_count();
+```
+
+### Update Collection Practice Stats
+```sql
+-- Function to update collection practice stats when a word is practiced
+create or replace function update_collection_practice_stats()
+returns trigger as $$
+begin
+  -- Update the word practice count in collection_words
+  update public.collection_words
+  set 
+    review_count = review_count + 1,
+    last_reviewed_at = now(),
+    next_review_at = now() + interval '1 day' * 
+      case 
+        when status = 'new' then 1
+        when status = 'learning' then 3
+        when status = 'mastered' then 7
+        else 1
+      end,
+    status = case
+      when new.is_correct then
+        case 
+          when review_count >= 5 and status = 'learning' then 'mastered'
+          when status = 'new' then 'learning'
+          else status
+        end
+      else status
+    end,
+    updated_at = now()
+  where collection_id = new.collection_id
+    and word_id = new.word_id
+    and meaning_id = new.meaning_id
+    and user_id = new.user_id;
+
+  -- Update practice session stats
+  update public.practice_sessions
+  set 
+    total_words = (
+      select count(*)
+      from public.practice_session_words
+      where session_id = new.session_id
+    ),
+    correct_answers = (
+      select count(*)
+      from public.practice_session_words
+      where session_id = new.session_id
+      and is_correct = true
+    )
+  where id = new.session_id;
+
+  -- Update collection reviewed word count
+  update public.collections
+  set 
+    reviewed_word_count = (
+      select count(distinct cw.word_id)
+      from public.collection_words cw
+      where cw.collection_id = new.collection_id
+      and cw.last_reviewed_at is not null
+    ),
+    updated_at = now()
+  where id = new.collection_id;
+
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger update_collection_practice_stats_trigger
+after insert on public.practice_session_words
+for each row execute function update_collection_practice_stats();
 ```
 
 ### Update User Stats
@@ -286,124 +335,6 @@ $$ language plpgsql;
 create trigger update_user_stats_trigger
 after insert or update on public.practice_sessions
 for each row execute function update_user_stats();
-```
-
-### Update Collection Practice Stats
-```sql
--- Function to update collection practice stats when a word is practiced
-create or replace function update_collection_practice_stats()
-returns trigger as $$
-begin
-  -- Update the word practice count in collection_words
-  update public.collection_words
-  set review_count = review_count + 1,
-      last_reviewed_at = now(),
-      status = case
-        when new.is_correct then
-          case 
-            when review_count >= 5 and status = 'learning' then 'mastered'
-            when status = 'new' then 'learning'
-            else status
-          end
-        else status
-      end
-  where collection_id = new.collection_id
-    and word_id = new.word_id;
-
-  return new;
-end;
-$$ language plpgsql;
-
-create trigger update_collection_practice_stats_trigger
-after insert on public.practice_session_words
-for each row execute function update_collection_practice_stats();
-
--- Update user stats function
-create or replace function update_user_practice_stats()
-returns trigger as $$
-begin
-  -- Only update stats when session is completed
-  if new.completed and not old.completed then
-    update public.profiles
-    set 
-      words_learned = (
-        select count(distinct cw.word_id)
-        from public.collection_words cw
-        where cw.user_id = new.user_id
-        and cw.status = 'mastered'
-      ),
-      accuracy = (
-        select 
-          avg((ps.correct_answers::float / ps.total_words) * 100)
-        from public.practice_sessions ps
-        where ps.user_id = new.user_id
-        and ps.completed = true
-      ),
-      last_practice_at = new.completed_at
-    where id = new.user_id;
-  end if;
-  return new;
-end;
-$$ language plpgsql;
-
-create trigger update_user_practice_stats_trigger
-after update on public.practice_sessions
-for each row execute function update_user_practice_stats();
-```
-
-### Update User Words Practice Stats
-```sql
--- Function to update user_words practice stats when a word is practiced
-create or replace function update_user_words_practice_stats()
-returns trigger as $$
-begin
-  -- First, ensure the word exists in user_words (insert if not exists)
-  insert into public.user_words (user_id, word_id, meaning_id, status, review_count, last_reviewed_at)
-  select 
-    (select user_id from public.practice_sessions where id = new.session_id),
-    new.word_id,
-    new.meaning_id,
-    'new',
-    0,
-    now()
-  where not exists (
-    select 1 from public.user_words 
-    where user_id = (select user_id from public.practice_sessions where id = new.session_id)
-    and word_id = new.word_id
-    and meaning_id = new.meaning_id
-  );
-
-  -- Then update the practice stats
-  update public.user_words
-  set review_count = review_count + 1,
-      last_reviewed_at = now(),
-      next_review_at = now() + interval '1 day' * 
-        case 
-          when status = 'new' then 1
-          when status = 'learning' then 3
-          when status = 'mastered' then 7
-          else 1
-        end,
-      status = case
-        when new.is_correct then
-          case 
-            when review_count >= 5 and status = 'learning' then 'mastered'
-            when status = 'new' then 'learning'
-            else status
-          end
-        else status
-      end
-  where user_id = (select user_id from public.practice_sessions where id = new.session_id)
-    and word_id = new.word_id
-    and meaning_id = new.meaning_id;
-
-  return new;
-end;
-$$ language plpgsql;
-
-create trigger update_user_words_practice_stats_trigger
-after insert on public.practice_session_words
-for each row execute function update_user_words_practice_stats();
 ```
 
 ## Database Indexes
@@ -452,11 +383,6 @@ begin
   return new;
 end;
 $$ language plpgsql;
-
--- Apply to relevant tables
-create trigger update_collections_updated_at
-  before update on public.collections
-  for each row execute function update_updated_at();
 
 create trigger update_collection_words_updated_at
   before update on public.collection_words

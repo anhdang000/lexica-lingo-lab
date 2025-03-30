@@ -10,6 +10,7 @@ export interface Database {
           name: string;
           description: string | null;
           word_count: number;
+          reviewed_word_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -19,6 +20,7 @@ export interface Database {
           name: string;
           description?: string | null;
           word_count?: number;
+          reviewed_word_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -28,6 +30,7 @@ export interface Database {
           name?: string;
           description?: string | null;
           word_count?: number;
+          reviewed_word_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -161,41 +164,6 @@ export interface Database {
           next_review_at?: string | null;
           created_at?: string;
           updated_at?: string;
-        };
-      };
-      user_words: {
-        Row: {
-          id: string;
-          user_id: string;
-          word_id: string;
-          meaning_id: string;
-          status: string;
-          last_reviewed_at: string | null;
-          review_count: number;
-          next_review_at: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          word_id: string;
-          meaning_id: string;
-          status?: string;
-          last_reviewed_at?: string | null;
-          review_count?: number;
-          next_review_at?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          word_id?: string;
-          meaning_id?: string;
-          status?: string;
-          last_reviewed_at?: string | null;
-          review_count?: number;
-          next_review_at?: string | null;
-          created_at?: string;
         };
       };
       practice_sessions: {

@@ -198,10 +198,10 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
         }
       }
       
-      // Update practice session status with actual number of answered questions
+      // Update practice session status with actual completed state
       await completePracticeSession(
         sessionId,
-        answeredQuestions.length, // Number of questions actually answered
+        score, // Use the score as the count of correct answers
         isFullyCompleted
       );
       

@@ -9,7 +9,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface Collection {
   id: string;
   name: string;
-  description: string;
   word_count: number;
   created_at: string;
   updated_at: string;
@@ -97,10 +96,6 @@ const CollectionCard: React.FC<CollectionCardProps> = ({
         </div>
         
         <h4 className="font-bold text-lg mb-1 line-clamp-1">{capitalizeTitle(collection.name)}</h4>
-        
-        {collection.description && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{collection.description}</p>
-        )}
         
         {/* Progress Line with tooltip */}
         <TooltipProvider>

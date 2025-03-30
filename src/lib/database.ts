@@ -36,8 +36,6 @@ export async function getUserCollections(userId: string) {
 // Function to get practice statistics for a collection
 export async function getCollectionPracticeStats(userId: string, collectionId: string) {
   try {
-    console.log(`[DEBUG] getCollectionPracticeStats - Starting for userId: ${userId}, collectionId: ${collectionId}`);
-    
     // Get all word_ids in the collection
     const { data: collectionWords, error: totalError } = await supabase
       .from("collection_words")
@@ -47,7 +45,6 @@ export async function getCollectionPracticeStats(userId: string, collectionId: s
 
     if (totalError) {
       console.error("Error fetching collection words:", totalError);
-      console.log("[DEBUG] getCollectionPracticeStats - Error fetching collection words");
       return { totalWords: 0, practicedWords: 0, percentage: 0 };
     }
     
@@ -55,11 +52,7 @@ export async function getCollectionPracticeStats(userId: string, collectionId: s
     const distinctWordIds = new Set(collectionWords?.map(item => item.word_id) || []);
     const totalWords = distinctWordIds.size;
     
-    console.log(`[DEBUG] getCollectionPracticeStats - Total words in collection: ${totalWords}`);
-    console.log(`[DEBUG] getCollectionPracticeStats - Distinct word IDs in collection: ${JSON.stringify(Array.from(distinctWordIds))}`);
-    
     if (totalWords === 0) {
-      console.log("[DEBUG] getCollectionPracticeStats - No words in collection, returning zeros");
       return { totalWords: 0, practicedWords: 0, percentage: 0 };
     }
 
@@ -72,40 +65,31 @@ export async function getCollectionPracticeStats(userId: string, collectionId: s
 
     if (practicedError) {
       console.error("Error fetching practiced words:", practicedError);
-      console.log("[DEBUG] getCollectionPracticeStats - Error fetching practiced words");
       return { totalWords, practicedWords: 0, percentage: 0 };
     }
-
-    console.log(`[DEBUG] getCollectionPracticeStats - Raw practiced words data:`, practicedWordsData);
     
     // Count distinct practiced word_ids
     const distinctPracticedWordIds = new Set(practicedWordsData?.map(item => item.word_id) || []);
     const practicedWords = distinctPracticedWordIds.size;
-    
-    console.log(`[DEBUG] getCollectionPracticeStats - Distinct practiced word IDs: ${JSON.stringify(Array.from(distinctPracticedWordIds))}`);
-    console.log(`[DEBUG] getCollectionPracticeStats - Practiced words count: ${practicedWords}`);
 
     // Calculate percentage
     const percentage = totalWords > 0 ? (practicedWords / totalWords) * 100 : 0;
-    console.log(`[DEBUG] getCollectionPracticeStats - Calculated percentage: ${percentage}%`);
 
     return { totalWords, practicedWords, percentage };
   } catch (error) {
     console.error("Exception fetching collection practice stats:", error);
-    console.log("[DEBUG] getCollectionPracticeStats - Caught exception", error);
     return { totalWords: 0, practicedWords: 0, percentage: 0 };
   }
 }
 
 // Function to create a new collection
-export async function createCollection(userId: string, name: string, description?: string) {
+export async function createCollection(userId: string, name: string) {
   try {
     const { data, error } = await supabase
       .from("collections")
       .insert({
         user_id: userId,
         name,
-        description,
       })
       .select()
       .single();
@@ -567,7 +551,7 @@ export async function updateUserProfile(userId: string, updates: any) {
 }
 
 // Function to get or create collection with a specific name
-export async function getOrCreateCollection(userId: string, name: string, description?: string) {
+export async function getOrCreateCollection(userId: string, name: string) {
   try {
     // Sanitize collection name to ensure it's valid for use as a key
     const sanitizedName = name.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
@@ -575,8 +559,6 @@ export async function getOrCreateCollection(userId: string, name: string, descri
     
     // Use the original name as provided for display
     const displayName = name.trim();
-    
-    const collectionDescription = description || `Vocabulary collection: ${displayName}`;
     
     // First try to find existing collection with this name
     const { data: existingCollection, error: findError } = await supabase
@@ -601,7 +583,6 @@ export async function getOrCreateCollection(userId: string, name: string, descri
       .insert({
         user_id: userId,
         name: displayName, // Use the original display name instead of sanitized name
-        description: collectionDescription,
       })
       .select()
       .single();
@@ -644,7 +625,6 @@ export async function getOrCreateGeneralCollection(userId: string) {
       .insert({
         user_id: userId,
         name: "General",
-        description: "Default collection for vocabulary",
       })
       .select()
       .single();
@@ -775,42 +755,6 @@ export async function addWordToCollection(
         // Continue with other meanings even if one fails
       }
     }
-    
-    // 4. Add all word meanings to user_words table (new functionality)
-    for (const meaning of meanings) {
-      // Check if this meaning is already in user_words
-      const { data: existingUserWord, error: checkUserWordError } = await supabase
-        .from("user_words")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("word_id", existingWord.id)
-        .eq("meaning_id", meaning.id)
-        .maybeSingle();
-      
-      if (checkUserWordError) {
-        console.error("Error checking user word:", checkUserWordError);
-        // Continue with other meanings even if one fails
-        continue;
-      }
-      
-      // Skip if this meaning is already in user_words
-      if (existingUserWord) continue;
-      
-      // Add to user_words if not exists
-      const { error: userWordError } = await supabase
-        .from("user_words")
-        .insert({
-          user_id: userId,
-          word_id: existingWord.id,
-          meaning_id: meaning.id,
-          status: "new",
-        });
-
-      if (userWordError && userWordError.code !== "23505") { // Not a unique violation
-        console.error("Error adding word to user words:", userWordError);
-        // Continue with other meanings even if one fails
-      }
-    }
 
     return true;
   } catch (error) {
@@ -855,32 +799,6 @@ export async function removeWordFromCollection(
     if (practiceError) {
       console.error("Error removing word from practice sessions:", practiceError);
       // Continue with next step even if this fails
-    }
-
-    // 3. Check if the word exists in any other collections for this user
-    const { data: otherCollections, error: checkError } = await supabase
-      .from("collection_words")
-      .select("id")
-      .eq("word_id", wordId)
-      .eq("user_id", userId);
-    
-    if (checkError) {
-      console.error("Error checking if word exists in other collections:", checkError);
-      // Continue with next step even if this fails
-    }
-
-    // 4. If word doesn't exist in any other collection, remove from user_words as well
-    if (!otherCollections || otherCollections.length === 0) {
-      const { error: userWordError } = await supabase
-        .from("user_words")
-        .delete()
-        .eq("word_id", wordId)
-        .eq("user_id", userId);
-
-      if (userWordError) {
-        console.error("Error removing word from user words:", userWordError);
-        // Continue even if this fails
-      }
     }
 
     return true;

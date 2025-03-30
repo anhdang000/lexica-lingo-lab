@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Plus, ArrowUpRight, X, Check, Tag } from 'lucide-react';
+import { Volume2, Plus, ArrowUpRight, X, Check, Tag, Bug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { WordDefinition } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrCreateGeneralCollection, getOrCreateCollection, addWordToCollection } from '@/lib/database';
+import { 
+  getOrCreateGeneralCollection, 
+  getOrCreateCollection, 
+  addWordToCollection, 
+  testDirectDatabaseInsert,
+  checkCollectionWords
+} from '@/lib/database';
 
 interface VocabularyResultsProps {
   results: WordDefinition[];
@@ -33,6 +39,8 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
   const [expandedWords, setExpandedWords] = useState<Set<number>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
   const [visuallyVisible, setVisuallyVisible] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
+  const [collectionId, setCollectionId] = useState<string | null>(null);
 
   // Handle animation and visibility
   useEffect(() => {
@@ -76,6 +84,9 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
         collection = await getOrCreateGeneralCollection(user.id);
       }
       
+      // Store collection ID for debugging
+      setCollectionId(collection.id);
+      
       const success = await addWordToCollection(user.id, wordData, collection.id);
 
       if (success) {
@@ -111,6 +122,9 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
       } else {
         collection = await getOrCreateGeneralCollection(user.id);
       }
+      
+      // Store collection ID for debugging
+      setCollectionId(collection.id);
       
       const newAddedWords = new Set<number>();
       for (let i = 0; i < results.length; i++) {
@@ -177,6 +191,45 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
     }
   };
 
+  // Debug function to test database permissions
+  const handleDebugTest = async () => {
+    if (!user) {
+      toast.error("Please log in to run debug tests");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const result = await testDirectDatabaseInsert(user.id);
+      toast.info(result);
+    } catch (error) {
+      console.error('Debug test error:', error);
+      toast.error("Debug test failed");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Debug function to check collection words
+  const handleCheckCollection = async (collectionId: string) => {
+    if (!user) {
+      toast.error("Please log in to check collection");
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      const result = await checkCollectionWords(user.id, collectionId);
+      toast.info(result.message);
+      console.log("Collection check result:", result);
+    } catch (error) {
+      console.error('Collection check error:', error);
+      toast.error("Collection check failed");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className={cn(
       "mt-8 w-full max-w-4xl mx-auto transition-all duration-300 ease-in-out",
@@ -192,6 +245,18 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                'Analysis Results'}
             </h3>
             <div className="flex gap-2">
+              {/* Debug button - only visible in development */}
+              {process.env.NODE_ENV === 'development' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDebugMode(!debugMode)}
+                  className="text-sm text-red-500 border-red-300"
+                >
+                  <Bug className="mr-1 h-3.5 w-3.5" />
+                  Debug
+                </Button>
+              )}
               <Button
                 variant={allSaved ? 'secondary' : 'outline'}
                 size="sm"
@@ -219,6 +284,45 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
               </Button>
             </div>
           </div>
+          
+          {/* Debug panel */}
+          {debugMode && process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-3 border border-red-300 rounded-md bg-red-50">
+              <h4 className="text-sm font-semibold text-red-700 mb-2 flex items-center">
+                <Bug className="mr-1 h-4 w-4" />
+                Debug Panel
+              </h4>
+              <div className="space-y-2">
+                <div className="text-xs text-gray-600">
+                  <p>User ID: {user?.id || 'Not logged in'}</p>
+                  {topicName && <p>Topic Name: {topicName}</p>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={handleDebugTest}
+                    disabled={isProcessing}
+                    className="text-xs"
+                  >
+                    Test DB Permissions
+                  </Button>
+                  
+                  {collectionId && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleCheckCollection(collectionId)}
+                      disabled={isProcessing}
+                      className="text-xs"
+                    >
+                      Check Collection
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {topics.length > 0 && (
             <div className="mb-6">

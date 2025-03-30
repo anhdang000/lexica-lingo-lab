@@ -73,15 +73,12 @@ const Library: React.FC = () => {
     return Array.from(wordMap.values());
   }, [collectionWords]);
 
-  // Filter collections based on search
-  const filteredCollections = collections.filter(collection => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      collection.name.toLowerCase().includes(query) ||
-      (collection.description?.toLowerCase() || '').includes(query)
-    );
-  });
+  // Filter collections based on search query
+  const filteredCollections = collections.filter(collection => 
+    searchQuery ? 
+      collection.name.toLowerCase().includes(searchQuery.toLowerCase()) 
+      : true
+  );
 
   const handleWordDetailClick = (wordId: string) => {
     setExpandedWords((prev) => {
