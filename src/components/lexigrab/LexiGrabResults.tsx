@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Plus, ArrowUpRight, X, Check, Tag } from 'lucide-react';
+import { Volume2, Plus, ArrowUpRight, X, Check, Tag, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ interface LexiGrabResultsProps {
   isVisible: boolean;
   onClose: () => void;
   isSingleWordOrPhrases: boolean;
+  content?: string;
 }
 
 const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
@@ -21,7 +22,8 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
   topics = [],
   isVisible,
   onClose,
-  isSingleWordOrPhrases
+  isSingleWordOrPhrases,
+  content = ""
 }) => {
   const { user } = useAuth();
   const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
@@ -157,16 +159,68 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
     }
   };
 
+  // Function to render content with highlighted vocabulary words
+  const renderHighlightedContent = (text: string) => {
+    if (!text) return null;
+
+    const regex = /<word>(.*?)<\/word>/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+      // Add text before the match
+      if (match.index > lastIndex) {
+        parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, match.index)}</span>);
+      }
+
+      // Add highlighted word
+      const word = match[1];
+      parts.push(
+        <span 
+          key={`word-${match.index}`} 
+          className="bg-[#f8f2dc] dark:bg-[#cd4631]/20 text-[#cd4631] dark:text-[#de6950] px-1 rounded-sm font-medium"
+        >
+          {word}
+        </span>
+      );
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex)}</span>);
+    }
+
+    return <p className="text-gray-700 dark:text-gray-200 leading-relaxed">{parts}</p>;
+  };
+
   return (
     <div className={cn(
       "mt-8 w-full max-w-4xl mx-auto transition-all duration-300 ease-in-out",
       visuallyVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
     )}>
+      {/* Summary Panel */}
+      {content && (
+        <Card className="mb-6 bg-white dark:bg-gray-800/50 border-[#f8f2dc] dark:border-[#cd4631]/30">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <BookOpen className="h-5 w-5 text-[#cd4631]" />
+              <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200">Source Summary</h3>
+            </div>
+            <div className="text-sm">
+              {renderHighlightedContent(content)}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold">
-              {results.length === 1 ? 'Word Definition' : 'Analysis Results'}
+              {results.length === 1 ? 'Word Definition' : 'Vocabulary Collection'}
             </h3>
             <div className="flex gap-2">
               <Button

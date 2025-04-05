@@ -45,6 +45,9 @@ const LexiGrab = () => {
     currentWord
   } = useAppState();
 
+  // State to store content from analysis results
+  const [summaryContent, setSummaryContent] = useState<string>("");
+
   // Set current tool to lexigrab when component mounts
   useEffect(() => {
     setCurrentTool('lexigrab');
@@ -73,6 +76,8 @@ const LexiGrab = () => {
       if (analysisResults) {
         setVocabularyResults(analysisResults.vocabulary, 'lexigrab');
         setTopicResults(analysisResults.topics, 'lexigrab');
+        // Store content from analysis results
+        setSummaryContent(analysisResults.content || "");
       }
       
       setShowResults(true, 'lexigrab');
@@ -107,6 +112,7 @@ const LexiGrab = () => {
   const handleCloseResults = () => {
     setShowResults(false, 'lexigrab');
     setActiveTab('input');
+    setSummaryContent("");
   };
 
   const renderSourceIcon = (type: string) => {
@@ -300,26 +306,13 @@ const LexiGrab = () => {
             </TabsContent>
             
             <TabsContent value="results" className="mt-0">
-              <Card className="mb-4 bg-white dark:bg-gray-800/50">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Analysis Results</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCloseResults}
-                    >
-                      Back to Input
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
               <LexiGrabResults 
                 results={vocabularyResults}
                 topics={topicResults}
                 isVisible={showResults}
                 onClose={handleCloseResults}
                 isSingleWordOrPhrases={vocabularyResults.length > 0 && isSingleWordOrPhrases(vocabularyResults[0].word)}
+                content={summaryContent}
               />
             </TabsContent>
           </Tabs>

@@ -176,6 +176,7 @@ export interface AnalysisResults {
   vocabulary: WordDefinition[];
   topics: string[];
   topicName?: string;
+  content?: string;
 }
 
 // Helper function to read file as data URL
@@ -316,11 +317,16 @@ export async function analyzeVocabulary(input: string, files: FileInput[] = []):
     }
   }
   
-  // For longer text or if files are provided, analyze vocabulary
-  return analyzeText(input, files);
+  // For files analysis
+  if (files.length > 0) {
+    return analyzeFiles(files);
+  }
+  
+  // For longer text analysis
+  return analyzeText(input);
 }
 
-export async function analyzeText(text: string, files: FileInput[] = []): Promise<AnalysisResults> {
+export async function analyzeText(text: string): Promise<AnalysisResults> {
   // Get a random API key from the comma-separated list
   const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
   const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
@@ -340,9 +346,10 @@ Analyze the following text:
 
 ${text}
 
-Your task is to extract two things:
+Your task is to extract three things:
 1. Vocabulary: A carefully curated array of sophisticated words that would enhance an English language learner's lexicon
 2. Topics: 3-5 relevant topics or themes that categorize the content
+3. Content: A concise paragraph (max 500 words) summarizing the key points from the source, aligned with the main topic/theme. In this summary, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word>.
 
 For vocabulary, select words that meet these criteria:
 - Advanced and relatively uncommon
@@ -354,8 +361,15 @@ For topics, identify key themes that:
 - Would be useful as study categories
 - Are concise (1-3 words each)
 
+For the content summary:
+- Focus on the main points and key information
+- Align with the primary theme/topic
+- Keep it concise but informative
+- IMPORTANT: Ensure EVERY vocabulary word from your list appears in the summary
+- IMPORTANT: Wrap EACH vocabulary word in <word> tags, like this: <word>vocabulary</word>
+
 Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
-Return the results in JSON format with two fields: "vocabulary" (array of strings) and "topics" (array of strings).
+Return the results in JSON format with three fields: "vocabulary" (array of strings), "topics" (array of strings), and "content" (string).
 `;
 
   try {
@@ -383,8 +397,12 @@ Return the results in JSON format with two fields: "vocabulary" (array of string
               description: "A relevant topic or theme that categorizes the content",
             },
           },
+          content: {
+            type: SchemaType.STRING as const,
+            description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
+          },
         },
-        required: ["vocabulary", "topics"],
+        required: ["vocabulary", "topics", "content"],
       },
     };
     
@@ -394,35 +412,8 @@ Return the results in JSON format with two fields: "vocabulary" (array of string
       generationConfig
     });
     
-    // Start a chat session and send the message
-    let result;
-    
-    if (files.length > 0) {
-      // If we have files, use content generation with files
-      // First, prepare file parts for each file
-      const fileParts = await Promise.all(files.map(async (fileInput) => {
-        // Read the file as data URL
-        const dataUrl = await readFileAsDataURL(fileInput.file);
-        return {
-          inlineData: {
-            data: dataUrl.split(',')[1], // Remove the "data:image/jpeg;base64," part
-            mimeType: fileInput.mimeType || fileInput.file.type
-          }
-        };
-      }));
-      
-      // Create content parts with text and files
-      const contentParts = [
-        { text: promptText },
-        ...fileParts
-      ];
-      
-      // Generate content with files
-      result = await model.generateContent(contentParts);
-    } else {
-      // No files, just use text
-      result = await model.generateContent(promptText);
-    }
+    // Generate content from text
+    const result = await model.generateContent(promptText);
     
     // Parse the JSON result
     const analysisResult = JSON.parse(result.response.text());
@@ -430,6 +421,7 @@ Return the results in JSON format with two fields: "vocabulary" (array of string
     // Force vocabulary words to lowercase
     const words: string[] = (analysisResult.vocabulary || []).map((word: string) => word.toLowerCase());
     const topics: string[] = analysisResult.topics || [];
+    const content: string = analysisResult.content || '';
     
     // Look up each word and filter out any null results
     const definitions = await Promise.all(
@@ -439,10 +431,140 @@ Return the results in JSON format with two fields: "vocabulary" (array of string
     return {
       vocabulary: definitions.filter((def): def is WordDefinition => def !== null),
       topics: topics,
-      topicName: ''
+      topicName: '',
+      content: content
     };
   } catch (error) {
-    console.error('Error analyzing text/files:', error);
+    console.error('Error analyzing text:', error);
+    throw error;
+  }
+}
+
+export async function analyzeFiles(files: FileInput[]): Promise<AnalysisResults> {
+  // Get a random API key from the comma-separated list
+  const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
+  const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
+  
+  if (!apiKey) {
+    throw new Error('Gemini API key not found');
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-2.0-flash-lite';
+  
+  // Create prompt text for vocabulary and topic extraction
+  const promptText = `
+You are an advanced vocabulary instructor tasked with identifying the most valuable vocabulary words and related topics from the provided content.
+
+Your task is to extract three things:
+1. Vocabulary: A carefully curated array of sophisticated words that would enhance an English language learner's lexicon
+2. Topics: 3-5 relevant topics or themes that categorize the content
+3. Content: A concise paragraph (max 500 words) summarizing the key points from the source, aligned with the main topic/theme. In this summary, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word>.
+
+For vocabulary, select words that meet these criteria:
+- Advanced and relatively uncommon
+- Useful in various contexts
+- Worth adding to one's vocabulary
+
+For topics, identify key themes that:
+- Accurately categorize the content
+- Would be useful as study categories
+- Are concise (1-3 words each)
+
+For the content summary:
+- Focus on the main points and key information
+- Align with the primary theme/topic
+- Keep it concise but informative
+- IMPORTANT: Ensure EVERY vocabulary word from your list appears in the summary
+- IMPORTANT: Wrap EACH vocabulary word in <word> tags, like this: <word>vocabulary</word>
+
+Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
+Return the results in JSON format with three fields: "vocabulary" (array of strings), "topics" (array of strings), and "content" (string).
+`;
+
+  try {
+    // Define the generation config for structured output
+    const generationConfig = {
+      temperature: 0.7,
+      topP: 0.95,
+      topK: 40,
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.OBJECT as const,
+        properties: {
+          vocabulary: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.STRING as const,
+              description: "A vocabulary word that would be valuable for a language learner",
+            },
+          },
+          topics: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.STRING as const,
+              description: "A relevant topic or theme that categorizes the content",
+            },
+          },
+          content: {
+            type: SchemaType.STRING as const,
+            description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
+          },
+        },
+        required: ["vocabulary", "topics", "content"],
+      },
+    };
+    
+    // Create model
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig
+    });
+    
+    // If we have files, use content generation with files
+    // First, prepare file parts for each file
+    const fileParts = await Promise.all(files.map(async (fileInput) => {
+      // Read the file as data URL
+      const dataUrl = await readFileAsDataURL(fileInput.file);
+      return {
+        inlineData: {
+          data: dataUrl.split(',')[1], // Remove the "data:image/jpeg;base64," part
+          mimeType: fileInput.mimeType || fileInput.file.type
+        }
+      };
+    }));
+    
+    // Create content parts with text and files
+    const contentParts = [
+      { text: promptText },
+      ...fileParts
+    ];
+    
+    // Generate content with files
+    const result = await model.generateContent(contentParts);
+    
+    // Parse the JSON result
+    const analysisResult = JSON.parse(result.response.text());
+    
+    // Force vocabulary words to lowercase
+    const words: string[] = (analysisResult.vocabulary || []).map((word: string) => word.toLowerCase());
+    const topics: string[] = analysisResult.topics || [];
+    const content: string = analysisResult.content || '';
+    
+    // Look up each word and filter out any null results
+    const definitions = await Promise.all(
+      words.map(word => lookupWord(word))
+    );
+    
+    return {
+      vocabulary: definitions.filter((def): def is WordDefinition => def !== null),
+      topics: topics,
+      topicName: '',
+      content: content
+    };
+  } catch (error) {
+    console.error('Error analyzing files:', error);
     throw error;
   }
 }
