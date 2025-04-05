@@ -303,7 +303,9 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
       return (
         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
           <h2 className="text-4xl font-bold mb-4 text-[#cd4631]">{currentWord.word}</h2>
-          <p className="text-gray-600 font-mono">/{currentWord.phonetic.text}/</p>
+          {currentWord.phonetic?.text && (
+            <p className="text-gray-600 font-mono">/{currentWord.phonetic.text}/</p>
+          )}
         </div>
       );
     };
