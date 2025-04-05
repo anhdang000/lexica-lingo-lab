@@ -18,6 +18,7 @@ import {
   getFlashcardWords,
   completePracticeSession
 } from '@/lib/database';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Word {
   id: string;
@@ -57,8 +58,21 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
     // Expose the handleBack method to parent component
     useImperativeHandle(ref, () => ({
       handleBack: async () => {
-        // No need to record word on back if we're already tracking on flip
+        // Complete current session
         await completeCurrentSession(false);
+        
+        // Show completion dialog if user has practiced any words
+        if (practicedWords.length > 0) {
+          setShowCompletionDialog(true);
+          // Return a promise that resolves after the dialog timeout
+          return new Promise<void>(resolve => {
+            setTimeout(() => {
+              setShowCompletionDialog(false);
+              resolve();
+            }, 2000);
+          });
+        }
+        
         return Promise.resolve();
       }
     }));
@@ -81,20 +95,6 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         setInitialSide(Math.random() > 0.5 ? 'front' : 'back');
         setIsFlipped(false);
         setCardFlippedOnce(false); // Reset flip tracking for the new card
-      }
-    }, [currentWordIndex, words]);
-
-    // Add practice word to the list of practiced words
-    useEffect(() => {
-      if (words.length > 0 && currentWordIndex < words.length) {
-        // Add the current word to practiced words if not already included
-        const currentWord = words[currentWordIndex];
-        setPracticedWords(prev => {
-          if (!prev.some(word => word.id === currentWord.id && word.meaningId === currentWord.meaningId)) {
-            return [...prev, currentWord];
-          }
-          return prev;
-        });
       }
     }, [currentWordIndex, words]);
 
@@ -179,13 +179,36 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
 
     // Complete the current session and record all practiced words
     const completeCurrentSession = async (isFullyCompleted: boolean = true) => {
-      if (!sessionId || !user || practicedWords.length === 0) return;
+      if (!sessionId || !user) return;
       
+      // If no words were actually practiced (flipped), we should delete the session
+      if (recordedWords.size === 0) {
+        try {
+          // Delete the empty practice session
+          const { error } = await supabase
+            .from("practice_sessions")
+            .delete()
+            .eq("id", sessionId);
+            
+          if (error) {
+            console.error("Error deleting empty practice session:", error);
+          }
+          
+          // Mark the session as inactive after deletion
+          isSessionActive.current = false;
+          return;
+        } catch (error) {
+          console.error("Exception deleting empty practice session:", error);
+          return;
+        }
+      }
+      
+      // Only update the session if words were actually practiced
       try {
         // Update practice session status with completion flag
         await completePracticeSession(
           sessionId,
-          0, // The trigger will update this count correctly
+          recordedWords.size, // Pass the actual count of correctly practiced words
           isFullyCompleted
         );
         
@@ -212,6 +235,16 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
       if (!cardFlippedOnce && words.length > 0 && currentWordIndex < words.length) {
         setCardFlippedOnce(true);
         const currentWord = words[currentWordIndex];
+        
+        // Add the current word to practiced words if not already included
+        setPracticedWords(prev => {
+          if (!prev.some(word => word.id === currentWord.id && word.meaningId === currentWord.meaningId)) {
+            return [...prev, currentWord];
+          }
+          return prev;
+        });
+        
+        // Record the word in the database
         await recordWordResult(currentWord);
       }
     };
@@ -236,8 +269,17 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
     const handleBack = async () => {
       await completeCurrentSession(false);
       
-      // Navigate back
-      onBack();
+      // Show completion dialog if user has flipped any cards
+      if (recordedWords.size > 0) {
+        setShowCompletionDialog(true);
+        setTimeout(() => {
+          setShowCompletionDialog(false);
+          onBack();
+        }, 2000);
+      } else {
+        // Navigate back immediately if no words practiced
+        onBack();
+      }
     };
 
     const CardContent = ({ type }: { type: 'definition' | 'word' }) => {
