@@ -194,23 +194,6 @@ function readFileAsDataURL(file: File): Promise<string> {
   });
 }
 
-export async function analyzeVocabulary(input: string, files: FileInput[] = []): Promise<AnalysisResults> {
-  // If input is a single word or short phrase and no files are provided, try lookupWord first
-  if (isSingleWordOrPhrases(input) && files.length === 0) {
-    const lookupResult = await lookupWord(input);
-    if (lookupResult) {
-      return {
-        vocabulary: [lookupResult],
-        topics: [],
-        topicName: lookupResult.word
-      };
-    }
-  }
-  
-  // For longer text or if files are provided, analyze vocabulary
-  return analyzeText(input, files);
-}
-
 export async function generateVocabularyFromTopic(inputText: string): Promise<AnalysisResults> {
   // Get a random API key from the comma-separated list
   const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
@@ -318,6 +301,23 @@ Return the results in JSON format with three fields: "topicName" (string), "voca
     console.error('Error generating vocabulary from topic:', error);
     throw error;
   }
+}
+
+export async function analyzeVocabulary(input: string, files: FileInput[] = []): Promise<AnalysisResults> {
+  // If input is a single word or short phrase and no files are provided, try lookupWord first
+  if (isSingleWordOrPhrases(input) && files.length === 0) {
+    const lookupResult = await lookupWord(input);
+    if (lookupResult) {
+      return {
+        vocabulary: [lookupResult],
+        topics: [],
+        topicName: lookupResult.word
+      };
+    }
+  }
+  
+  // For longer text or if files are provided, analyze vocabulary
+  return analyzeText(input, files);
 }
 
 export async function analyzeText(text: string, files: FileInput[] = []): Promise<AnalysisResults> {
