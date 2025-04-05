@@ -826,14 +826,15 @@ export async function getFlashcardWords(userId: string, count: number = 5): Prom
 
     const collectionIds = collections.map(c => c.id);
 
-    // Get random words from user's collections through collection_words join
-    const { data: collectionWords, error: collectionWordsError } = await supabase
+    // First, try to get words with status 'new'
+    const { data: newWords, error: newWordsError } = await supabase
       .from('collection_words')
       .select(`
         id,
         collection_id,
         word_id,
         meaning_id,
+        status,
         words:word_id(
           id,
           word,
@@ -849,13 +850,58 @@ export async function getFlashcardWords(userId: string, count: number = 5): Prom
       `)
       .in('collection_id', collectionIds)
       .eq('user_id', userId)
+      .eq('status', 'new')
+      .order('meaning_id')
       .limit(count);
 
-    if (collectionWordsError) throw collectionWordsError;
-    if (!collectionWords.length) return [];
+    if (newWordsError) throw newWordsError;
+    
+    let selectedWords = newWords || [];
+    
+    // If we don't have enough 'new' words, get additional words with status 'learning' or 'mastered'
+    if (selectedWords.length < count) {
+      const remainingCount = count - selectedWords.length;
+      
+      const { data: additionalWords, error: additionalWordsError } = await supabase
+        .from('collection_words')
+        .select(`
+          id,
+          collection_id,
+          word_id,
+          meaning_id,
+          status,
+          words:word_id(
+            id,
+            word,
+            phonetic
+          ),
+          meanings:meaning_id(
+            id,
+            word_id,
+            definition,
+            part_of_speech,
+            examples
+          )
+        `)
+        .in('collection_id', collectionIds)
+        .eq('user_id', userId)
+        .in('status', ['learning', 'mastered'])
+        .order('meaning_id')
+        .limit(remainingCount);
+      
+      if (additionalWordsError) throw additionalWordsError;
+      
+      // Combine the words
+      selectedWords = [...selectedWords, ...(additionalWords || [])];
+    }
+    
+    if (!selectedWords.length) return [];
+
+    // Shuffle the selected words to randomize them
+    selectedWords = shuffleArray(selectedWords);
 
     // Transform to the format expected by the flashcard component
-    return collectionWords.map(item => {
+    return selectedWords.map(item => {
       // Type assertions to help TypeScript understand the structure
       const wordsData = item.words as any;
       const meaningsData = item.meanings as any;
@@ -877,13 +923,24 @@ export async function getFlashcardWords(userId: string, count: number = 5): Prom
         example: meaningInfo?.examples && Array.isArray(meaningInfo.examples) && meaningInfo.examples.length > 0
           ? meaningInfo.examples[0]
           : '',
-        collectionId: item.collection_id
+        collectionId: item.collection_id,
+        status: item.status
       };
     });
   } catch (error) {
     console.error('Error fetching flashcard words:', error);
     return [];
   }
+}
+
+// Helper function to shuffle an array (Fisher-Yates algorithm)
+function shuffleArray<T>(array: T[]): T[] {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
 }
 
 export async function getQuizQuestions(userId: string, count: number = 3): Promise<any[]> {
