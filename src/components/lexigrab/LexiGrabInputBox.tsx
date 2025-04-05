@@ -22,6 +22,9 @@ import {
 import { FileInput, fetchUrlContent, AnalysisResults, analyzeVocabulary } from '@/lib/utils';
 import { toast } from 'sonner';
 
+// Define the input source types
+type InputSourceType = 'text' | 'file' | 'url';
+
 interface LexiGrabInputBoxProps {
   onAnalyze: (text: string, files: FileInput[], analysisResults?: AnalysisResults) => Promise<void>;
   isAnalyzing: boolean;
@@ -35,8 +38,14 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [files, setFiles] = useState<Array<{ 
-    id: string; 
+
+  // New state for tracking the active input source
+  const [activeInputSource, setActiveInputSource] = useState<InputSourceType>('text');
+  const [activeUrl, setActiveUrl] = useState<string>('');
+
+  // File state to store multiple files
+  const [activeFiles, setActiveFiles] = useState<Array<{
+    id: string;
     preview: string;
     file: File;
     fileType: 'image' | 'document';
@@ -50,6 +59,9 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
 
   // Combine both loading states
   const isLoadingState = isAnalyzing || localIsAnalyzing || isUrlFetching;
+
+  // Check if any files are uploading
+  const isAnyFileUploading = activeFiles.some(file => file.isUploading);
 
   // Theme specific to LexiGrab
   const theme = {
@@ -133,12 +145,26 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    setRecognizedUrls(extractUrls(newValue));
+    
+    // If content was cleared, also clear URLs
+    if (newValue.trim() === '') {
+      setRecognizedUrls([]);
+    } else {
+      // Extract URLs from the text input
+      const urls = extractUrls(newValue);
+      setRecognizedUrls(urls);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      Array.from(e.target.files).forEach(file => {
+    if (e.target.files && e.target.files.length > 0) {
+      // Clear any existing content
+      setInputValue('');
+      setRecognizedUrls([]);
+      
+      // Process all selected files
+      const filesArray = Array.from(e.target.files);
+      filesArray.forEach(file => {
         if (isAcceptableFileType(file)) {
           handleFileSelection(file);
         } else {
@@ -161,14 +187,17 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
     const fileExtension = getFileExtension(file);
     
     reader.onload = (e) => {
-      setFiles(prev => [...prev, {
-        id,
-        preview: fileType === 'image' ? (e.target?.result as string) : '',
-        file,
-        fileType,
-        fileExtension,
-        isUploading: false
-      }]);
+      setActiveFiles(prevFiles => [
+        ...prevFiles,
+        {
+          id,
+          preview: fileType === 'image' ? (e.target?.result as string) : '',
+          file,
+          fileType,
+          fileExtension,
+          isUploading: false
+        }
+      ]);
     };
 
     if (fileType === 'image') {
@@ -184,23 +213,27 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
   };
 
   const handleAnalyze = async () => {
-    if (!inputValue && files.length === 0 && recognizedUrls.length === 0) return;
+    if (!inputValue && activeFiles.length === 0 && recognizedUrls.length === 0) return;
     
     // Set local loading state immediately when the button is clicked
     setLocalIsAnalyzing(true);
     
     try {
-      // First set loading state for files
-      setFiles(prev => prev.map(file => ({
-        ...file,
-        isUploading: true,
-        uploadError: undefined
-      })));
+      // First set loading state for all active files
+      if (activeFiles.length > 0) {
+        setActiveFiles(prevFiles => 
+          prevFiles.map(file => ({
+            ...file,
+            isUploading: true,
+            uploadError: undefined
+          }))
+        );
+      }
       
-      // Create FileInput objects from the files
-      const fileInputs: FileInput[] = files.map(fileObj => ({
-        file: fileObj.file,
-        mimeType: fileObj.file.type
+      // Create FileInput objects from the active files
+      const fileInputs: FileInput[] = activeFiles.map(activeFile => ({
+        file: activeFile.file,
+        mimeType: activeFile.file.type
       }));
       
       // Variable to store aggregated text
@@ -290,13 +323,17 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
       }
       
       // Mark file uploads as successful
-      setFiles(prev => prev.map(file => ({
-        ...file,
-        isUploading: false
-      })));
+      if (activeFiles.length > 0) {
+        setActiveFiles(prevFiles => 
+          prevFiles.map(file => ({
+            ...file,
+            isUploading: false
+          }))
+        );
+      }
       
       // If no input text, no successful URL fetches, and no files, stop here
-      if (!aggregatedText && !urlContentSuccess && files.length === 0) {
+      if (!aggregatedText && !urlContentSuccess && activeFiles.length === 0) {
         toast.error('No content to analyze');
         setLocalIsAnalyzing(false);
         return;
@@ -316,12 +353,16 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
     } catch (error) {
       console.error('Error during analysis:', error);
       
-      // Mark all as failed
-      setFiles(prev => prev.map(file => ({
-        ...file,
-        isUploading: false,
-        uploadError: 'Failed to process'
-      })));
+      // Mark files as failed
+      if (activeFiles.length > 0) {
+        setActiveFiles(prevFiles => 
+          prevFiles.map(file => ({
+            ...file,
+            isUploading: false,
+            uploadError: 'Failed to process'
+          }))
+        );
+      }
       
       toast.error('Failed to process content for analysis');
     } finally {
@@ -343,10 +384,8 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
+    if (e.type === "dragenter" || e.type === "dragleave" || e.type === "dragover") {
+      setDragActive(e.type === "dragenter" || e.type === "dragover");
     }
   };
 
@@ -355,8 +394,14 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files) {
-      Array.from(e.dataTransfer.files).forEach(file => {
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      // Clear any existing content
+      setInputValue('');
+      setRecognizedUrls([]);
+      
+      // Process all dropped files
+      const filesArray = Array.from(e.dataTransfer.files);
+      filesArray.forEach(file => {
         if (isAcceptableFileType(file)) {
           handleFileSelection(file);
         } else {
@@ -367,17 +412,29 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
   };
 
   const removeFile = (idToRemove: string) => {
-    setFiles(prev => prev.filter(file => file.id !== idToRemove));
+    setActiveFiles(prevFiles => prevFiles.filter(file => file.id !== idToRemove));
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = Array.from(e.clipboardData.items);
-    items.forEach(item => {
+    let fileFound = false;
+    
+    // Check for files first
+    for (const item of items) {
       const file = item.getAsFile();
       if (file && isAcceptableFileType(file)) {
+        if (!fileFound) {
+          // Clear existing content only on first file
+          e.preventDefault(); // Prevent the default paste behavior
+          setInputValue('');
+          setRecognizedUrls([]);
+          fileFound = true;
+        }
         handleFileSelection(file);
       }
-    });
+    }
+    
+    // If no files found, default text paste behavior will continue
   };
 
   const removeUrl = (urlToRemove: string) => {
@@ -467,7 +524,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
         )} />
         <div 
           className={cn(
-            "p-4 relative",
+            "p-4 relative min-h-[180px]",
             dragActive ? "bg-gray-50 dark:bg-gray-700/50" : ""
           )}
           onDragEnter={handleDrag}
@@ -475,36 +532,120 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
           onDragOver={handleDrag}
           onDrop={handleDrop}
         >
-          {recognizedUrls.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3 p-2 border-b border-gray-100 dark:border-gray-700">
-              {isUrlFetching && (
-                <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-sm text-blue-700 dark:text-blue-300">
-                  <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
-                  <span>Fetching URLs...</span>
-                </div>
-              )}
-              {recognizedUrls.map((url, index) => (
-                <div
-                  key={index}
-                  className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700/50 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group"
-                >
-                  <LinkIcon className="w-3 h-3 mr-2" />
-                  <span className="truncate max-w-[200px]">{url}</span>
-                  <button
-                    onClick={() => removeUrl(url)}
-                    className="ml-2 p-0.5 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                    aria-label="Remove this source"
-                    title="Remove this source"
-                    disabled={isUrlFetching || isAnalyzing}
+          {/* File Input Display - shows when files are selected */}
+          {activeFiles.length > 0 && (
+            <div className="w-full h-full">
+              <div className={cn(
+                "flex flex-wrap gap-4 justify-center",
+                activeFiles.length > 6 && "max-h-[400px] overflow-y-auto p-2"
+              )}>
+                {activeFiles.map(file => (
+                  <div key={file.id} className="relative mb-2">
+                    {file.fileType === 'image' ? (
+                      <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm w-48 h-48">
+                        <img 
+                          src={file.preview} 
+                          alt="Preview" 
+                          className={cn(
+                            "w-full h-full object-cover",
+                            file.isUploading && "opacity-50"
+                          )}
+                        />
+                        {file.isUploading && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Loader2 className="h-8 w-8 animate-spin text-white" />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-48 h-48 flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        {getFileIcon(file.fileExtension)}
+                        <span className="text-xs mt-2 text-center font-medium text-gray-700 dark:text-gray-300 line-clamp-2 overflow-hidden">
+                          {file.file.name}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {(file.file.size / 1024).toFixed(1)} KB
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Remove file button */}
+                    <Button
+                      size="icon"
+                      className="absolute -top-3 -right-3 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full shadow-md w-6 h-6 border border-gray-200 dark:border-gray-600 transition-all duration-200 hover:scale-110"
+                      onClick={() => removeFile(file.id)}
+                      disabled={file.isUploading || isLoadingState}
+                    >
+                      <X className="h-3 w-3 text-gray-700 dark:text-gray-300" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {activeFiles.length === 1 
+                    ? "1 file selected for vocabulary extraction" 
+                    : `${activeFiles.length} files selected for vocabulary extraction`
+                  }
+                </p>
+                
+                {activeFiles.length > 1 && (
+                  <Button
+                    onClick={() => setActiveFiles([])}
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-500 dark:text-gray-400 hover:text-red-500"
+                    disabled={isLoadingState || isAnyFileUploading}
                   >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
+                    <X className="h-3 w-3 mr-1" />
+                    Remove all
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
-          <div className="flex flex-col gap-4">
+          {/* URL Input Display - shows when URL is active */}
+          {activeFiles.length === 0 && recognizedUrls.length > 0 && (
+            <div className="w-full pt-2 pb-4">
+              <div className="flex flex-wrap gap-2 mb-3">
+                {isUrlFetching && (
+                  <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-sm text-blue-700 dark:text-blue-300">
+                    <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
+                    <span>Fetching URLs...</span>
+                  </div>
+                )}
+                {recognizedUrls.map((url, index) => (
+                  <div
+                    key={index}
+                    className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700/50 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors group"
+                  >
+                    <LinkIcon className="w-3 h-3 mr-2" />
+                    <span className="truncate max-w-[200px]">{url}</span>
+                    <button
+                      onClick={() => removeUrl(url)}
+                      className="ml-2 p-0.5 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                      aria-label="Remove this source"
+                      title="Remove this source"
+                      disabled={isUrlFetching || isAnalyzing}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                {recognizedUrls.length > 1 
+                  ? `${recognizedUrls.length} URLs detected for content extraction` 
+                  : "URL detected for content extraction"
+                }
+              </div>
+            </div>
+          )}
+
+          {/* Text Input Display - the default */}
+          {activeFiles.length === 0 && (
             <Textarea
               ref={textareaRef}
               value={inputValue}
@@ -525,103 +666,81 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
                 boxShadow: 'none'
               }}
             />
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.csv,.html"
-              multiple
-              className="hidden"
-            />
-            {files.length > 0 && (
-              <div className="relative mt-2 border-t border-gray-200 dark:border-gray-700 pt-4">
-                <div className="flex flex-wrap gap-4">
-                  {files.map((file) => (
-                    <div key={file.id} className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 flex items-center justify-center">
-                      {file.fileType === 'image' ? (
-                        <img 
-                          src={file.preview} 
-                          alt="Preview" 
-                          className={cn(
-                            "w-full h-full object-cover",
-                            file.isUploading && "opacity-50"
-                          )}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 p-2">
-                          {getFileIcon(file.fileExtension)}
-                          <span className="text-xs mt-1 text-center truncate w-full">
-                            {file.file.name.length > 15 ? 
-                              file.file.name.substring(0, 12) + '...' : 
-                              file.file.name}
-                          </span>
-                        </div>
-                      )}
-                      {file.isUploading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <Loader2 className="h-6 w-6 animate-spin text-white" />
-                        </div>
-                      )}
-                      {file.uploadError && (
-                        <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="text-red-500 bg-white rounded-full p-1">
-                                <X className="h-4 w-4" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{file.uploadError}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-1 right-1 bg-black/30 hover:bg-black/50 text-white rounded-full w-6 h-6 p-1"
-                        onClick={() => removeFile(file.id)}
-                        disabled={file.isUploading}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+          )}
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.csv,.html"
+            className="hidden"
+            multiple
+          />
+          
+          {dragActive && (
+            <div className="absolute inset-0 bg-gray-100/80 dark:bg-gray-700/80 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 z-20">
+              <div className="text-center">
+                <FileUp className="mx-auto h-12 w-12 text-gray-400" />
+                <p className="mt-2 text-sm text-gray-500">Drop your file here</p>
               </div>
-            )}
-            {dragActive && (
-              <div className="absolute inset-0 bg-gray-100/80 dark:bg-gray-700/80 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-                <div className="text-center">
-                  <FileUp className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">Drop your files here</p>
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Bottom action bar */}
-        <div className="flex justify-between items-center p-4">
-          {/* Left side - Attach button */}
-          <Button
-            onClick={triggerFileInput}
-            variant="ghost"
-            size="sm"
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-            disabled={isAnalyzing || isUrlFetching}
-          >
-            <FileUp className="h-4 w-4 mr-2" />
-            <span>Attach</span>
-          </Button>
+        <div className="flex justify-between items-center p-4 border-t border-gray-100 dark:border-gray-700">
+          {/* Left side - Source buttons */}
+          <div className="flex space-x-2">
+            {/* File button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={triggerFileInput}
+                    variant={activeFiles.length > 0 ? "default" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
+                      activeFiles.length > 0 && `bg-gradient-to-r ${theme.gradient} text-white`
+                    )}
+                    disabled={isLoadingState}
+                  >
+                    <FileUp className="h-4 w-4 mr-2" />
+                    <span>Files</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Upload images or documents</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            {/* Clear input button - only show when something is active */}
+            {(activeFiles.length > 0 || inputValue.trim() !== '' || recognizedUrls.length > 0) && (
+              <Button
+                onClick={() => {
+                  setActiveFiles([]);
+                  setInputValue('');
+                  setRecognizedUrls([]);
+                }}
+                variant="ghost"
+                size="sm"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:bg-gray-300"
+                disabled={isLoadingState}
+              >
+                <X className="h-4 w-4 mr-2" />
+                <span>Clear</span>
+              </Button>
+            )}
+          </div>
 
           {/* Right side - Analyze button */}
           <Button
             onClick={handleAnalyze}
             disabled={
               isLoadingState ||
-              (!inputValue && files.length === 0 && recognizedUrls.length === 0) ||
-              files.some(file => file.isUploading)
+              (!inputValue && activeFiles.length === 0 && recognizedUrls.length === 0) ||
+              isAnyFileUploading
             }
             className={cn(
               `bg-gradient-to-r ${theme.gradient} hover:${theme.hoverGradient}`,
