@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   FileUp,
   PanelRight,
-  Lightbulb
+  Lightbulb,
+  X
 } from 'lucide-react';
 import {
   Accordion,
@@ -29,11 +30,7 @@ import { Button } from '@/components/ui/button';
 const LexiGrab = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeTab, setActiveTab] = useState('input');
-  const [recentSources, setRecentSources] = useState<{ type: string; name: string; date: string }[]>([
-    { type: 'text', name: 'Intro to Psychology', date: '2 hours ago' },
-    { type: 'url', name: 'https://en.wikipedia.org/wiki/Linguistics', date: '1 day ago' },
-    { type: 'file', name: 'marketing-plan.pdf', date: '3 days ago' },
-  ]);
+  const [recentSources, setRecentSources] = useState<{ type: string; name: string; date: string; content?: string; files?: FileInput[]; urls?: string[] }[]>([]);
 
   const {
     setVocabularyResults,
@@ -57,11 +54,103 @@ const LexiGrab = () => {
     setCurrentTool('lexigrab');
   }, [setCurrentTool]);
 
+  useEffect(() => {
+    // Load recent sources from localStorage when component mounts
+    const savedSources = localStorage.getItem('lexigrab-recent-sources');
+    if (savedSources) {
+      try {
+        setRecentSources(JSON.parse(savedSources));
+      } catch (error) {
+        console.error('Error loading recent sources:', error);
+      }
+    }
+  }, []);
+
   const { vocabularyResults, topicResults, showResults } = lexigrabResults;
 
-  useEffect(() => {
-    setActiveTab(showResults ? 'results' : 'input');
-  }, [showResults]);
+  const addRecentSource = (type: string, name: string, data?: { content?: string; files?: FileInput[]; urls?: string[] }) => {
+    const newSource = { 
+      type, 
+      name, 
+      date: 'Just now',
+      content: data?.content,
+      files: data?.files,
+      urls: data?.urls
+    };
+    
+    // Remove any existing source with the same content/files/urls
+    const existingSourceIndex = recentSources.findIndex(source => {
+      // Check if content matches
+      if (data?.content && source.content === data.content) return true;
+      
+      // Check if files match (by name)
+      if (data?.files && source.files && 
+          data.files[0].file.name === source.files[0].file.name) return true;
+      
+      // Check if urls match
+      if (data?.urls && source.urls && 
+          data.urls[0] === source.urls[0]) return true;
+      
+      return false;
+    });
+
+    let updatedSources;
+    if (existingSourceIndex !== -1) {
+      // Remove the existing source and add the new one at the top
+      updatedSources = [
+        newSource,
+        ...recentSources.slice(0, existingSourceIndex),
+        ...recentSources.slice(existingSourceIndex + 1)
+      ].slice(0, 5); // Keep max 5 items
+    } else {
+      // Add new source at the top
+      updatedSources = [newSource, ...recentSources].slice(0, 5); // Keep max 5 items
+    }
+    
+    setRecentSources(updatedSources);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem('lexigrab-recent-sources', JSON.stringify(updatedSources));
+    } catch (error) {
+      console.error('Error saving recent sources:', error);
+    }
+  };
+
+  const removeRecentSource = (index: number) => {
+    const updatedSources = recentSources.filter((_, i) => i !== index);
+    setRecentSources(updatedSources);
+    localStorage.setItem('lexigrab-recent-sources', JSON.stringify(updatedSources));
+  };
+
+  const clearRecentSources = () => {
+    setRecentSources([]);
+    localStorage.removeItem('lexigrab-recent-sources');
+  };
+
+  const handleSourceClick = (source: typeof recentSources[0]) => {
+    // Restore the state based on source type
+    if (source.content) {
+      setLexigrabInputValue(source.content);
+    }
+    
+    if (source.files) {
+      setLexigrabActiveFiles(source.files.map(file => ({
+        id: Math.random().toString(36).substring(7),
+        preview: '',
+        file: file.file,
+        fileType: file.file.type.startsWith('image/') ? 'image' : 'document',
+        fileExtension: file.file.name.split('.').pop(),
+        isUploading: false
+      })));
+    }
+    
+    if (source.urls) {
+      setLexigrabRecognizedUrls(source.urls);
+    }
+    
+    setActiveTab('input');
+  };
 
   const handleAnalyzeVocabulary = async (
     text: string,
@@ -84,21 +173,31 @@ const LexiGrab = () => {
       }
 
       setShowResults(true, 'lexigrab');
+      setActiveTab('results');  // Explicitly set tab to results after analysis
 
-      if (text.trim()) {
-        const newSource = {
-          type: 'text',
-          name: text.length > 30 ? text.substring(0, 30) + '...' : text,
-          date: 'Just now'
+      // Add to recent sources with full context
+      if (text.trim() || files.length > 0 || lexigrabRecognizedUrls.length > 0) {
+        const sourceData = {
+          content: text.trim(),
+          files: files.length > 0 ? files : undefined,
+          urls: lexigrabRecognizedUrls.length > 0 ? lexigrabRecognizedUrls : undefined
         };
-        setRecentSources(prev => [newSource, ...prev.slice(0, 4)]);
-      } else if (files.length > 0) {
-        const newSource = {
-          type: 'file',
-          name: files[0].file.name,
-          date: 'Just now'
-        };
-        setRecentSources(prev => [newSource, ...prev.slice(0, 4)]);
+
+        let sourceName = '';
+        let sourceType = 'text';
+        
+        if (text.trim()) {
+          sourceName = text.length > 30 ? text.substring(0, 30) + '...' : text;
+          sourceType = 'text';
+        } else if (files.length > 0) {
+          sourceName = files[0].file.name;
+          sourceType = 'file';
+        } else if (lexigrabRecognizedUrls.length > 0) {
+          sourceName = lexigrabRecognizedUrls[0];
+          sourceType = 'url';
+        }
+
+        addRecentSource(sourceType, sourceName, sourceData);
       }
     } catch (error) {
       console.error("Error analyzing vocabulary:", error);
@@ -200,12 +299,27 @@ const LexiGrab = () => {
                 {recentSources.length > 0 ? (
                   <ul className="space-y-2">
                     {recentSources.map((source, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 p-1.5 rounded-md cursor-pointer transition-colors">
-                        {renderSourceIcon(source.type)}
-                        <div className="overflow-hidden">
+                      <li 
+                        key={idx} 
+                        className="group flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 p-1.5 rounded-md cursor-pointer transition-colors"
+                        onClick={() => handleSourceClick(source)}
+                      >
+                        <div className="flex-shrink-0">{renderSourceIcon(source.type)}</div>
+                        <div className="flex-grow overflow-hidden">
                           <p className="truncate">{source.name}</p>
                           <p className="text-xs text-gray-400">{source.date}</p>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeRecentSource(idx);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
                       </li>
                     ))}
                   </ul>
