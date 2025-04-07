@@ -380,64 +380,6 @@ export async function recordPracticeWordResult(
   }
 }
 
-// Function to get user profile
-export async function getUserProfile(userId: string) {
-  try {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (error) {
-      console.error("Error fetching user profile:", error);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Exception fetching user profile:", error);
-    return null;
-  }
-}
-
-// Function to update user profile
-export async function updateUserProfile(userId: string, updates: any) {
-  try {
-    const { data, error } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", userId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error updating user profile:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
-        variant: "destructive",
-      });
-      return null;
-    }
-
-    toast({
-      title: "Success",
-      description: "Profile updated successfully!",
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Exception updating user profile:", error);
-    toast({
-      title: "Error",
-      description: "An unexpected error occurred. Please try again later.",
-      variant: "destructive",
-    });
-    return null;
-  }
-}
-
 // Function to get or create collection with a specific name
 export async function getOrCreateCollection(userId: string, name: string) {
   try {
