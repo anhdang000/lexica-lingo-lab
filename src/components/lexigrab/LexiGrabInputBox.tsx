@@ -25,45 +25,53 @@ import { toast } from 'sonner';
 // Define the input source types
 type InputSourceType = 'text' | 'file' | 'url';
 
+// Define the structure for active files, mirroring AppStateContext
+interface ActiveFile {
+  id: string;
+  preview: string;
+  file: File;
+  fileType: 'image' | 'document';
+  fileExtension?: string;
+  isUploading: boolean;
+  uploadError?: string;
+}
+
 interface LexiGrabInputBoxProps {
   onAnalyze: (text: string, files: FileInput[], analysisResults?: AnalysisResults) => Promise<void>;
   isAnalyzing: boolean;
+  inputValue: string;
+  setInputValue: (value: string) => void;
+  activeFiles: ActiveFile[];
+  setActiveFiles: (files: ActiveFile[] | ((prevFiles: ActiveFile[]) => ActiveFile[])) => void;
+  recognizedUrls: string[];
+  setRecognizedUrls: (urls: string[]) => void;
 }
 
-const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
-  const [inputValue, setInputValue] = useState('');
+const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
+  onAnalyze,
+  isAnalyzing,
+  inputValue,
+  setInputValue,
+  activeFiles,
+  setActiveFiles,
+  recognizedUrls,
+  setRecognizedUrls,
+}) => {
   const [fontSize, setFontSize] = useState(24);
-  const [recognizedUrls, setRecognizedUrls] = useState<string[]>([]);
   const [isUrlFetching, setIsUrlFetching] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
 
-  // New state for tracking the active input source
   const [activeInputSource, setActiveInputSource] = useState<InputSourceType>('text');
   const [activeUrl, setActiveUrl] = useState<string>('');
 
-  // File state to store multiple files
-  const [activeFiles, setActiveFiles] = useState<Array<{
-    id: string;
-    preview: string;
-    file: File;
-    fileType: 'image' | 'document';
-    fileExtension?: string;
-    isUploading: boolean;
-    uploadError?: string;
-  }>>([]);
-
-  // Add local loading state
   const [localIsAnalyzing, setLocalIsAnalyzing] = useState(false);
 
-  // Combine both loading states
   const isLoadingState = isAnalyzing || localIsAnalyzing || isUrlFetching;
 
-  // Check if any files are uploading
   const isAnyFileUploading = activeFiles.some(file => file.isUploading);
 
-  // Theme specific to LexiGrab
   const theme = {
     gradient: "from-[#cd4631] to-[#dea47e]",
     hoverGradient: "from-[#cd4631]/90 to-[#dea47e]/90",
@@ -72,7 +80,6 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
     borderColor: "border-[#cd4631]"
   };
 
-  // Acceptable file types
   const acceptableDocTypes = [
     'application/pdf',
     'application/msword',
@@ -95,7 +102,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
   const getFileType = (file: File): 'image' | 'document' => {
     return file.type.startsWith('image/') ? 'image' : 'document';
   };
-  
+
   const getFileExtension = (file: File): string => {
     const nameParts = file.name.split('.');
     return nameParts.length > 1 ? nameParts[nameParts.length - 1].toLowerCase() : '';
@@ -105,7 +112,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
     const lines = text.split('\n').length;
     const length = text.length;
 
-    if (lines >= 5) return 18; 
+    if (lines >= 5) return 18;
     if (lines === 4) return 20;
     if (lines === 3) return 24;
     if (lines === 2) return 28;
@@ -129,9 +136,9 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
 
   const extractUrls = (text: string): string[] => {
     const urlRegex = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi;
-    
+
     const matches = text.match(urlRegex) || [];
-    
+
     return matches.map(url => {
       if (url.startsWith('www.')) {
         return 'https://' + url;
@@ -145,12 +152,10 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    
-    // If content was cleared, also clear URLs
+
     if (newValue.trim() === '') {
       setRecognizedUrls([]);
     } else {
-      // Extract URLs from the text input
       const urls = extractUrls(newValue);
       setRecognizedUrls(urls);
     }
@@ -158,11 +163,9 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      // Clear any existing content
       setInputValue('');
       setRecognizedUrls([]);
-      
-      // Process all selected files
+
       const filesArray = Array.from(e.target.files);
       filesArray.forEach(file => {
         if (isAcceptableFileType(file)) {
@@ -185,7 +188,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
     const id = Math.random().toString(36).substring(7);
     const fileType = getFileType(file);
     const fileExtension = getFileExtension(file);
-    
+
     reader.onload = (e) => {
       setActiveFiles(prevFiles => [
         ...prevFiles,
@@ -203,8 +206,6 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
     if (fileType === 'image') {
       reader.readAsDataURL(file);
     } else {
-      // For non-image files, we don't need a preview data URL
-      // Just trigger the onload event manually
       setTimeout(() => {
         const mockEvent = { target: { result: '' } } as unknown as ProgressEvent<FileReader>;
         reader.onload?.(mockEvent);
@@ -214,14 +215,12 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
 
   const handleAnalyze = async () => {
     if (!inputValue && activeFiles.length === 0 && recognizedUrls.length === 0) return;
-    
-    // Set local loading state immediately when the button is clicked
+
     setLocalIsAnalyzing(true);
-    
+
     try {
-      // First set loading state for all active files
       if (activeFiles.length > 0) {
-        setActiveFiles(prevFiles => 
+        setActiveFiles(prevFiles =>
           prevFiles.map(file => ({
             ...file,
             isUploading: true,
@@ -229,26 +228,22 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
           }))
         );
       }
-      
-      // Create FileInput objects from the active files
+
       const fileInputs: FileInput[] = activeFiles.map(activeFile => ({
         file: activeFile.file,
         mimeType: activeFile.file.type
       }));
-      
-      // Variable to store aggregated text
+
       let aggregatedText = inputValue.trim();
       let urlContentSuccess = false;
-      
-      // Process URLs if present
+
       if (recognizedUrls.length > 0) {
         try {
-          // Show loading state for URL processing
           setIsUrlFetching(true);
           toast.loading(`Fetching content from ${recognizedUrls.length} URLs...`, { id: 'url-fetching' });
-          
+
           const urlContents = await Promise.allSettled(
-            recognizedUrls.map(url => 
+            recognizedUrls.map(url =>
               fetchUrlContent(url, { render: 'html' })
                 .then(content => ({ url, content, success: true }))
                 .catch(error => {
@@ -257,40 +252,35 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
                 })
             )
           );
-          
-          // Process results
+
           const successfulFetches = urlContents.filter(
             result => result.status === 'fulfilled' && result.value.success
           ) as PromiseFulfilledResult<{ url: string; content: string; success: boolean }>[];
-          
-          // Check if we're using metadata or direct content
-          const usingMetadataOnly = successfulFetches.every(result => 
+
+          const usingMetadataOnly = successfulFetches.every(result =>
             result.value.content.includes('Direct content extraction failed due to CORS restrictions')
           );
-          
-          // Build the aggregated text
+
           if (successfulFetches.length > 0) {
             urlContentSuccess = true;
             const contentTexts = successfulFetches.map(result => {
-              // Limit content size to prevent overwhelming the API
               let content = result.value.content;
-              const maxContentLength = 5000; // Reasonable limit to prevent overwhelming the API
+              const maxContentLength = 5000;
               if (content.length > maxContentLength) {
-                content = content.slice(0, maxContentLength) + 
+                content = content.slice(0, maxContentLength) +
                   `... [Content truncated, original length: ${content.length} characters]`;
               }
               return `\n\nContent from ${result.value.url}:\n${content}`;
             });
             aggregatedText += '\n\n' + contentTexts.join('\n\n');
           }
-          
-          // Show appropriate feedback
+
           toast.dismiss('url-fetching');
           if (successfulFetches.length > 0) {
-            const containsDirectContent = successfulFetches.some(result => 
+            const containsDirectContent = successfulFetches.some(result =>
               !result.value.content.includes('Direct content extraction failed due to CORS restrictions')
             );
-            
+
             if (containsDirectContent) {
               toast.success(`Fetched content from ${successfulFetches.length} of ${recognizedUrls.length} URLs`);
             } else {
@@ -299,17 +289,15 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
           } else if (recognizedUrls.length > 0) {
             toast.error('Could not extract content from any URLs');
           }
-          
-          // Update URL display to indicate metadata-only mode
+
           if (usingMetadataOnly && successfulFetches.length > 0) {
             toast.info('Using URL metadata only due to browser security restrictions', { duration: 5000 });
           }
-          
-          // List failed URLs
+
           const failedUrls = urlContents
             .filter(result => result.status !== 'fulfilled' || !result.value.success)
             .map(result => result.status === 'fulfilled' ? result.value.url : 'unknown');
-          
+
           if (failedUrls.length > 0 && failedUrls.length < recognizedUrls.length) {
             toast.error(`Failed to fetch: ${failedUrls.join(', ')}`, { duration: 5000 });
           }
@@ -321,41 +309,36 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
           setIsUrlFetching(false);
         }
       }
-      
-      // Mark file uploads as successful
+
       if (activeFiles.length > 0) {
-        setActiveFiles(prevFiles => 
+        setActiveFiles(prevFiles =>
           prevFiles.map(file => ({
             ...file,
             isUploading: false
           }))
         );
       }
-      
-      // If no input text, no successful URL fetches, and no files, stop here
+
       if (!aggregatedText && !urlContentSuccess && activeFiles.length === 0) {
         toast.error('No content to analyze');
         setLocalIsAnalyzing(false);
         return;
       }
-      
+
       try {
-        // Only analyze in the component if we need the pre-analysis
         const analysisResults = await analyzeVocabulary(aggregatedText, fileInputs);
-        
-        // Call the parent's analyze function, which will handle the loading state
+
         await onAnalyze(aggregatedText, fileInputs, analysisResults);
       } catch (error) {
         console.error("Error in LexiGrabInputBox analysis:", error);
         toast.error("Failed to analyze vocabulary.");
-        throw error; // Re-throw to be caught by outer catch
+        throw error;
       }
     } catch (error) {
       console.error('Error during analysis:', error);
-      
-      // Mark files as failed
+
       if (activeFiles.length > 0) {
-        setActiveFiles(prevFiles => 
+        setActiveFiles(prevFiles =>
           prevFiles.map(file => ({
             ...file,
             isUploading: false,
@@ -363,10 +346,9 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
           }))
         );
       }
-      
+
       toast.error('Failed to process content for analysis');
     } finally {
-      // Clear the local loading state
       setLocalIsAnalyzing(false);
     }
   };
@@ -395,11 +377,9 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      // Clear any existing content
       setInputValue('');
       setRecognizedUrls([]);
-      
-      // Process all dropped files
+
       const filesArray = Array.from(e.dataTransfer.files);
       filesArray.forEach(file => {
         if (isAcceptableFileType(file)) {
@@ -418,14 +398,12 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = Array.from(e.clipboardData.items);
     let fileFound = false;
-    
-    // Check for files first
+
     for (const item of items) {
       const file = item.getAsFile();
       if (file && isAcceptableFileType(file)) {
         if (!fileFound) {
-          // Clear existing content only on first file
-          e.preventDefault(); // Prevent the default paste behavior
+          e.preventDefault();
           setInputValue('');
           setRecognizedUrls([]);
           fileFound = true;
@@ -433,15 +411,12 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
         handleFileSelection(file);
       }
     }
-    
-    // If no files found, default text paste behavior will continue
   };
 
   const removeUrl = (urlToRemove: string) => {
-    setRecognizedUrls(prev => prev.filter(url => url !== urlToRemove));
+    setRecognizedUrls(recognizedUrls.filter(url => url !== urlToRemove));
   };
 
-  // Get appropriate file icon based on extension
   const getFileIcon = (fileExtension: string = '') => {
     switch(fileExtension.toLowerCase()) {
       case 'pdf':
@@ -462,36 +437,32 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
     }
   };
 
-  // Add effect to manage loading indicator styles
   useEffect(() => {
-    // Create and append style element for loading indicators
     const style = document.createElement('style');
     style.textContent = `
       .loading-indicator {
         display: none !important;
       }
-      
+
       .normal-indicator {
         display: inline-flex !important;
       }
-      
+
       .is-loading .loading-indicator {
         display: inline-flex !important;
       }
-      
+
       .is-loading .normal-indicator {
         display: none !important;
       }
     `;
     document.head.appendChild(style);
 
-    // Cleanup function to remove the style when component unmounts
     return () => {
       document.head.removeChild(style);
     };
   }, []);
 
-  // Add effect to manage loading state
   useEffect(() => {
     const button = document.querySelector("[data-loading-button]");
     if (button) {
@@ -501,8 +472,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
         button.classList.remove("is-loading");
       }
     }
-    
-    // Cleanup function to ensure loading state is removed when component unmounts
+
     return () => {
       const button = document.querySelector("[data-loading-button]");
       if (button) {
@@ -517,12 +487,11 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
         "relative rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-300 z-[1]",
         `focus-within:ring-1 focus-within:ring-opacity-100 focus-within:${theme.ring}`
       )}>
-        {/* Mode indicator - top bar (subtle) */}
         <div className={cn(
           "absolute top-0 left-0 right-0 h-[3px] opacity-75 z-10",
           `bg-gradient-to-r ${theme.gradient}`
         )} />
-        <div 
+        <div
           className={cn(
             "p-4 relative min-h-[180px]",
             dragActive ? "bg-gray-50 dark:bg-gray-700/50" : ""
@@ -532,7 +501,6 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
           onDragOver={handleDrag}
           onDrop={handleDrop}
         >
-          {/* File Input Display - shows when files are selected */}
           {activeFiles.length > 0 && (
             <div className="w-full h-full">
               <div className={cn(
@@ -543,9 +511,9 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
                   <div key={file.id} className="relative mb-2">
                     {file.fileType === 'image' ? (
                       <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm w-48 h-48">
-                        <img 
-                          src={file.preview} 
-                          alt="Preview" 
+                        <img
+                          src={file.preview}
+                          alt="Preview"
                           className={cn(
                             "w-full h-full object-cover",
                             file.isUploading && "opacity-50"
@@ -568,8 +536,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
                         </span>
                       </div>
                     )}
-                    
-                    {/* Remove file button */}
+
                     <Button
                       size="icon"
                       className="absolute -top-3 -right-3 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full shadow-md w-6 h-6 border border-gray-200 dark:border-gray-600 transition-all duration-200 hover:scale-110"
@@ -581,15 +548,15 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
                   </div>
                 ))}
               </div>
-              
+
               <div className="flex items-center justify-between mt-2">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {activeFiles.length === 1 
-                    ? "1 file selected for vocabulary extraction" 
+                  {activeFiles.length === 1
+                    ? "1 file selected for vocabulary extraction"
                     : `${activeFiles.length} files selected for vocabulary extraction`
                   }
                 </p>
-                
+
                 {activeFiles.length > 1 && (
                   <Button
                     onClick={() => setActiveFiles([])}
@@ -606,7 +573,6 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
             </div>
           )}
 
-          {/* URL Input Display - shows when URL is active */}
           {activeFiles.length === 0 && recognizedUrls.length > 0 && (
             <div className="w-full pt-2 pb-4">
               <div className="flex flex-wrap gap-2 mb-3">
@@ -636,15 +602,14 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
                 ))}
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                {recognizedUrls.length > 1 
-                  ? `${recognizedUrls.length} URLs detected for content extraction` 
+                {recognizedUrls.length > 1
+                  ? `${recognizedUrls.length} URLs detected for content extraction`
                   : "URL detected for content extraction"
                 }
               </div>
             </div>
           )}
 
-          {/* Text Input Display - the default */}
           {activeFiles.length === 0 && (
             <Textarea
               ref={textareaRef}
@@ -658,8 +623,8 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
                 `placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:${theme.iconColor}`,
                 "placeholder:transition-opacity placeholder:duration-300"
               )}
-              style={{ 
-                fontSize: `${fontSize}px`, 
+              style={{
+                fontSize: `${fontSize}px`,
                 lineHeight: '1.5',
                 outlineWidth: '0px',
                 outline: 'none',
@@ -676,7 +641,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
             className="hidden"
             multiple
           />
-          
+
           {dragActive && (
             <div className="absolute inset-0 bg-gray-100/80 dark:bg-gray-700/80 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 z-20">
               <div className="text-center">
@@ -687,11 +652,8 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
           )}
         </div>
 
-        {/* Bottom action bar */}
         <div className="flex justify-between items-center p-4 border-t border-gray-100 dark:border-gray-700">
-          {/* Left side - Source buttons */}
           <div className="flex space-x-2">
-            {/* File button */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -714,8 +676,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            
-            {/* Clear input button - only show when something is active */}
+
             {(activeFiles.length > 0 || inputValue.trim() !== '' || recognizedUrls.length > 0) && (
               <Button
                 onClick={() => {
@@ -734,7 +695,6 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({ onAnalyze, isAnalyz
             )}
           </div>
 
-          {/* Right side - Analyze button */}
           <Button
             onClick={handleAnalyze}
             disabled={

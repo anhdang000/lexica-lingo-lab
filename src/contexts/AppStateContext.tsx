@@ -3,6 +3,16 @@ import { type WordDefinition } from '@/lib/utils';
 
 type ToolType = 'lexigrab' | 'lexigen';
 
+interface ActiveFile {
+  id: string;
+  preview: string;
+  file: File;
+  fileType: 'image' | 'document';
+  fileExtension?: string;
+  isUploading: boolean;
+  uploadError?: string;
+}
+
 interface TabResults {
   vocabularyResults: WordDefinition[];
   topicResults: string[];
@@ -19,8 +29,16 @@ interface AppState {
   setShowResults: (show: boolean, tool: ToolType) => void;
   setCurrentWord: (word: WordDefinition | null) => void;
   setCurrentTool: (tool: ToolType) => void;
-  
-  // Helper function to get current tab results
+
+  lexigrabInputValue: string;
+  lexigrabActiveFiles: ActiveFile[];
+  lexigrabRecognizedUrls: string[];
+  lexigrabSummaryContent: string;
+  setLexigrabInputValue: (value: string) => void;
+  setLexigrabActiveFiles: (files: ActiveFile[] | ((prevFiles: ActiveFile[]) => ActiveFile[])) => void;
+  setLexigrabRecognizedUrls: (urls: string[]) => void;
+  setLexigrabSummaryContent: (content: string) => void;
+
   getCurrentResults: () => TabResults;
 }
 
@@ -29,21 +47,24 @@ const AppStateContext = createContext<AppState | undefined>(undefined);
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [currentTool, setCurrentTool] = useState<ToolType>('lexigrab');
   const [currentWord, setCurrentWord] = useState<WordDefinition | null>(null);
-  
-  // Initialize tab-specific results
+
   const [lexigrabResults, setLexigrabResults] = useState<TabResults>({
     vocabularyResults: [],
     topicResults: [],
     showResults: false
   });
-  
+
   const [lexigenResults, setLexigenResults] = useState<TabResults>({
     vocabularyResults: [],
     topicResults: [],
     showResults: false
   });
 
-  // Function to set vocabulary results for a specific tool tab
+  const [lexigrabInputValue, setLexigrabInputValue] = useState('');
+  const [lexigrabActiveFiles, setLexigrabActiveFiles] = useState<ActiveFile[]>([]);
+  const [lexigrabRecognizedUrls, setLexigrabRecognizedUrls] = useState<string[]>([]);
+  const [lexigrabSummaryContent, setLexigrabSummaryContent] = useState<string>("");
+
   const setVocabularyResults = (results: WordDefinition[], tool: ToolType) => {
     if (tool === 'lexigrab') {
       setLexigrabResults(prev => ({ ...prev, vocabularyResults: results }));
@@ -52,7 +73,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Function to set topic results for a specific tool tab
   const setTopicResults = (topics: string[], tool: ToolType) => {
     if (tool === 'lexigrab') {
       setLexigrabResults(prev => ({ ...prev, topicResults: topics }));
@@ -61,7 +81,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Function to set show results for a specific tool tab
   const setShowResults = (show: boolean, tool: ToolType) => {
     if (tool === 'lexigrab') {
       setLexigrabResults(prev => ({ ...prev, showResults: show }));
@@ -69,8 +88,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setLexigenResults(prev => ({ ...prev, showResults: show }));
     }
   };
-  
-  // Helper function to get current tab results
+
   const getCurrentResults = (): TabResults => {
     return currentTool === 'lexigrab' ? lexigrabResults : lexigenResults;
   };
@@ -85,7 +103,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setShowResults,
     setCurrentWord,
     setCurrentTool,
-    getCurrentResults
+    getCurrentResults,
+    lexigrabInputValue,
+    lexigrabActiveFiles,
+    lexigrabRecognizedUrls,
+    lexigrabSummaryContent,
+    setLexigrabInputValue,
+    setLexigrabActiveFiles,
+    setLexigrabRecognizedUrls,
+    setLexigrabSummaryContent,
   };
 
   return (

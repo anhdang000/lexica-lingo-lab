@@ -6,18 +6,18 @@ import { isSingleWordOrPhrases, FileInput, AnalysisResults } from '@/lib/utils';
 import WordDetailModal from '@/components/WordDetailModal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  BookOpen, 
-  History, 
-  FileText, 
-  Info, 
-  Link, 
-  CheckCircle2, 
-  FileUp, 
+import {
+  BookOpen,
+  History,
+  FileText,
+  Info,
+  Link,
+  CheckCircle2,
+  FileUp,
   PanelRight,
   Lightbulb
 } from 'lucide-react';
-import { 
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -34,7 +34,7 @@ const LexiGrab = () => {
     { type: 'url', name: 'https://en.wikipedia.org/wiki/Linguistics', date: '1 day ago' },
     { type: 'file', name: 'marketing-plan.pdf', date: '3 days ago' },
   ]);
-  
+
   const {
     setVocabularyResults,
     setTopicResults,
@@ -42,51 +42,49 @@ const LexiGrab = () => {
     setCurrentWord,
     setCurrentTool,
     lexigrabResults,
-    currentWord
+    currentWord,
+    lexigrabInputValue,
+    setLexigrabInputValue,
+    lexigrabActiveFiles,
+    setLexigrabActiveFiles,
+    lexigrabRecognizedUrls,
+    setLexigrabRecognizedUrls,
+    lexigrabSummaryContent,
+    setLexigrabSummaryContent,
   } = useAppState();
 
-  // State to store content from analysis results
-  const [summaryContent, setSummaryContent] = useState<string>("");
-
-  // Set current tool to lexigrab when component mounts
   useEffect(() => {
     setCurrentTool('lexigrab');
   }, [setCurrentTool]);
 
-  // Use lexigrabResults directly instead of getCurrentResults
   const { vocabularyResults, topicResults, showResults } = lexigrabResults;
 
+  useEffect(() => {
+    setActiveTab(showResults ? 'results' : 'input');
+  }, [showResults]);
+
   const handleAnalyzeVocabulary = async (
-    text: string, 
+    text: string,
     files: FileInput[],
     analysisResults?: AnalysisResults
   ) => {
     setIsAnalyzing(true);
-    
-    // Force a repaint to ensure the loading state is immediately visible
+
     await new Promise(resolve => requestAnimationFrame(() => {
       resolve(null);
     }));
-    
+
     try {
-      // Simulate a small delay to ensure UI updates
-      await new Promise(resolve => setTimeout(resolve, 100)); 
-      
-      // For lexigrab, use pre-analyzed results if provided
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       if (analysisResults) {
         setVocabularyResults(analysisResults.vocabulary, 'lexigrab');
         setTopicResults(analysisResults.topics, 'lexigrab');
-        // Store content from analysis results
-        setSummaryContent(analysisResults.content || "");
+        setLexigrabSummaryContent(analysisResults.content || "");
       }
-      
+
       setShowResults(true, 'lexigrab');
-      
-      // After successful analysis, switch to results tab
-      setActiveTab('results');
-      
-      // Add to recent sources (in a real app, this would be saved to persistent storage)
-      // Just demonstrating the concept here
+
       if (text.trim()) {
         const newSource = {
           type: 'text',
@@ -111,8 +109,7 @@ const LexiGrab = () => {
 
   const handleCloseResults = () => {
     setShowResults(false, 'lexigrab');
-    setActiveTab('input');
-    setSummaryContent("");
+    setLexigrabSummaryContent("");
   };
 
   const renderSourceIcon = (type: string) => {
@@ -130,7 +127,6 @@ const LexiGrab = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4">
-      {/* Hero Section with animated gradient background */}
       <div className="relative text-center py-14 mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-rose-100 to-orange-50 dark:from-rose-900/30 dark:to-orange-950/30">
         <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
         <div className="relative z-10">
@@ -154,13 +150,10 @@ const LexiGrab = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Left sidebar - more compact */}
         <div className="hidden md:block w-72 shrink-0 animate-slide-in-left">
           <Card className="bg-white dark:bg-gray-800/50">
             <CardContent className="p-4">
-              {/* About section - moved from right sidebar */}
               <div className="font-medium mb-3 flex items-center text-gray-700 dark:text-gray-300">
                 <Info className="h-4 w-4 mr-2" /> About LexiGrab
               </div>
@@ -168,7 +161,6 @@ const LexiGrab = () => {
                 LexiGrab helps you extract vocabulary from any source, including text, websites, images, and documents.
               </p>
               
-              {/* Features - moved from right sidebar */}
               <div className="border-t border-gray-100 dark:border-gray-700 mt-3 pt-3 mb-4">
                 <Accordion type="single" collapsible className="w-full">
                   <AccordionItem value="features" className="border-none">
@@ -201,7 +193,6 @@ const LexiGrab = () => {
                 </Accordion>
               </div>
 
-              {/* Recent Sources section */}
               <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-3">
                 <div className="font-medium mb-3 flex items-center text-gray-700 dark:text-gray-300">
                   <History className="h-4 w-4 mr-2" /> Recent Sources
@@ -223,7 +214,6 @@ const LexiGrab = () => {
                 )}
               </div>
 
-              {/* Tips section */}
               <div className="border-t border-gray-100 dark:border-gray-700 mt-3 pt-3">
                 <Accordion type="single" collapsible className="w-full">
                   <AccordionItem value="tips" className="border-none">
@@ -255,11 +245,9 @@ const LexiGrab = () => {
           </Card>
         </div>
 
-        {/* Main content area */}
         <div className="flex-1">
-          <Tabs 
-            defaultValue="input" 
-            value={activeTab} 
+          <Tabs
+            value={activeTab}
             onValueChange={setActiveTab}
             className="w-full animate-fade-in"
           >
@@ -271,14 +259,19 @@ const LexiGrab = () => {
                 <BookOpen className="h-4 w-4 mr-2" /> Results
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="input" className="mt-0">
-              <LexiGrabInputBox 
+              <LexiGrabInputBox
                 onAnalyze={handleAnalyzeVocabulary}
                 isAnalyzing={isAnalyzing}
+                inputValue={lexigrabInputValue}
+                setInputValue={setLexigrabInputValue}
+                activeFiles={lexigrabActiveFiles}
+                setActiveFiles={setLexigrabActiveFiles}
+                recognizedUrls={lexigrabRecognizedUrls}
+                setRecognizedUrls={setLexigrabRecognizedUrls}
               />
-              
-              {/* Mobile-only info panel */}
+
               <div className="md:hidden mt-8 animate-fade-in">
                 <Card className="bg-white dark:bg-gray-800/50">
                   <CardContent className="p-4">
@@ -304,22 +297,21 @@ const LexiGrab = () => {
                 </Card>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="results" className="mt-0">
-              <LexiGrabResults 
+              <LexiGrabResults
                 results={vocabularyResults}
                 topics={topicResults}
                 isVisible={showResults}
                 onClose={handleCloseResults}
                 isSingleWordOrPhrases={vocabularyResults.length > 0 && isSingleWordOrPhrases(vocabularyResults[0].word)}
-                content={summaryContent}
+                content={lexigrabSummaryContent}
               />
             </TabsContent>
           </Tabs>
         </div>
       </div>
 
-      {/* Word Detail Modal */}
       <WordDetailModal
         open={currentWord !== null}
         onOpenChange={(open) => !open && setCurrentWord(null)}
