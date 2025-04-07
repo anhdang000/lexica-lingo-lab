@@ -383,7 +383,7 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                           </div>
 
                       {/* First definition - always visible when collapsed */}
-                      {!isExpanded && (
+                      {!isExpanded && item.definitions && item.definitions.length > 0 && (
                         <div className="group/def space-y-2">
                           <p className="text-gray-800 dark:text-gray-200 text-base">
                             {item.definitions[0].meaning}

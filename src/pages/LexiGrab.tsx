@@ -129,24 +129,83 @@ const LexiGrab = () => {
   };
 
   const handleSourceClick = (source: typeof recentSources[0]) => {
+    // First reset all input states
+    setLexigrabInputValue('');
+    setLexigrabActiveFiles([]);
+    setLexigrabRecognizedUrls([]);
+    
+    let isValidSource = true;
+
     // Restore the state based on source type
     if (source.content) {
       setLexigrabInputValue(source.content);
     }
     
     if (source.files) {
-      setLexigrabActiveFiles(source.files.map(file => ({
-        id: Math.random().toString(36).substring(7),
-        preview: '',
-        file: file.file,
-        fileType: file.file.type.startsWith('image/') ? 'image' : 'document',
-        fileExtension: file.file.name.split('.').pop(),
-        isUploading: false
-      })));
+      // Validate files before processing
+      const validFiles = source.files.filter(fileInput => {
+        if (!fileInput?.file) return false;
+        if (!fileInput.file.name) return false;
+        return true;
+      });
+
+      // If no valid files, mark source as invalid
+      if (validFiles.length === 0 && source.files.length > 0) {
+        isValidSource = false;
+      } else if (validFiles.length > 0) {
+        setLexigrabActiveFiles(validFiles.map(fileInput => {
+          const fileType = fileInput.file.type?.startsWith('image/') ? 'image' : 'document';
+          const fileName = fileInput.file.name;
+          const fileExtension = fileName?.includes('.') ? fileName.split('.').pop() || '' : '';
+          
+          // Create a unique ID for this file instance
+          const id = Math.random().toString(36).substring(7);
+          
+          // For image files, read and set the preview
+          if (fileType === 'image') {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              setLexigrabActiveFiles(prevFiles => 
+                prevFiles.map(prevFile => 
+                  prevFile?.id === id 
+                    ? { ...prevFile, preview: e.target?.result as string } 
+                    : prevFile
+                ).filter(Boolean) as typeof prevFiles
+              );
+            };
+            reader.readAsDataURL(fileInput.file);
+          }
+          
+          return {
+            id,
+            preview: '', // Initially empty, will be updated by reader for images
+            file: fileInput.file,
+            fileType,
+            fileExtension,
+            isUploading: false
+          };
+        }));
+      }
     }
     
     if (source.urls) {
-      setLexigrabRecognizedUrls(source.urls);
+      if (Array.isArray(source.urls) && source.urls.length > 0) {
+        setLexigrabRecognizedUrls(source.urls);
+      } else {
+        isValidSource = false;
+      }
+    }
+
+    // If source is invalid, remove it from recent sources
+    if (!isValidSource) {
+      const sourceIndex = recentSources.findIndex(s => s === source);
+      if (sourceIndex !== -1) {
+        const updatedSources = [...recentSources];
+        updatedSources.splice(sourceIndex, 1);
+        setRecentSources(updatedSources);
+        localStorage.setItem('lexigrab-recent-sources', JSON.stringify(updatedSources));
+      }
+      return;
     }
     
     setActiveTab('input');
