@@ -59,9 +59,44 @@ const LexiGrab = () => {
     const savedSources = localStorage.getItem('lexigrab-recent-sources');
     if (savedSources) {
       try {
-        setRecentSources(JSON.parse(savedSources));
+        const sources = JSON.parse(savedSources);
+        
+        // Filter out invalid sources
+        const validSources = sources.filter(source => {
+          // Check if files are valid
+          if (source.files) {
+            const hasValidFiles = source.files.some(fileInput => {
+              if (!fileInput?.file) return false;
+              if (!fileInput.file.name) return false;
+              return true;
+            });
+            if (!hasValidFiles && source.files.length > 0) return false;
+          }
+          
+          // Check if URLs are valid
+          if (source.urls) {
+            if (!Array.isArray(source.urls) || source.urls.length === 0) return false;
+          }
+          
+          // Check if content is valid for text type
+          if (source.type === 'text' && (!source.content || typeof source.content !== 'string')) {
+            return false;
+          }
+          
+          return true;
+        });
+
+        // Only update localStorage if we filtered out some invalid sources
+        if (validSources.length !== sources.length) {
+          localStorage.setItem('lexigrab-recent-sources', JSON.stringify(validSources));
+        }
+        
+        setRecentSources(validSources);
       } catch (error) {
         console.error('Error loading recent sources:', error);
+        // If there's an error parsing, clear the invalid data
+        localStorage.removeItem('lexigrab-recent-sources');
+        setRecentSources([]);
       }
     }
   }, []);
