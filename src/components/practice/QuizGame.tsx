@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trophy, MoveRight, HelpCircle } from 'lucide-react';
@@ -31,6 +31,21 @@ interface QuizQuestion {
   collectionId: string;
 }
 
+// Define the structure of the persisted state
+interface QuizGameState {
+  quizQuestions: QuizQuestion[];
+  currentQuestionIndex: number;
+  selectedOption: number | null;
+  score: number;
+  showHint: boolean;
+  sessionCount: number;
+  sessionId: string | null;
+  answeredQuestions: QuizQuestion[];
+  recordedAnswers: string[];
+  isSessionActive: boolean;
+  timestamp: number;
+}
+
 export interface QuizGameRef {
   handleBack: () => Promise<void>;
 }
@@ -50,6 +65,8 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
   const [recordedAnswers, setRecordedAnswers] = useState<Set<string>>(new Set());
   const questionsPerSession = 3;
   const isSessionActive = React.useRef(false);
+  const STORAGE_KEY = 'quizGameState';
+  const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
 
   // Expose handleBack method to parent
   useImperativeHandle(ref, () => ({
@@ -64,13 +81,81 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
         await completeCurrentSession(false);
       }
       
+      // Clear the persisted state when going back
+      localStorage.removeItem(STORAGE_KEY);
+      
       return Promise.resolve();
     }
   }));
 
+  // Save game state to localStorage
+  const saveGameState = () => {
+    if (!user) return;
+    
+    const state: QuizGameState = {
+      quizQuestions,
+      currentQuestionIndex,
+      selectedOption,
+      score,
+      showHint,
+      sessionCount,
+      sessionId,
+      answeredQuestions,
+      recordedAnswers: Array.from(recordedAnswers),
+      isSessionActive: isSessionActive.current,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  };
+
+  // Load game state from localStorage
+  const loadGameState = useCallback(() => {
+    if (!user) return false;
+    
+    try {
+      const savedState = localStorage.getItem(STORAGE_KEY);
+      if (!savedState) return false;
+      
+      const state: QuizGameState = JSON.parse(savedState);
+      
+      // Check if the session has expired (30 minutes)
+      if (Date.now() - state.timestamp > SESSION_TIMEOUT) {
+        localStorage.removeItem(STORAGE_KEY);
+        return false;
+      }
+      
+      // Restore the state
+      setQuizQuestions(state.quizQuestions);
+      setCurrentQuestionIndex(state.currentQuestionIndex);
+      setSelectedOption(state.selectedOption);
+      setScore(state.score);
+      setShowHint(state.showHint);
+      setSessionCount(state.sessionCount);
+      setSessionId(state.sessionId);
+      setAnsweredQuestions(state.answeredQuestions);
+      setRecordedAnswers(new Set(state.recordedAnswers));
+      isSessionActive.current = state.isSessionActive;
+      
+      return true;
+    } catch (error) {
+      console.error("Error loading game state:", error);
+      localStorage.removeItem(STORAGE_KEY);
+      return false;
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user) {
-      fetchQuizQuestions();
+      // Try to load existing game state first
+      const stateLoaded = loadGameState();
+      
+      // Only fetch new questions if no valid state was loaded
+      if (!stateLoaded) {
+        fetchQuizQuestions();
+      } else {
+        setIsLoading(false);
+      }
     }
 
     // Clean up effect - complete session when component unmounts
@@ -80,6 +165,42 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
       }
     };
   }, [user, sessionCount]);
+
+  // Handle visibility change (tab switching)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      // When tab becomes visible again, check if we need to load state
+      if (document.visibilityState === 'visible' && user && quizQuestions.length === 0) {
+        const stateLoaded = loadGameState();
+        if (stateLoaded) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, quizQuestions.length, loadGameState]);
+
+  // Save state whenever relevant state changes
+  useEffect(() => {
+    if (user && quizQuestions.length > 0) {
+      saveGameState();
+    }
+  }, [
+    quizQuestions, 
+    currentQuestionIndex, 
+    selectedOption, 
+    score, 
+    showHint, 
+    sessionCount, 
+    sessionId, 
+    answeredQuestions, 
+    recordedAnswers
+  ]);
 
   // Add answered question to the list
   useEffect(() => {

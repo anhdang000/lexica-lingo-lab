@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MoveRight, Trophy } from 'lucide-react';
@@ -34,6 +34,21 @@ interface Word {
   meaningId: string;
 }
 
+// Define the structure of the persisted state
+interface FlashcardGameState {
+  words: Word[];
+  currentWordIndex: number;
+  isFlipped: boolean;
+  initialSide: 'front' | 'back';
+  sessionCount: number;
+  sessionId: string | null;
+  practicedWords: Word[];
+  recordedWords: string[];
+  cardFlippedOnce: boolean;
+  isSessionActive: boolean;
+  timestamp: number;
+}
+
 export interface FlashcardGameRef {
   handleBack: () => Promise<void>;
 }
@@ -54,6 +69,8 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
     const [cardFlippedOnce, setCardFlippedOnce] = useState(false);
     const cardsPerSession = 5;
     const isSessionActive = useRef(false);
+    const STORAGE_KEY = 'flashcardGameState';
+    const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
 
     // Expose the handleBack method to parent component
     useImperativeHandle(ref, () => ({
@@ -73,13 +90,81 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
           });
         }
         
+        // Clear the persisted state when going back
+        localStorage.removeItem(STORAGE_KEY);
+        
         return Promise.resolve();
       }
     }));
 
+    // Save game state to localStorage
+    const saveGameState = () => {
+      if (!user) return;
+      
+      const state: FlashcardGameState = {
+        words,
+        currentWordIndex,
+        isFlipped,
+        initialSide,
+        sessionCount,
+        sessionId,
+        practicedWords,
+        recordedWords: Array.from(recordedWords),
+        cardFlippedOnce,
+        isSessionActive: isSessionActive.current,
+        timestamp: Date.now()
+      };
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    };
+
+    // Load game state from localStorage
+    const loadGameState = useCallback(() => {
+      if (!user) return false;
+      
+      try {
+        const savedState = localStorage.getItem(STORAGE_KEY);
+        if (!savedState) return false;
+        
+        const state: FlashcardGameState = JSON.parse(savedState);
+        
+        // Check if the session has expired (30 minutes)
+        if (Date.now() - state.timestamp > SESSION_TIMEOUT) {
+          localStorage.removeItem(STORAGE_KEY);
+          return false;
+        }
+        
+        // Restore the state
+        setWords(state.words);
+        setCurrentWordIndex(state.currentWordIndex);
+        setIsFlipped(state.isFlipped);
+        setInitialSide(state.initialSide);
+        setSessionCount(state.sessionCount);
+        setSessionId(state.sessionId);
+        setPracticedWords(state.practicedWords);
+        setRecordedWords(new Set(state.recordedWords));
+        setCardFlippedOnce(state.cardFlippedOnce);
+        isSessionActive.current = state.isSessionActive;
+        
+        return true;
+      } catch (error) {
+        console.error("Error loading game state:", error);
+        localStorage.removeItem(STORAGE_KEY);
+        return false;
+      }
+    }, [user]);
+
     useEffect(() => {
       if (user) {
-        fetchWords();
+        // Try to load existing game state first
+        const stateLoaded = loadGameState();
+        
+        // Only fetch new words if no valid state was loaded
+        if (!stateLoaded) {
+          fetchWords();
+        } else {
+          setIsLoading(false);
+        }
       }
 
       // Clean up effect - complete session when component unmounts
@@ -89,6 +174,42 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         }
       };
     }, [user, sessionCount]);
+
+    // Handle visibility change (tab switching)
+    useEffect(() => {
+      const handleVisibilityChange = () => {
+        // When tab becomes visible again, check if we need to load state
+        if (document.visibilityState === 'visible' && user && words.length === 0) {
+          const stateLoaded = loadGameState();
+          if (stateLoaded) {
+            setIsLoading(false);
+          }
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
+    }, [user, words.length, loadGameState]);
+
+    // Save state whenever relevant state changes
+    useEffect(() => {
+      if (user && words.length > 0) {
+        saveGameState();
+      }
+    }, [
+      words, 
+      currentWordIndex, 
+      isFlipped, 
+      initialSide, 
+      sessionCount, 
+      sessionId, 
+      practicedWords, 
+      recordedWords,
+      cardFlippedOnce
+    ]);
 
     useEffect(() => {
       if (words.length > 0) {
