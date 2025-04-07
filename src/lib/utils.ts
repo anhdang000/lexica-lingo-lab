@@ -20,6 +20,7 @@ export interface WordDefinition {
     examples?: string[];
   }>;
   stems?: string[];
+  collectionName?: string;
 }
 
 export async function lookupWord(word: string): Promise<WordDefinition | null> {
@@ -150,6 +151,11 @@ export async function lookupWord(word: string): Promise<WordDefinition | null> {
         meaning: cleanFormatting(def),
         examples: []
       }));
+    }
+
+    // If stems are available, use the first stem as the word
+    if (wordDef.stems && wordDef.stems.length > 0) {
+      wordDef.word = wordDef.stems[0];
     }
 
     // console.log('Word definition result:', JSON.stringify(wordDef, null, 2));
@@ -351,6 +357,7 @@ For vocabulary, select words that meet these criteria:
 - Advanced and relatively uncommon and align with the main topic
 - First to prioritize nouns specifically to the main topic of the text
 - Then verbs, adjectives, and other parts of speech used in the text
+- For each word, assign it to a collection name that categorizes it (e.g., "Technical Terms", "Academic Vocabulary", "Business Jargon", etc.)
 
 For topics, identify key themes that:
 - Accurately categorize the content
@@ -365,7 +372,7 @@ For the explanatory content:
 - IMPORTANT: Each vocabulary word MUST be immediately followed by an appropriate synonym wrapped in <synonym> tags: <synonym>lexicon</synonym>
 
 Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
-Return the results in JSON format with three fields: "vocabulary" (array of strings), "topics" (array of strings), and "content" (string).
+Return the results in JSON format with three fields: "vocabulary" (array of objects with "word" and "collectionName" properties), "topics" (array of strings), and "content" (string).
 
 Analyze the following text:
 ${text}
@@ -385,8 +392,18 @@ ${text}
           vocabulary: {
             type: SchemaType.ARRAY as const,
             items: {
-              type: SchemaType.STRING as const,
-              description: "A vocabulary word that would be valuable for a language learner",
+              type: SchemaType.OBJECT as const,
+              properties: {
+                word: {
+                  type: SchemaType.STRING as const,
+                  description: "A vocabulary word that would be valuable for a language learner",
+                },
+                collectionName: {
+                  type: SchemaType.STRING as const,
+                  description: "The collection name that categorizes this vocabulary word",
+                }
+              },
+              required: ["word", "collectionName"],
             },
           },
           topics: {
@@ -418,17 +435,29 @@ ${text}
     const analysisResult = JSON.parse(result.response.text());
     
     // Force vocabulary words to lowercase
-    const words: string[] = (analysisResult.vocabulary || []).map((word: string) => word.toLowerCase());
+    const vocabularyItems = (analysisResult.vocabulary || []).map((item: { word: string, collectionName: string }) => ({
+      word: item.word.toLowerCase(),
+      collectionName: item.collectionName
+    }));
+    
     const topics: string[] = analysisResult.topics || [];
     const content: string = analysisResult.content || '';
     
     // Look up each word and filter out any null results
     const definitions = await Promise.all(
-      words.map(word => lookupWord(word))
+      vocabularyItems.map(item => lookupWord(item.word).then(def => {
+        if (def) {
+          return {
+            ...def,
+            collectionName: item.collectionName
+          };
+        }
+        return null;
+      }))
     );
     
     return {
-      vocabulary: definitions.filter((def): def is WordDefinition => def !== null),
+      vocabulary: definitions.filter((def): def is WordDefinition & { collectionName: string } => def !== null),
       topics: topics,
       topicName: '',
       content: content
@@ -464,6 +493,7 @@ For vocabulary, select words that meet these criteria:
 - Advanced and relatively uncommon and align with the main topic
 - First to prioritize nouns specifically to the main topic of the text
 - Then verbs, adjectives, and other parts of speech used in the text
+- For each word, assign it to a collection name that categorizes it (e.g., "Technical Terms", "Academic Vocabulary", "Business Jargon", etc.)
 
 For topics, identify key themes that:
 - Accurately categorize the content
@@ -477,7 +507,7 @@ For the explanatory content:
 - IMPORTANT: Wrap EACH vocabulary word in <word> tags, like this: <word>vocabulary</word><synonym>lexicon</synonym>
 
 Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
-Return the results in JSON format with three fields: "vocabulary" (array of strings), "topics" (array of strings), and "content" (string).
+Return the results in JSON format with three fields: "vocabulary" (array of objects with "word" and "collectionName" properties), "topics" (array of strings), and "content" (string).
 `;
 
   try {
@@ -494,8 +524,18 @@ Return the results in JSON format with three fields: "vocabulary" (array of stri
           vocabulary: {
             type: SchemaType.ARRAY as const,
             items: {
-              type: SchemaType.STRING as const,
-              description: "A vocabulary word that would be valuable for a language learner",
+              type: SchemaType.OBJECT as const,
+              properties: {
+                word: {
+                  type: SchemaType.STRING as const,
+                  description: "A vocabulary word that would be valuable for a language learner",
+                },
+                collectionName: {
+                  type: SchemaType.STRING as const,
+                  description: "The collection name that categorizes this vocabulary word",
+                }
+              },
+              required: ["word", "collectionName"],
             },
           },
           topics: {
@@ -546,17 +586,29 @@ Return the results in JSON format with three fields: "vocabulary" (array of stri
     const analysisResult = JSON.parse(result.response.text());
     
     // Force vocabulary words to lowercase
-    const words: string[] = (analysisResult.vocabulary || []).map((word: string) => word.toLowerCase());
+    const vocabularyItems = (analysisResult.vocabulary || []).map((item: { word: string, collectionName: string }) => ({
+      word: item.word.toLowerCase(),
+      collectionName: item.collectionName
+    }));
+    
     const topics: string[] = analysisResult.topics || [];
     const content: string = analysisResult.content || '';
     
     // Look up each word and filter out any null results
     const definitions = await Promise.all(
-      words.map(word => lookupWord(word))
+      vocabularyItems.map(item => lookupWord(item.word).then(def => {
+        if (def) {
+          return {
+            ...def,
+            collectionName: item.collectionName
+          };
+        }
+        return null;
+      }))
     );
     
     return {
-      vocabulary: definitions.filter((def): def is WordDefinition => def !== null),
+      vocabulary: definitions.filter((def): def is WordDefinition & { collectionName: string } => def !== null),
       topics: topics,
       topicName: '',
       content: content

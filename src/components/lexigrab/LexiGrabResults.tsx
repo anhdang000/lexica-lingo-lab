@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { WordDefinition } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrCreateGeneralCollection, addWordToCollection } from '@/lib/database';
+import { getOrCreateCollection, addWordToCollection } from '@/lib/database';
 
 interface LexiGrabResultsProps {
   results: WordDefinition[];
@@ -64,7 +64,9 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
 
     setIsProcessing(true);
     try {
-      const collection = await getOrCreateGeneralCollection(user.id);
+      // Use the collection name from the word data if available, otherwise use "General"
+      const collectionName = wordData.collectionName || "General";
+      const collection = await getOrCreateCollection(user.id, collectionName);
       
       const success = await addWordToCollection(user.id, wordData, collection.id);
 
@@ -92,14 +94,28 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
 
     setIsProcessing(true);
     try {
-      const collection = await getOrCreateGeneralCollection(user.id);
+      // Group words by collection name
+      const wordsByCollection = results.reduce((acc, word, index) => {
+        const collectionName = word.collectionName || "General";
+        if (!acc[collectionName]) {
+          acc[collectionName] = [];
+        }
+        acc[collectionName].push({ word, index });
+        return acc;
+      }, {} as Record<string, { word: WordDefinition, index: number }[]>);
       
       const newAddedWords = new Set<number>();
-      for (let i = 0; i < results.length; i++) {
-        if (!addedWords.has(i)) {
-          const success = await addWordToCollection(user.id, results[i], collection.id);
-          if (success) {
-            newAddedWords.add(i);
+      
+      // Process each collection
+      for (const [collectionName, words] of Object.entries(wordsByCollection)) {
+        const collection = await getOrCreateCollection(user.id, collectionName);
+        
+        for (const { word, index } of words) {
+          if (!addedWords.has(index)) {
+            const success = await addWordToCollection(user.id, word, collection.id);
+            if (success) {
+              newAddedWords.add(index);
+            }
           }
         }
       }
@@ -338,6 +354,13 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                               >
                                 {item.partOfSpeech}
                               </span>
+                              {item.collectionName && (
+                                <span
+                                  className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-[#81adc8]/20 text-[#81adc8]"
+                                >
+                                  {item.collectionName}
+                                </span>
+                              )}
                             </div>
                             
                             <div className="flex items-center gap-2">
