@@ -1,20 +1,23 @@
 # Lexica Database Schema Documentation
 
 ## Overview
-This document outlines the database schema for the Lexica vocabulary learning platform using Supabase PostgreSQL database.
+
+This document outlines the database schema for the Lexica vocabulary learning platform using Supabase PostgreSQL database. The schema has been updated to consolidate word and meaning data into a single `words` table, eliminating the previous separate `words` and `word_meanings` tables.
 
 ## Tables
 
 ### auth.users (managed by Supabase)
+
 Built-in Supabase auth table handling user authentication.
 
 ### profiles
+
 Extends the auth.users table with application-specific user data.
+
 ```sql
 create table public.profiles (
   id uuid references auth.users(id) primary key,
   username text unique,
-  avatar_url TEXT,
   streak_count int default 0,
   last_practice_at timestamp with time zone,
   words_learned int default 0,
@@ -26,34 +29,35 @@ create table public.profiles (
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Create policy to allow users to view their own profile
-CREATE POLICY "Users can view their own profile" 
-ON public.profiles FOR SELECT 
-USING (auth.uid() = id);
+-- Policies
+CREATE POLICY "Users can view their own profile"
+  ON public.profiles FOR SELECT
+  USING (auth.uid() = id);
 
--- Create policy to allow users to update their own profile
-CREATE POLICY "Users can update their own profile" 
-ON public.profiles FOR UPDATE 
-USING (auth.uid() = id);
+CREATE POLICY "Users can update their own profile"
+  ON public.profiles FOR UPDATE
+  USING (auth.uid() = id);
 
--- Function to handle new user creation
-CREATE OR REPLACE FUNCTION public.handle_new_user() 
+-- Trigger: handle new user
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, avatar_url)
-  VALUES (new.id, new.raw_user_meta_data->>'username', new.raw_user_meta_data->>'avatar_url');
+  INSERT INTO public.profiles (id, username)
+    VALUES (NEW.id,
+            NEW.raw_user_meta_data->>'username');
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger to call the function whenever a user is created
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 ```
 
 ### collections
+
 Represents vocabulary collections/topics that users can create.
+
 ```sql
 create table public.collections (
   id uuid default gen_random_uuid() primary key,
@@ -75,15 +79,23 @@ create policy "Users can manage own collections"
 ```
 
 ### words
-Central table storing unique vocabulary words.
+
+Stores each word along with its meaning(s), phonetics, audio, stems, definitions, and examples.
+
 ```sql
 create table public.words (
-  id uuid default gen_random_uuid() primary key,
+  word_id uuid default gen_random_uuid(),          -- group identifier for word
   word text not null,
-  phonetic text,
+  meaning_id uuid default gen_random_uuid() primary key,
+  part_of_speech text,
+  phonetics text,
   audio_url text,
   stems text[],
-  created_at timestamp with time zone default now()
+  definitions text[] not null,
+  examples text[],
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  unique(word_id, meaning_id)
 );
 
 -- Indexes
@@ -99,38 +111,16 @@ create policy "Authenticated users can insert words"
   on public.words for insert with check (auth.role() = 'authenticated');
 ```
 
-### word_meanings
-Stores multiple meanings/definitions for each word, along with its examples.
-```sql
-create table public.word_meanings (
-  id uuid default gen_random_uuid() primary key,
-  word_id uuid references public.words(id) on delete cascade,
-  ordinal_index int not null,
-  part_of_speech text,
-  definition text not null,
-  examples text[],
-  unique(word_id, ordinal_index)
-);
-
--- Indexes
-create index word_meanings_word_id_idx on public.word_meanings(word_id);
-create index word_meanings_part_of_speech_idx on public.word_meanings(part_of_speech);
-create index word_meanings_ordinal_idx on public.word_meanings(ordinal_index);
-
--- RLS Policies
-alter table public.word_meanings enable row level security;
-create policy "Word meanings are readable by all authenticated users"
-  on public.word_meanings for select using (auth.role() = 'authenticated');
-```
-
 ### collection_words
-Junction table connecting collections with words, including user-specific learning progress.
+
+Junction table connecting collections with word meanings, including user-specific learning progress.
+
 ```sql
 create table public.collection_words (
   id uuid default gen_random_uuid() primary key,
   collection_id uuid references public.collections(id) on delete cascade,
-  word_id uuid references public.words(id) on delete cascade,
-  meaning_id uuid references public.word_meanings(id) on delete cascade,
+  word_id uuid references public.words(word_id) on delete cascade,
+  meaning_id uuid references public.words(meaning_id) on delete cascade,
   user_id uuid references auth.users(id),
   status text default 'new' check (status in ('new', 'learning', 'mastered')),
   last_reviewed_at timestamp with time zone,
@@ -153,7 +143,9 @@ create policy "Users can manage their collection words"
 ```
 
 ### practice_sessions
+
 Records of user practice activities and performance.
+
 ```sql
 create table public.practice_sessions (
   id uuid default gen_random_uuid() primary key,
@@ -176,14 +168,16 @@ create policy "Users can manage their practice sessions"
 ```
 
 ### practice_session_words
+
 Records words practiced in each session, including which meaning was tested.
+
 ```sql
 create table public.practice_session_words (
   id uuid default gen_random_uuid() primary key,
   session_id uuid references public.practice_sessions(id) on delete cascade,
   user_id uuid references auth.users(id),
-  word_id uuid references public.words(id),
-  meaning_id uuid references public.word_meanings(id),
+  word_id uuid references public.words(word_id),
+  meaning_id uuid references public.words(meaning_id),
   collection_id uuid references public.collections(id),
   is_correct boolean,
   created_at timestamp with time zone default now()
@@ -198,8 +192,7 @@ create index practice_session_words_collection_id_idx on public.practice_session
 -- RLS Policies
 alter table public.practice_session_words enable row level security;
 create policy "Users can manage their practice session words"
-  on public.practice_session_words for all 
-  using (auth.uid() = user_id);
+  on public.practice_session_words for all using (auth.uid() = user_id);
 ```
 
 ## Functions and Triggers
@@ -210,35 +203,31 @@ create policy "Users can manage their practice session words"
 create or replace function update_collection_word_count()
 returns trigger as $$
 begin
-  -- Update the collection word count
   update public.collections
   set 
     word_count = (
       select count(*)
       from public.collection_words
       where collection_id = new.collection_id
-      and user_id = new.user_id
+        and user_id = new.user_id
     ),
     updated_at = now()
   where id = new.collection_id;
-  
   return new;
 end;
 $$ language plpgsql;
 
--- Trigger to update collection word count when words are added or removed
 create trigger update_collection_word_count_trigger
-after insert or delete on public.collection_words
-for each row execute function update_collection_word_count();
+  after insert or delete on public.collection_words
+  for each row execute function update_collection_word_count();
 ```
 
 ### Update Collection Practice Stats
+
 ```sql
--- Function to update collection practice stats when a word is practiced
 create or replace function update_collection_practice_stats()
 returns trigger as $$
 begin
-  -- Update the word practice count in collection_words
   update public.collection_words
   set 
     review_count = review_count + 1,
@@ -265,7 +254,6 @@ begin
     and meaning_id = new.meaning_id
     and user_id = new.user_id;
 
-  -- Update practice session stats
   update public.practice_sessions
   set 
     total_words = (
@@ -277,18 +265,17 @@ begin
       select count(*)
       from public.practice_session_words
       where session_id = new.session_id
-      and is_correct = true
+        and is_correct = true
     )
   where id = new.session_id;
 
-  -- Update collection reviewed word count
   update public.collections
   set 
     reviewed_word_count = (
       select count(distinct cw.word_id)
       from public.collection_words cw
       where cw.collection_id = new.collection_id
-      and cw.last_reviewed_at is not null
+        and cw.last_reviewed_at is not null
     ),
     updated_at = now()
   where id = new.collection_id;
@@ -298,11 +285,12 @@ end;
 $$ language plpgsql;
 
 create trigger update_collection_practice_stats_trigger
-after insert on public.practice_session_words
-for each row execute function update_collection_practice_stats();
+  after insert on public.practice_session_words
+  for each row execute function update_collection_practice_stats();
 ```
 
 ### Update User Stats
+
 ```sql
 create or replace function update_user_stats()
 returns trigger as $$
@@ -313,19 +301,18 @@ begin
       select count(*)
       from public.collection_words
       where user_id = new.user_id
-      and status = 'mastered'
+        and status = 'mastered'
     ),
     accuracy = (
       select avg(
         case when completed then
           (correct_answers::float / total_words) * 100
-        else
-          null
+        else null
         end
       )
       from public.practice_sessions
       where user_id = new.user_id
-      and completed = true
+        and completed = true
     )
   where id = new.user_id;
   return new;
@@ -333,48 +320,27 @@ end;
 $$ language plpgsql;
 
 create trigger update_user_stats_trigger
-after insert or update on public.practice_sessions
-for each row execute function update_user_stats();
+  after insert or update on public.practice_sessions
+  for each row execute function update_user_stats();
 ```
 
-## Database Indexes
-Additional indexes are created on frequently queried columns to optimize performance:
-- User IDs for quick user-related queries
-- Collection and word relationships
-- Status and timestamp fields for progress tracking
-- Text fields used in search functionality
+## Full-Text Search
 
-## Row Level Security (RLS)
-All tables have RLS enabled to ensure data security:
-- Users can only access their own data
-- Public words table is readable by all authenticated users
-- Practice session data is protected per user
-- Collection management is restricted to owners
-
-## Database Utilities
-
-### Full-Text Search
-The words table utilizes PostgreSQL's full-text search capabilities:
 ```sql
+-- Add search vectors to the consolidated words table
 alter table public.words
 add column search_vector tsvector
-generated always as (
-  setweight(to_tsvector('english', coalesce(word, '')), 'A')
-) stored;
-
-alter table public.word_meanings
-add column search_vector tsvector
-generated always as (
-  setweight(to_tsvector('english', coalesce(definition, '')), 'B') ||
-  setweight(to_tsvector('english', coalesce(array_to_string(examples, ' '), '')), 'C')
-) stored;
+  generated always as (
+    setweight(to_tsvector('english', coalesce(word, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(array_to_string(definitions, ' '), '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(array_to_string(examples, ' '), '')), 'C')
+  ) stored;
 
 create index words_search_idx on public.words using gin(search_vector);
-create index word_meanings_search_idx on public.word_meanings using gin(search_vector);
-create index meaning_examples_search_idx on public.meaning_examples using gin(search_vector);
 ```
 
-### Automated Timestamp Updates
+## Automated Timestamp Updates
+
 ```sql
 create or replace function update_updated_at()
 returns trigger as $$
@@ -384,7 +350,12 @@ begin
 end;
 $$ language plpgsql;
 
+create trigger update_words_updated_at
+  before update on public.words
+  for each row execute function update_updated_at();
+
 create trigger update_collection_words_updated_at
   before update on public.collection_words
   for each row execute function update_updated_at();
 ```
+
