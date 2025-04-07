@@ -163,7 +163,7 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
   const renderHighlightedContent = (text: string) => {
     if (!text) return null;
 
-    const regex = /<word>(.*?)<\/word>/g;
+    const regex = /<word>(.*?)<\/word><synonym>(.*?)<\/synonym>/g;
     const parts = [];
     let lastIndex = 0;
     let match;
@@ -174,14 +174,17 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
         parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, match.index)}</span>);
       }
 
-      // Add highlighted word
+      // Add highlighted word with synonym displayed directly
       const word = match[1];
+      const synonym = match[2];
       parts.push(
-        <span 
-          key={`word-${match.index}`} 
-          className="bg-[#f8f2dc] dark:bg-[#cd4631]/20 text-[#cd4631] dark:text-[#de6950] px-1 rounded-sm font-medium"
-        >
-          {word}
+        <span key={`word-${match.index}`} className="inline-flex items-center gap-1 mx-0.5 rounded-md px-1 py-0.5 bg-[#f8f2dc]/50 dark:bg-[#cd4631]/10">
+          <span className="bg-[#f8f2dc] dark:bg-[#cd4631]/20 text-[#cd4631] dark:text-[#de6950] px-1 rounded-sm font-medium">
+            {word}
+          </span>
+          <span className="text-[#9e6240] dark:text-[#dea47e] text-xs font-medium">
+            (<span className="italic">{synonym}</span>)
+          </span>
         </span>
       );
 

@@ -342,34 +342,33 @@ export async function analyzeText(text: string): Promise<AnalysisResults> {
   const promptText = `
 You are an advanced vocabulary instructor tasked with identifying the most valuable vocabulary words and related topics from the provided content.
 
-Analyze the following text:
-
-${text}
-
 Your task is to extract three things:
 1. Vocabulary: A carefully curated array of sophisticated words that would enhance an English language learner's lexicon
 2. Topics: 3-5 relevant topics or themes that categorize the content
-3. Content: A concise paragraph (max 500 words) summarizing the key points from the source, aligned with the main topic/theme. In this summary, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word>.
+3. Content: An simple summary writeup, strictly use vocabulary extracted from the original source, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word><synonym>lexicon</synonym>. The synonym should be a word that is similar in meaning to the vocabulary word, wrapped in <synonym> tags and must be simpler.
 
 For vocabulary, select words that meet these criteria:
-- Advanced and relatively uncommon
-- Useful in various contexts
-- Worth adding to one's vocabulary
+- Advanced and relatively uncommon and align with the main topic
+- First to prioritize nouns specifically to the main topic of the text
+- Then verbs, adjectives, and other parts of speech used in the text
 
 For topics, identify key themes that:
 - Accurately categorize the content
 - Would be useful as study categories
 - Are concise (1-3 words each)
 
-For the content summary:
-- Focus on the main points and key information
-- Align with the primary theme/topic
-- Keep it concise but informative
-- IMPORTANT: Ensure EVERY vocabulary word from your list appears in the summary
+For the explanatory content:
+- Include direct quotes from the source text where appropriate
+- IMPORTANT: Ensure EVERY vocabulary word from your list appears in the writeup
+- IMPORTANT: Ensure EVERY vocabulary word from your list appears in the ORIGINAL TEXT
 - IMPORTANT: Wrap EACH vocabulary word in <word> tags, like this: <word>vocabulary</word>
+- IMPORTANT: Each vocabulary word MUST be immediately followed by an appropriate synonym wrapped in <synonym> tags: <synonym>lexicon</synonym>
 
 Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
 Return the results in JSON format with three fields: "vocabulary" (array of strings), "topics" (array of strings), and "content" (string).
+
+Analyze the following text:
+${text}
 `;
 
   try {
@@ -459,24 +458,23 @@ You are an advanced vocabulary instructor tasked with identifying the most valua
 Your task is to extract three things:
 1. Vocabulary: A carefully curated array of sophisticated words that would enhance an English language learner's lexicon
 2. Topics: 3-5 relevant topics or themes that categorize the content
-3. Content: A concise paragraph (max 500 words) summarizing the key points from the source, aligned with the main topic/theme. In this summary, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word>.
+3. Content: An simple explanatory writeup, strictly use vocabulary extracted, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word><synonym>lexicon</synonym>. The synonym should be a word that is similar in meaning to the vocabulary word, wrapped in <synonym> tags and must be simpler.
 
 For vocabulary, select words that meet these criteria:
-- Advanced and relatively uncommon
-- Useful in various contexts
-- Worth adding to one's vocabulary
+- Advanced and relatively uncommon and align with the main topic
+- First to prioritize nouns specifically to the main topic of the text
+- Then verbs, adjectives, and other parts of speech used in the text
 
 For topics, identify key themes that:
 - Accurately categorize the content
 - Would be useful as study categories
 - Are concise (1-3 words each)
 
-For the content summary:
-- Focus on the main points and key information
-- Align with the primary theme/topic
-- Keep it concise but informative
-- IMPORTANT: Ensure EVERY vocabulary word from your list appears in the summary
-- IMPORTANT: Wrap EACH vocabulary word in <word> tags, like this: <word>vocabulary</word>
+For the explanatory content:
+- Include direct quotes from the source text where appropriate
+- IMPORTANT: Ensure EVERY vocabulary word from your list appears in the writeup
+- IMPORTANT: Ensure EVERY vocabulary word from your list appears in the ORIGINAL TEXT
+- IMPORTANT: Wrap EACH vocabulary word in <word> tags, like this: <word>vocabulary</word><synonym>lexicon</synonym>
 
 Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
 Return the results in JSON format with three fields: "vocabulary" (array of strings), "topics" (array of strings), and "content" (string).
