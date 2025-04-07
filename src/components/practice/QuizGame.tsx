@@ -15,9 +15,10 @@ import { toast } from '@/hooks/use-toast';
 import { 
   createPracticeSession, 
   recordPracticeWordResult, 
-  getQuizQuestions,
+  getPracticeWords,
   completePracticeSession
 } from '@/lib/database';
+import { getQuizQuestions, WordInfo } from '@/lib/utils';
 
 interface QuizQuestion {
   word: string;
@@ -106,10 +107,10 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
         isSessionActive.current = true;
       }
       
-      // Fetch quiz questions using the dedicated function
-      const questions = await getQuizQuestions(user.id, questionsPerSession);
+      // First, get practice words using getPracticeWords
+      const practiceWords = await getPracticeWords(user.id, questionsPerSession);
       
-      if (questions.length === 0) {
+      if (practiceWords.length === 0) {
         toast({
           title: "No questions available",
           description: "Add more words to your collections to practice with quizzes.",
@@ -119,7 +120,28 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
         return;
       }
       
-      setQuizQuestions(questions);
+      // Format practice words for quiz generation
+      const wordInfoList: WordInfo[] = practiceWords.map(word => ({
+        word: word.word,
+        definition: word.definition,
+        example: word.example
+      }));
+      
+      // Generate quiz questions using the utility function
+      const quizData = await getQuizQuestions(wordInfoList);
+      
+      // Enhance quiz data with IDs needed for recording results
+      const enhancedQuizData = quizData.map((question, index) => {
+        const matchingWord = practiceWords.find(w => w.word.toLowerCase() === question.word.toLowerCase());
+        return {
+          ...question,
+          wordId: matchingWord?.id || '',
+          meaningId: matchingWord?.meaningId || '',
+          collectionId: matchingWord?.collectionId || ''
+        };
+      });
+      
+      setQuizQuestions(enhancedQuizData);
       setCurrentQuestionIndex(0);
       setSelectedOption(null);
       // Reset tracked answers for new session
@@ -281,7 +303,7 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
 
   if (isLoading) {
     return (
-      <div className="container max-w-2xl mx-auto px-4 py-8 flex justify-center items-center h-[400px]">
+      <div className="container max-w-3xl mx-auto px-4 py-8 flex justify-center items-center h-[400px]">
         <p>Loading quiz questions...</p>
       </div>
     );
@@ -289,7 +311,7 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
 
   if (quizQuestions.length === 0) {
     return (
-      <div className="container max-w-2xl mx-auto px-4 py-8 flex flex-col justify-center items-center h-[400px]">
+      <div className="container max-w-3xl mx-auto px-4 py-8 flex flex-col justify-center items-center h-[400px]">
         <p className="mb-4">No questions available for practice.</p>
         <Button onClick={onBack}>Go Back</Button>
       </div>
@@ -299,7 +321,7 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-8">
+    <div className="container max-w-3xl mx-auto px-4 py-8">
       {/* Progress Section */}
       <div className="mb-6">
         <div className="flex justify-between mb-2">
@@ -328,26 +350,29 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
             </blockquote>
           )}
           
-          {currentQuestion.options.map((option, index) => (
-            <Button
-              key={index}
-              variant="outline"
-              className={`p-8 h-auto text-left justify-start text-lg hover:bg-transparent ${getOptionClassName(index)} ${selectedOption !== null ? 'pointer-events-none' : ''}`}
-              onClick={() => handleOptionSelect(index)}
-            >
-              {option}
-              {selectedOption !== null && (
-                <span className="ml-auto">
-                  {index === currentQuestion.correct_option_idx && (
-                    <span className="text-green-500">✓</span>
-                  )}
-                  {selectedOption === index && index !== currentQuestion.correct_option_idx && (
-                    <span className="text-red-500">×</span>
-                  )}
-                </span>
-              )}
-            </Button>
-          ))}
+          {/* Answer options grid 2x2 */}
+          <div className="grid grid-cols-2 gap-4">
+            {currentQuestion.options.map((option, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                className={`p-6 h-auto text-left justify-start text-lg hover:bg-transparent ${getOptionClassName(index)} ${selectedOption !== null ? 'pointer-events-none' : ''}`}
+                onClick={() => handleOptionSelect(index)}
+              >
+                {option}
+                {selectedOption !== null && (
+                  <span className="ml-auto">
+                    {index === currentQuestion.correct_option_idx && (
+                      <span className="text-green-500">✓</span>
+                    )}
+                    {selectedOption === index && index !== currentQuestion.correct_option_idx && (
+                      <span className="text-red-500">×</span>
+                    )}
+                  </span>
+                )}
+              </Button>
+            ))}
+          </div>
         </Card>
       </div>
 

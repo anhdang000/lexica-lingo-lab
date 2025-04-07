@@ -15,7 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { 
   createPracticeSession, 
   recordPracticeWordResult, 
-  getFlashcardWords,
+  getPracticeWords,
   completePracticeSession
 } from '@/lib/database';
 import { supabase } from '@/integrations/supabase/client';
@@ -111,7 +111,7 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         }
         
         // Fetch flashcard words using the dedicated function
-        const flashcardWords = await getFlashcardWords(user.id, cardsPerSession);
+        const flashcardWords = await getPracticeWords(user.id, cardsPerSession);
         
         if (flashcardWords.length === 0) {
           toast({

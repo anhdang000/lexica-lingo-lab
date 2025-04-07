@@ -676,3 +676,145 @@ function extractTextFromUrl(url: string): string {
   This URL appears to contain content about ${title || 'an unknown topic'}.
   `.trim();
 }
+
+export interface WordInfo {
+  word: string;
+  definition: string;
+  example?: string;
+}
+
+export interface QuizQuestion {
+  word: string;
+  definition: string;
+  question: string;
+  options: string[];
+  correct_option_idx: number;
+}
+
+export async function getQuizQuestions(wordInfoList: WordInfo[]): Promise<QuizQuestion[]> {
+  // Get a random API key from the comma-separated list
+  const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
+  const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
+  
+  if (!apiKey) {
+    throw new Error('Gemini API key not found');
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-2.0-flash-lite';
+  
+  // Format word info for the prompt
+  const wordInfoText = wordInfoList.map(info => {
+    return `Word: ${info.word}\nDefinition: ${info.definition}${info.example ? `\nExample: ${info.example}` : ''}`;
+  }).join('\n\n');
+  
+  // Create prompt text for quiz question generation
+  const promptText = `
+You are an expert language teacher creating a vocabulary quiz. Generate multiple choice questions where students guess the word based on definitions or context.
+
+For each word:
+1. Create questions WITHOUT revealing the target word, questions should be creative and engaging, and do not use too advanced words for the question
+2. Provide 4 possible word choices, including the correct word
+3. Make wrong options plausible but clearly incorrect (similar parts of speech, thematic relation, etc.)
+4. Vary question formats (definition-based, context clues, synonyms, etc.)
+
+Words and their information:
+${wordInfoText}
+
+Return a JSON array strictly following this schema, with no additional text:
+[
+  {
+    "word": "target word",
+    "definition": "original definition",
+    "question": "the quiz question",
+    "options": ["correct word", "wrong option 1", "wrong option 2", "wrong option 3"],
+    "correct_option_idx": 0
+  }
+]
+
+Make sure:
+- Each question has exactly 4 options
+- correct_option_idx is 0-3, indicating which option is correct (the index of the correct word in the options array)
+- Questions should NOT contain the target word
+- Questions should test word recognition from definitions/context
+- Wrong answers should be plausible words in similar category
+- Return all words from the input list
+`;
+
+  try {
+    // Define the generation config for structured output
+    const generationConfig = {
+      temperature: 0.7,
+      topP: 0.95,
+      topK: 40,
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.ARRAY as const,
+        items: {
+          type: SchemaType.OBJECT as const,
+          properties: {
+            word: {
+              type: SchemaType.STRING as const,
+              description: "The target vocabulary word",
+            },
+            definition: {
+              type: SchemaType.STRING as const,
+              description: "The definition of the target word",
+            },
+            question: {
+              type: SchemaType.STRING as const,
+              description: "The quiz question asking about the word without revealing it",
+            },
+            options: {
+              type: SchemaType.ARRAY as const,
+              items: {
+                type: SchemaType.STRING as const,
+                description: "A possible answer option",
+              },
+              description: "Four answer choices, including the correct word",
+            },
+            correct_option_idx: {
+              type: SchemaType.NUMBER as const,
+              description: "The index (0-3) of the correct answer in the options array",
+            },
+          },
+          required: ["word", "definition", "question", "options", "correct_option_idx"],
+        },
+      },
+    };
+    
+    // Create model
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig
+    });
+    
+    // Generate quiz questions
+    const result = await model.generateContent(promptText);
+    
+    // Parse the JSON result
+    const quizQuestions: QuizQuestion[] = JSON.parse(result.response.text());
+    
+    // Validate the response format
+    const validatedQuestions = quizQuestions.map(question => {
+      // Ensure options array has exactly 4 items
+      if (!Array.isArray(question.options) || question.options.length !== 4) {
+        question.options = [question.word, ...Array(3).fill('')].slice(0, 4);
+        question.correct_option_idx = 0;
+      }
+      
+      // Ensure correct_option_idx is within bounds
+      if (question.correct_option_idx < 0 || question.correct_option_idx > 3) {
+        question.correct_option_idx = 0;
+      }
+      
+      return question;
+    });
+    
+    return validatedQuestions;
+  } catch (error) {
+    console.error('Error generating quiz questions:', error);
+    throw error;
+  }
+}

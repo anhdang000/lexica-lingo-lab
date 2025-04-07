@@ -814,7 +814,7 @@ export async function removeWordFromCollection(
 }
 
 // Function to fetch random words for flashcard practice
-export async function getFlashcardWords(userId: string, count: number = 5): Promise<any[]> {
+export async function getPracticeWords(userId: string, count: number = 5): Promise<any[]> {
   try {
     const { data: collections, error: collectionsError } = await supabase
       .from('collections')
@@ -941,104 +941,4 @@ function shuffleArray<T>(array: T[]): T[] {
     [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
   }
   return newArray;
-}
-
-export async function getQuizQuestions(userId: string, count: number = 3): Promise<any[]> {
-  try {
-    const { data: collections, error: collectionsError } = await supabase
-      .from('collections')
-      .select('id')
-      .eq('user_id', userId);
-
-    if (collectionsError) throw collectionsError;
-    if (!collections.length) return [];
-
-    const collectionIds = collections.map(c => c.id);
-
-    // Get words from user's collections through collection_words join
-    const { data: collectionWords, error: collectionWordsError } = await supabase
-      .from('collection_words')
-      .select(`
-        id,
-        collection_id,
-        word_id,
-        meaning_id,
-        words:word_id(
-          id,
-          word,
-          phonetic
-        ),
-        meanings:meaning_id(
-          id,
-          word_id,
-          definition,
-          part_of_speech,
-          examples
-        )
-      `)
-      .in('collection_id', collectionIds)
-      .eq('user_id', userId)
-      .limit(count * 3); // Get more words for options
-
-    if (collectionWordsError) throw collectionWordsError;
-    if (!collectionWords.length) return [];
-
-    // Shuffle the words array client-side
-    const shuffledWords = [...collectionWords].sort(() => Math.random() - 0.5);
-
-    // Ensure we have enough words for the quiz (at least count)
-    if (shuffledWords.length < count) return [];
-
-    // Transform data into quiz questions
-    const quizQuestions = [];
-    
-    // Use the first 'count' words as correct answers
-    for (let i = 0; i < count; i++) {
-      if (i >= shuffledWords.length) break;
-      
-      const correctWord = shuffledWords[i];
-      const wordObj = Array.isArray(correctWord.words) ? correctWord.words[0] : correctWord.words;
-      const meaningObj = Array.isArray(correctWord.meanings) ? correctWord.meanings[0] : correctWord.meanings;
-      
-      // Get 3 random words for incorrect options (excluding the correct one)
-      const incorrectOptions = shuffledWords
-        .filter((w, idx) => idx !== i && idx >= count)
-        .slice(0, 3)
-        .map(w => {
-          const wordData = Array.isArray(w.words) ? w.words[0] : w.words;
-          return wordData?.word;
-        });
-      
-      // If we don't have enough incorrect options, skip this question
-      if (incorrectOptions.length < 3) continue;
-      
-      // Create options including the correct one
-      const options = [...incorrectOptions, wordObj?.word];
-      
-      // Shuffle options
-      for (let j = options.length - 1; j > 0; j--) {
-        const k = Math.floor(Math.random() * (j + 1));
-        [options[j], options[k]] = [options[k], options[j]];
-      }
-      
-      // Create a context-based question based on the definition
-      const question = `Which word best matches this definition: "${meaningObj?.definition}"?`;
-      
-      quizQuestions.push({
-        word: wordObj?.word,
-        definition: meaningObj?.definition,
-        question,
-        options,
-        correct_option_idx: options.indexOf(wordObj?.word),
-        wordId: correctWord.word_id,
-        meaningId: correctWord.meaning_id,
-        collectionId: correctWord.collection_id
-      });
-    }
-    
-    return quizQuestions;
-  } catch (error) {
-    console.error('Error fetching quiz questions:', error);
-    return [];
-  }
 }
