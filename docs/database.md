@@ -119,7 +119,6 @@ Junction table connecting collections with word meanings, including user-specifi
 create table public.collection_words (
   id uuid default gen_random_uuid() primary key,
   collection_id uuid references public.collections(id) on delete cascade,
-  word_id uuid references public.words(word_id) on delete cascade,
   meaning_id uuid references public.words(meaning_id) on delete cascade,
   user_id uuid references auth.users(id),
   status text default 'new' check (status in ('new', 'learning', 'mastered')),
@@ -128,7 +127,7 @@ create table public.collection_words (
   next_review_at timestamp with time zone,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now(),
-  unique(collection_id, word_id, meaning_id, user_id)
+  unique(collection_id, meaning_id, user_id)
 );
 
 -- Indexes
@@ -176,7 +175,6 @@ create table public.practice_session_words (
   id uuid default gen_random_uuid() primary key,
   session_id uuid references public.practice_sessions(id) on delete cascade,
   user_id uuid references auth.users(id),
-  word_id uuid references public.words(word_id),
   meaning_id uuid references public.words(meaning_id),
   collection_id uuid references public.collections(id),
   is_correct boolean,
@@ -186,7 +184,7 @@ create table public.practice_session_words (
 -- Indexes
 create index practice_session_words_session_id_idx on public.practice_session_words(session_id);
 create index practice_session_words_user_id_idx on public.practice_session_words(user_id);
-create index practice_session_words_word_id_idx on public.practice_session_words(word_id);
+create index practice_session_words_meaning_id_idx on public.practice_session_words(meaning_id);
 create index practice_session_words_collection_id_idx on public.practice_session_words(collection_id);
 
 -- RLS Policies
@@ -250,7 +248,6 @@ begin
     end,
     updated_at = now()
   where collection_id = new.collection_id
-    and word_id = new.word_id
     and meaning_id = new.meaning_id
     and user_id = new.user_id;
 
@@ -272,7 +269,7 @@ begin
   update public.collections
   set 
     reviewed_word_count = (
-      select count(distinct cw.word_id)
+      select count(distinct cw.meaning_id)
       from public.collection_words cw
       where cw.collection_id = new.collection_id
         and cw.last_reviewed_at is not null
