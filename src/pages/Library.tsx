@@ -273,9 +273,11 @@ const Library: React.FC = () => {
                   <div className="space-y-6">
                     {groupedWords.map((item) => {
                       const isExpanded = expandedWords.has(item.word_id);
-                      const hasAudio = item.words.audio_url;
+                      // Add null checks and default values to prevent undefined errors
+                      const words = item.words || {};
+                      const hasAudio = words && words.audio_url;
                       // Default to first meaning if no specific meaning structure
-                      const primaryMeaning = item.meanings || (item.all_meanings && item.all_meanings[0]);
+                      const primaryMeaning = item.meanings || (item.all_meanings && item.all_meanings[0]) || {};
 
                       return (
                         <div
@@ -299,12 +301,12 @@ const Library: React.FC = () => {
                               <h4 
                                 className="text-xl font-bold text-[#cd4631] dark:text-[#de6950]"
                               >
-                                {item.words.word}
+                                {words?.word || 'Unknown Word'}
                               </h4>
-                              {item.words.phonetic && (
+                              {words?.phonetic && (
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                                    /{item.words.phonetic}/
+                                    /{words.phonetic}/
                                   </span>
                                   {hasAudio && (
                                     <Button
@@ -313,7 +315,7 @@ const Library: React.FC = () => {
                                       className="h-7 w-7 p-0 hover:text-[#cd4631] hover:bg-[#cd4631]/10"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        playAudio(item.words.audio_url);
+                                        playAudio(words.audio_url);
                                       }}
                                     >
                                       <Volume2 className="h-4 w-4" />

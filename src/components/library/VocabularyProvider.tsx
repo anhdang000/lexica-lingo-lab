@@ -87,7 +87,7 @@ export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children
   };
 
   const fetchCollectionWords = async (collectionId: string) => {
-    if (!collectionId) {
+    if (!collectionId || !user) {
       setCollectionWords([]);
       return;
     }
@@ -95,7 +95,7 @@ export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children
     setIsLoadingWords(true);
     
     try {
-      const words = await getCollectionWords(collectionId);
+      const words = await getCollectionWords(user.id, collectionId);
       setCollectionWords(words);
     } catch (err) {
       console.error('Error fetching collection words:', err);

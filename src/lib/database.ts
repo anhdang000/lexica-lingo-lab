@@ -127,6 +127,17 @@ export async function getCollectionWords(
   collectionId: string
 ) {
   try {
+    // Validate inputs
+    if (!userId || !collectionId) {
+      console.error("Invalid parameters in getCollectionWords:", { userId, collectionId });
+      toast({
+        title: "Error",
+        description: "Invalid collection parameters. Please try again.",
+        variant: "destructive",
+      });
+      return [];
+    }
+
     const { data: entries, error } = await supabase
       .from("collection_words")
       .select(`
@@ -157,19 +168,29 @@ export async function getCollectionWords(
 
     return (entries || []).map((e: any) => ({
       id: e.id,
-      wordId: e.word_id,
+      word_id: e.word_info.word_id,  // Changed from wordId to word_id to match usage
       meaningId: e.meaning_id,
       collectionId: e.collection_id,
       status: e.status,
       lastReviewedAt: e.last_reviewed_at,
       reviewCount: e.review_count,
       nextReviewAt: e.next_review_at,
-      word: e.word_info.word,
-      phonetic: e.word_info.phonetics,
-      audioUrl: e.word_info.audio_url,
-      stems: e.word_info.stems,
-      definitions: e.word_info.definitions,
-      examples: e.word_info.examples,
+      // Nest the word fields in a "words" object to match component expectations
+      words: {
+        word: e.word_info.word,
+        phonetic: e.word_info.phonetics,
+        audio_url: e.word_info.audio_url,  // Changed from audioUrl to audio_url to match usage
+        stems: e.word_info.stems,
+        definitions: e.word_info.definitions,
+        examples: e.word_info.examples,
+      },
+      // Keep the meanings structure for compatibility
+      meanings: {
+        id: e.meaning_id,
+        definition: e.word_info.definitions?.[0] || "",
+        examples: e.word_info.examples || [],
+        part_of_speech: e.word_info.part_of_speech,
+      }
     }));
   } catch (error) {
     console.error("Exception fetching collection words:", error);
