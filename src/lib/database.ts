@@ -625,6 +625,7 @@ export async function getPracticeWords(
         .in("collection_id", ids)
         .eq("user_id", userId)
         .eq("status", status)
+        .order("word_variant_id")
         .limit(limit);
       return data || [];
     };
