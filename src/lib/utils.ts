@@ -117,12 +117,17 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
       const cleanFormatting = (text: string): string => {
         return text
           .replace(/\{bc\}/g, ' ') // Replace with space instead of empty string
-          .replace(/\{it\}|\{\/it\}/g, '')
           .replace(/\{phrase\}|\{\/phrase\}/g, '')
           .replace(/\{dx\}.*?\{\/dx\}/g, '')
           .replace(/\{sx\|([^|]+)\|\|.*?\}/g, '$1') // Improved sx token handling
-          .replace(/\{([^}]*)\}/g, '') // Clean any remaining formatting tokens
-          .replace(/\[\=.*?\]/g, '')
+          .replace(/\{([^}]*)\}/g, function(match) {
+            // Preserve {it} and {/it} tags
+            if (match === '{it}' || match === '{/it}') {
+              return match;
+            }
+            return ''; // Remove other formatting tokens
+          })
+          // Keep [=...] explanations entirely intact, don't attempt to parse them here
           .replace(/\s+/g, ' ') // Normalize spaces
           .trim();
       };
@@ -133,6 +138,7 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
         if (Array.isArray(visArray)) {
           visArray.forEach((ex: { t: string }) => {
             if (ex && ex.t) {
+              // For examples, we want to preserve the formatting markers
               examples.push(cleanFormatting(ex.t));
             }
           });

@@ -78,6 +78,111 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
     return [];
   };
 
+  // Function to render formatted examples with {it} tags and [=...] explanations
+  const renderFormattedExample = (example: string) => {
+    if (!example) return null;
+
+    // Pre-process the text to handle special cases
+    // First, let's extract all [=...] explanations and replace them with placeholders
+    const explanationPlaceholders: {placeholder: string, text: string}[] = [];
+    let processedText = example.replace(/\[=([^\]]+)\]/g, (match, explanation) => {
+      // Clean any {it} tags inside the explanation
+      const cleanExplanation = explanation.replace(/\{it\}|\{\/it\}/g, '');
+      const placeholder = `__EXPL_${explanationPlaceholders.length}__`;
+      explanationPlaceholders.push({placeholder, text: cleanExplanation});
+      return placeholder;
+    });
+
+    // Now process the {it} tags
+    const italicizedParts: {start: number, end: number, text: string}[] = [];
+    const itRegex = /\{it\}(.*?)\{\/it\}/g;
+    let itMatch;
+    while ((itMatch = itRegex.exec(processedText)) !== null) {
+      const fullMatch = itMatch[0];
+      const innerText = itMatch[1];
+      const startPos = itMatch.index;
+      const endPos = startPos + fullMatch.length;
+      
+      italicizedParts.push({
+        start: startPos,
+        end: endPos,
+        text: innerText
+      });
+    }
+    
+    // Now build the elements
+    const parts: JSX.Element[] = [];
+    let lastPos = 0;
+    
+    italicizedParts.forEach((part, index) => {
+      // Add regular text before this italicized part
+      if (part.start > lastPos) {
+        const textBefore = processedText.substring(lastPos, part.start);
+        // Process any explanation placeholders in this segment
+        const processedBefore = processExplanationPlaceholders(textBefore, explanationPlaceholders);
+        if (processedBefore.length > 0) {
+          parts.push(...processedBefore);
+        }
+      }
+      
+      // Add the italicized text
+      parts.push(
+        <span key={`it-${part.start}`} className="font-bold text-[#cd4631]">
+          {part.text}
+        </span>
+      );
+      
+      lastPos = part.end;
+    });
+    
+    // Add any remaining text after the last italicized part
+    if (lastPos < processedText.length) {
+      const textAfter = processedText.substring(lastPos);
+      // Process any explanation placeholders in this segment
+      const processedAfter = processExplanationPlaceholders(textAfter, explanationPlaceholders);
+      if (processedAfter.length > 0) {
+        parts.push(...processedAfter);
+      }
+    }
+    
+    return <>{parts}</>;
+  };
+
+  // Helper function to process explanation placeholders
+  const processExplanationPlaceholders = (text: string, explanations: {placeholder: string, text: string}[]): JSX.Element[] => {
+    if (!explanations.length) return [<span key="plain">{text}</span>];
+    
+    const parts: JSX.Element[] = [];
+    let remainingText = text;
+    
+    explanations.forEach((expl, idx) => {
+      const segments = remainingText.split(expl.placeholder);
+      if (segments.length > 1) {
+        // Add the text before the placeholder
+        if (segments[0]) {
+          parts.push(<span key={`before-${idx}`}>{segments[0]}</span>);
+        }
+        
+        // Add the explanation in italic
+        parts.push(
+          <span key={`expl-${idx}`} className="italic text-gray-500">
+            ({expl.text})
+          </span>
+        );
+        
+        // Update the remaining text
+        remainingText = segments.slice(1).join(expl.placeholder);
+      }
+    });
+    
+    // Add any remaining text
+    if (remainingText) {
+      parts.push(<span key="remaining">{remainingText}</span>);
+    }
+    
+    return parts;
+  };
+
   const handleAddWord = async (index: number, wordData: WordDefinition) => {
     if (!user) {
       toast.error("Please log in to save words to your library");
@@ -440,8 +545,8 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                               className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
                                         transition-colors duration-300"
                             >
-                              <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                                {getExamples(item.definitions[0])[0]}
+                              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                                {renderFormattedExample(getExamples(item.definitions[0])[0])}
                               </p>
                             </div>
                           )}
@@ -475,8 +580,8 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                                 className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
                                           transition-colors duration-300"
                               >
-                                <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                                  {getExamples(def)[0]}
+                                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                                  {renderFormattedExample(getExamples(def)[0])}
                                 </p>
                               </div>
                             )}
