@@ -463,7 +463,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                               className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
                                         transition-colors duration-300"
                             >
-                              <p className="text-gray-600 dark:text-gray-400 italic text-sm">
+                              <p className="text-gray-600 dark:text-gray-400 text-sm">
                                 {item.definitions[0].examples[0]}
                               </p>
                             </div>
@@ -497,7 +497,7 @@ const VocabularyResults: React.FC<VocabularyResultsProps> = ({
                                 className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
                                           transition-colors duration-300"
                               >
-                                <p className="text-gray-600 dark:text-gray-400 italic text-sm">
+                                <p className="text-gray-600 dark:text-gray-400 text-sm">
                                   {def.examples[0]}
                                 </p>
                               </div>

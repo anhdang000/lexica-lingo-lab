@@ -25,7 +25,7 @@ type VocabularyContextType = {
   setSelectedCollectionId: (id: string | null) => void;
   collectionWords: any[];
   isLoadingWords: boolean;
-  removeWordMeaning: (wordId: string) => Promise<boolean>;
+  removeWordMeaning: (wordVariantId: string) => Promise<boolean>;
   collectionPracticeStats: Map<string, { totalWords: number; practicedWords: number; percentage: number; }>;
 };
 
@@ -104,18 +104,18 @@ export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children
     }
   };
 
-  const removeWordMeaning = async (wordId: string) => {
+  const removeWordMeaning = async (wordVariantId: string) => {
     if (!selectedCollectionId || !user) return false;
     
     const success = await removeWordFromCollection(
       selectedCollectionId,
-      wordId,
+      wordVariantId,
       user.id
     );
     
     if (success) {
       setCollectionWords(prevWords => 
-        prevWords.filter(word => word.word_id !== wordId)
+        prevWords.filter(word => word.wordVariantId !== wordVariantId)
       );
     }
     

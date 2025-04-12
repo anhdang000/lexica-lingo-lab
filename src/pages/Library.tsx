@@ -40,7 +40,7 @@ const Library: React.FC = () => {
   const [expandedWords, setExpandedWords] = useState<Set<string>>(new Set());
   
   // State for delete confirmation
-  const [wordToDelete, setWordToDelete] = useState<{ wordId: string; meaningId: string; word: string } | null>(null);
+  const [wordToDelete, setWordToDelete] = useState<{ wordVariantId: string; word: string } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   // Group words by word_id to avoid duplicates
@@ -51,20 +51,71 @@ const Library: React.FC = () => {
     const wordMap = new Map();
     
     collectionWords.forEach(item => {
-      if (!wordMap.has(item.word_id)) {
-        // Create a new entry for this word with its first meaning
-        wordMap.set(item.word_id, {
+      if (!item.word_id) {
+        // If word_id is not available, use wordVariantId as key
+        const wordId = item.wordVariantId;
+        
+        const meanings = item.definitions ? 
+          item.definitions.map((def, idx) => ({
+            definition: def,
+            examples: item.examples && item.examples[idx] ? [item.examples[idx]] : [],
+            part_of_speech: item.part_of_speech
+          })) : [];
+          
+        wordMap.set(wordId, {
           ...item,
-          // Use the all_meanings array if available, otherwise create one
-          all_meanings: item.all_meanings || [item.meanings]
+          word_id: wordId, // Use wordVariantId as word_id if not available
+          words: {
+            word: item.word,
+            phonetic: item.phonetics,
+            audio_url: item.audioUrl,
+            stems: item.stems || []
+          },
+          all_meanings: meanings
         });
-      } else if (!wordMap.get(item.word_id).all_meanings?.some(m => m.id === item.meanings.id)) {
-        // Add this meaning to the existing word if it doesn't already exist
-        const existingEntry = wordMap.get(item.word_id);
-        if (existingEntry.all_meanings) {
-          existingEntry.all_meanings.push(item.meanings);
+      } else {
+        // Use word_id as key if available
+        if (!wordMap.has(item.word_id)) {
+          const meanings = item.definitions ? 
+            item.definitions.map((def, idx) => ({
+              definition: def,
+              examples: item.examples && item.examples[idx] ? [item.examples[idx]] : [],
+              part_of_speech: item.part_of_speech
+            })) : [];
+            
+          wordMap.set(item.word_id, {
+            ...item,
+            words: {
+              word: item.word,
+              phonetic: item.phonetics,
+              audio_url: item.audioUrl,
+              stems: item.stems || []
+            },
+            all_meanings: meanings
+          });
         } else {
-          existingEntry.all_meanings = [existingEntry.meanings, item.meanings];
+          // If this is a different variant with same word_id, we might update some properties
+          const existingEntry = wordMap.get(item.word_id);
+          
+          // Only add new definitions if they don't already exist
+          if (item.definitions && item.definitions.length > 0) {
+            const newMeanings = item.definitions.map((def, idx) => ({
+              definition: def,
+              examples: item.examples && item.examples[idx] ? [item.examples[idx]] : [],
+              part_of_speech: item.part_of_speech
+            }));
+            
+            if (!existingEntry.all_meanings) {
+              existingEntry.all_meanings = newMeanings;
+            } else {
+              // Add any new definitions that don't already exist
+              newMeanings.forEach(newMeaning => {
+                if (!existingEntry.all_meanings.some(m => m.definition === newMeaning.definition)) {
+                  existingEntry.all_meanings.push(newMeaning);
+                }
+              });
+            }
+          }
         }
       }
     });
@@ -80,13 +131,13 @@ const Library: React.FC = () => {
       : true
   );
 
-  const handleWordDetailClick = (wordId: string) => {
+  const handleWordDetailClick = (wordVariantId: string) => {
     setExpandedWords((prev) => {
       const next = new Set(prev);
-      if (next.has(wordId)) {
-        next.delete(wordId);
+      if (next.has(wordVariantId)) {
+        next.delete(wordVariantId);
       } else {
-        next.add(wordId);
+        next.add(wordVariantId);
       }
       return next;
     });
@@ -122,6 +173,171 @@ const Library: React.FC = () => {
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
+  };
+
+  // Function to render formatted definitions with {it} tags
+  const renderFormattedDefinition = (definition: string) => {
+    if (!definition) return null;
+
+    // Process {it} tags
+    const italicizedParts: {start: number, end: number, text: string}[] = [];
+    const itRegex = /\{it\}(.*?)\{\/it\}/g;
+    let processedText = definition;
+    let itMatch;
+    
+    while ((itMatch = itRegex.exec(definition)) !== null) {
+      const fullMatch = itMatch[0];
+      const innerText = itMatch[1];
+      const startPos = itMatch.index;
+      const endPos = startPos + fullMatch.length;
+      
+      italicizedParts.push({
+        start: startPos,
+        end: endPos,
+        text: innerText
+      });
+    }
+    
+    // If no formatting needed, return the plain text
+    if (italicizedParts.length === 0) {
+      return definition;
+    }
+    
+    // Build the elements
+    const parts: JSX.Element[] = [];
+    let lastPos = 0;
+    
+    italicizedParts.forEach((part, index) => {
+      // Add regular text before this italicized part
+      if (part.start > lastPos) {
+        const textBefore = processedText.substring(lastPos, part.start);
+        parts.push(<span key={`text-${lastPos}`}>{textBefore}</span>);
+      }
+      
+      // Add the italicized text
+      parts.push(
+        <span key={`it-${part.start}`} className="font-bold text-[#cd4631] dark:text-[#de6950]">
+          {part.text}
+        </span>
+      );
+      
+      lastPos = part.end;
+    });
+    
+    // Add any remaining text after the last italicized part
+    if (lastPos < processedText.length) {
+      const textAfter = processedText.substring(lastPos).replace(/\{it\}|\{\/it\}/g, '');
+      if (textAfter) {
+        parts.push(<span key={`text-${lastPos}`}>{textAfter}</span>);
+      }
+    }
+    
+    return <>{parts}</>;
+  };
+
+  // Function to render formatted examples with {it} tags and [=...] explanations
+  const renderFormattedExample = (example: string) => {
+    if (!example) return null;
+
+    // Pre-process the text to handle special cases
+    // First, let's extract all [=...] explanations and replace them with placeholders
+    const explanationPlaceholders: {placeholder: string, text: string}[] = [];
+    let processedText = example.replace(/\[=([^\]]+)\]/g, (match, explanation) => {
+      // Clean any {it} tags inside the explanation
+      const cleanExplanation = explanation.replace(/\{it\}|\{\/it\}/g, '');
+      const placeholder = `__EXPL_${explanationPlaceholders.length}__`;
+      explanationPlaceholders.push({placeholder, text: cleanExplanation});
+      return placeholder;
+    });
+
+    // Now process the {it} tags
+    const italicizedParts: {start: number, end: number, text: string}[] = [];
+    const itRegex = /\{it\}(.*?)\{\/it\}/g;
+    let itMatch;
+    while ((itMatch = itRegex.exec(processedText)) !== null) {
+      const fullMatch = itMatch[0];
+      const innerText = itMatch[1];
+      const startPos = itMatch.index;
+      const endPos = startPos + fullMatch.length;
+      
+      italicizedParts.push({
+        start: startPos,
+        end: endPos,
+        text: innerText
+      });
+    }
+    
+    // Now build the elements
+    const parts: JSX.Element[] = [];
+    let lastPos = 0;
+    
+    italicizedParts.forEach((part, index) => {
+      // Add regular text before this italicized part
+      if (part.start > lastPos) {
+        const textBefore = processedText.substring(lastPos, part.start);
+        // Process any explanation placeholders in this segment
+        const processedBefore = processExplanationPlaceholders(textBefore, explanationPlaceholders);
+        if (processedBefore.length > 0) {
+          parts.push(...processedBefore);
+        }
+      }
+      
+      // Add the italicized text
+      parts.push(
+        <span key={`it-${part.start}`} className="font-bold text-[#cd4631] dark:text-[#de6950]">
+          {part.text}
+        </span>
+      );
+      
+      lastPos = part.end;
+    });
+    
+    // Add any remaining text after the last italicized part
+    if (lastPos < processedText.length) {
+      const textAfter = processedText.substring(lastPos);
+      // Process any explanation placeholders in this segment
+      const processedAfter = processExplanationPlaceholders(textAfter, explanationPlaceholders);
+      if (processedAfter.length > 0) {
+        parts.push(...processedAfter);
+      }
+    }
+    
+    return <>{parts}</>;
+  };
+
+  // Helper function to process explanation placeholders
+  const processExplanationPlaceholders = (text: string, explanations: {placeholder: string, text: string}[]): JSX.Element[] => {
+    if (!explanations.length) return [<span key={`plain-${Math.random()}`}>{text}</span>];
+    
+    const parts: JSX.Element[] = [];
+    let remainingText = text;
+    
+    explanations.forEach((expl, idx) => {
+      const segments = remainingText.split(expl.placeholder);
+      if (segments.length > 1) {
+        // Add the text before the placeholder
+        if (segments[0]) {
+          parts.push(<span key={`before-${idx}`}>{segments[0]}</span>);
+        }
+        
+        // Add the explanation in italic
+        parts.push(
+          <span key={`expl-${idx}`}>
+            (<span className="italic text-gray-500">{expl.text}</span>)
+          </span>
+        );
+        
+        // Update the remaining text
+        remainingText = segments.slice(1).join(expl.placeholder);
+      }
+    });
+    
+    // Add any remaining text
+    if (remainingText) {
+      parts.push(<span key={`remaining-${Math.random()}`}>{remainingText}</span>);
+    }
+    
+    return parts;
   };
 
   const capitalize = (str: string) => {
@@ -272,7 +488,7 @@ const Library: React.FC = () => {
                 ) : (
                   <div className="space-y-6">
                     {groupedWords.map((item) => {
-                      const isExpanded = expandedWords.has(item.word_id);
+                      const isExpanded = expandedWords.has(item.wordVariantId);
                       // Add null checks and default values to prevent undefined errors
                       const words = item.words || {};
                       const hasAudio = words && words.audio_url;
@@ -281,7 +497,7 @@ const Library: React.FC = () => {
 
                       return (
                         <div
-                          key={item.word_id}
+                          key={item.wordVariantId}
                           className={cn(
                             'collection-card relative group rounded-xl p-4',
                             'border',
@@ -292,7 +508,7 @@ const Library: React.FC = () => {
                             'cursor-pointer',
                             'transition-all duration-300 ease-in-out'
                           )}
-                          onClick={() => handleWordDetailClick(item.word_id)}
+                          onClick={() => handleWordDetailClick(item.wordVariantId)}
                         >
                           {/* Remove top-right positioned trash icon */}
                           {/* Add styling for expanded details to ensure the trash icon is properly positioned */}
@@ -357,15 +573,15 @@ const Library: React.FC = () => {
                           <div className="group/def space-y-2">
                             <p className="text-gray-800 dark:text-gray-200 text-base">
                               {isExpanded && item.all_meanings && item.all_meanings.length > 1 ? "1. " : ""}
-                              {primaryMeaning.definition}
+                              {renderFormattedDefinition(primaryMeaning.definition)}
                             </p>
                             {primaryMeaning.examples && primaryMeaning.examples.length > 0 && (
                               <div
                                 className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
                                           transition-colors duration-300"
                               >
-                                <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                                  {primaryMeaning.examples[0]}
+                                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                                  {renderFormattedExample(primaryMeaning.examples[0])}
                                 </p>
                               </div>
                             )}
@@ -392,15 +608,15 @@ const Library: React.FC = () => {
                                 {item.all_meanings.slice(1).map((meaning, idx) => (
                                   <div key={idx} className="group/def space-y-2">
                                     <p className="text-gray-800 dark:text-gray-200 text-base">
-                                      {idx + 2}. {meaning.definition}
+                                      {idx + 2}. {renderFormattedDefinition(meaning.definition)}
                                     </p>
                                     {meaning.examples && meaning.examples.length > 0 && (
                                       <div
                                         className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
                                                   transition-colors duration-300"
                                       >
-                                        <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                                          {meaning.examples[0]}
+                                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                                          {renderFormattedExample(meaning.examples[0])}
                                         </p>
                                       </div>
                                     )}
@@ -451,11 +667,10 @@ const Library: React.FC = () => {
                               className="h-8 w-8 p-0 rounded-full hover:bg-[#cd4631]/10 hover:text-[#cd4631] text-gray-400"
                               onClick={() => {
                                 setWordToDelete({
-                                  wordId: item.word_id,
-                                  meaningId: "", // No longer needed but keeping structure for compatibility
+                                  wordVariantId: item.wordVariantId,
                                   word: item.words.word
                                 });
-                                setConfirmDeleteId(confirmDeleteId === item.id ? null : item.id);
+                                setConfirmDeleteId(confirmDeleteId === item.wordVariantId ? null : item.wordVariantId);
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -463,7 +678,7 @@ const Library: React.FC = () => {
                             </Button>
                             
                             {/* Inline confirmation box */}
-                            {confirmDeleteId === item.id && (
+                            {confirmDeleteId === item.wordVariantId && (
                               <div className="absolute bottom-8 right-0 bg-white dark:bg-gray-800 rounded-md shadow-md border border-gray-200 dark:border-gray-700 p-2 w-[150px] z-10">
                                 <div className="flex flex-col items-center gap-2">
                                   <p className="text-xs text-gray-600 dark:text-gray-300 text-center">
@@ -485,7 +700,7 @@ const Library: React.FC = () => {
                                       onClick={async () => {
                                         if (wordToDelete) {
                                           const success = await removeWordMeaning(
-                                            wordToDelete.wordId
+                                            wordToDelete.wordVariantId
                                           );
                                           if (success) {
                                             toast.success(`Removed "${wordToDelete.word}" from library`);

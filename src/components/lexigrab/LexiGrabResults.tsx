@@ -210,7 +210,7 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
 
   // Helper function to process explanation placeholders
   const processExplanationPlaceholders = (text: string, explanations: {placeholder: string, text: string}[]): JSX.Element[] => {
-    if (!explanations.length) return [<span key="plain">{text}</span>];
+    if (!explanations.length) return [<span key={`plain-${Math.random()}`}>{text}</span>];
     
     const parts: JSX.Element[] = [];
     let remainingText = text;
@@ -225,8 +225,8 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
         
         // Add the explanation in italic
         parts.push(
-          <span key={`expl-${idx}`} className="italic text-gray-500">
-            ({expl.text})
+          <span key={`expl-${idx}`}>
+            (<span className="italic text-gray-500">{expl.text}</span>)
           </span>
         );
         
@@ -237,7 +237,7 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
     
     // Add any remaining text
     if (remainingText) {
-      parts.push(<span key="remaining">{remainingText}</span>);
+      parts.push(<span key={`remaining-${Math.random()}`}>{remainingText}</span>);
     }
     
     return parts;

@@ -182,8 +182,8 @@ const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, w
         
         // Add the explanation in italic
         parts.push(
-          <span key={`expl-${idx}`} className="italic text-gray-500">
-            ({expl.text})
+          <span key={`expl-${idx}`}>
+            (<span className="italic text-gray-500">{expl.text}</span>)
           </span>
         );
         

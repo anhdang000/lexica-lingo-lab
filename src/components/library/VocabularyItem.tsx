@@ -79,13 +79,13 @@ const VocabularyItem: React.FC<VocabularyItemProps> = ({ item }) => {
       {/* Display examples if available */}
       {item.examples && item.examples.length > 0 && (
         item.examples.length === 1 ? (
-          <p className="text-sm text-gray-500 italic">"{item.examples[0]}"</p>
+          <p className="text-sm text-gray-500">"{item.examples[0]}"</p>
         ) : (
           <div>
             <p className="text-gray-600 font-medium mb-1">Examples:</p>
             <ul className="list-disc pl-5">
               {item.examples.map((example, index) => (
-                <li key={index} className="text-sm text-gray-500 italic">"{example}"</li>
+                <li key={index} className="text-sm text-gray-500">"{example}"</li>
               ))}
             </ul>
           </div>
