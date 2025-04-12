@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,11 +37,67 @@ const Library: React.FC = () => {
 
   // State management
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedWords, setExpandedWords] = useState<Set<string>>(new Set());
+  
+  // Load expandedWords from localStorage on initial render
+  const [expandedWords, setExpandedWords] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    const saved = localStorage.getItem('expandedWords');
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse expandedWords from localStorage', e);
+        return new Set();
+      }
+    }
+    return new Set();
+  });
   
   // State for delete confirmation
   const [wordToDelete, setWordToDelete] = useState<{ wordVariantId: string; word: string } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  
+  // Save expandedWords to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && expandedWords.size > 0) {
+      localStorage.setItem('expandedWords', JSON.stringify(Array.from(expandedWords)));
+    }
+  }, [expandedWords]);
+
+  // Save selectedCollectionId to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && selectedCollectionId) {
+      localStorage.setItem('selectedCollectionId', selectedCollectionId);
+    }
+  }, [selectedCollectionId]);
+
+  // Set selectedCollectionId from localStorage on initial load if not already set
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !selectedCollectionId && collections.length > 0) {
+      const savedCollectionId = localStorage.getItem('selectedCollectionId');
+      // Only set if the saved ID exists in current collections
+      if (savedCollectionId && collections.some(c => c.id === savedCollectionId)) {
+        setSelectedCollectionId(savedCollectionId);
+      }
+    }
+  }, [collections, selectedCollectionId, setSelectedCollectionId]);
+
+  // Save search query to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('librarySearchQuery', searchQuery);
+    }
+  }, [searchQuery]);
+
+  // Load search query from localStorage on initial render
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedQuery = localStorage.getItem('librarySearchQuery');
+      if (savedQuery) {
+        setSearchQuery(savedQuery);
+      }
+    }
+  }, []);
   
   // Group words by word_id to avoid duplicates
   const groupedWords = useMemo(() => {

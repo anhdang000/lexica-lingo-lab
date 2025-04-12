@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { getUserCollections, getCollectionWords, removeWordFromCollection, getCollectionPracticeStats } from '@/lib/database';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -33,56 +33,115 @@ const VocabularyContext = createContext<VocabularyContextType | undefined>(undef
 
 export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children }) => {
   const { user } = useAuth();
-  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collections, setCollections] = useState<Collection[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const savedCollections = localStorage.getItem('userCollections');
+    if (savedCollections) {
+      try {
+        return JSON.parse(savedCollections);
+      } catch (e) {
+        console.error('Failed to parse collections from localStorage', e);
+        return [];
+      }
+    }
+    return [];
+  });
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
-  const [collectionWords, setCollectionWords] = useState<any[]>([]);
+
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('selectedCollectionId');
+  });
+
+  const [collectionWords, setCollectionWords] = useState<any[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const savedWords = localStorage.getItem('collectionWords');
+    if (savedWords && selectedCollectionId) {
+      try {
+        return JSON.parse(savedWords);
+      } catch (e) {
+        console.error('Failed to parse collection words from localStorage', e);
+        return [];
+      }
+    }
+    return [];
+  });
+
   const [isLoadingWords, setIsLoadingWords] = useState(false);
+
   const [collectionPracticeStats, setCollectionPracticeStats] = useState<Map<string, { 
     totalWords: number; 
     practicedWords: number; 
     percentage: number; 
-  }>>(new Map());
+  }>>(() => {
+    if (typeof window === 'undefined') return new Map();
+    const savedStats = localStorage.getItem('collectionPracticeStats');
+    if (savedStats) {
+      try {
+        return new Map(JSON.parse(savedStats));
+      } catch (e) {
+        console.error('Failed to parse collection stats from localStorage', e);
+        return new Map();
+      }
+    }
+    return new Map();
+  });
+
+  const collectionsLoadedRef = useRef(false);
+  const initialLoadComplete = useRef(false);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user && !collectionsLoadedRef.current) {
+        fetchCollections();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user]);
 
   const fetchCollections = async () => {
     if (!user) return;
-    
+
+    if (collections.length > 0 && initialLoadComplete.current) {
+      collectionsLoadedRef.current = true;
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const collections = await getUserCollections(user.id);
       setCollections(collections);
-      
-      // Create practice stats from collection data directly
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('userCollections', JSON.stringify(collections));
+      }
+
       const statsMap = new Map();
       for (const collection of collections) {
-        // Either use the getCollectionPracticeStats function or calculate directly
-        // Option 1: Using the updated helper function
         const stats = await getCollectionPracticeStats(user.id, collection.id);
         statsMap.set(collection.id, stats);
-        
-        // Option 2: Calculate directly from collection fields (alternative)
-        /*
-        const totalWords = collection.word_count || 0;
-        const practicedWords = collection.reviewed_word_count || 0;
-        const percentage = totalWords > 0 ? (practicedWords / totalWords) * 100 : 0;
-        
-        statsMap.set(collection.id, {
-          totalWords,
-          practicedWords,
-          percentage
-        });
-        */
       }
       setCollectionPracticeStats(statsMap);
-      
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('collectionPracticeStats', JSON.stringify(Array.from(statsMap.entries())));
+      }
+
+      collectionsLoadedRef.current = true;
     } catch (err) {
       setError('Failed to load collections');
       console.error('Error fetching collections:', err);
     } finally {
       setIsLoading(false);
+      initialLoadComplete.current = true;
     }
   };
 
@@ -91,12 +150,31 @@ export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children
       setCollectionWords([]);
       return;
     }
-    
+
+    if (typeof window !== 'undefined' && selectedCollectionId === collectionId) {
+      const savedWords = localStorage.getItem(`collectionWords_${collectionId}`);
+      if (savedWords) {
+        try {
+          const parsedWords = JSON.parse(savedWords);
+          setCollectionWords(parsedWords);
+          if (initialLoadComplete.current) {
+            return;
+          }
+        } catch (e) {
+          console.error('Failed to parse collection words from localStorage', e);
+        }
+      }
+    }
+
     setIsLoadingWords(true);
-    
+
     try {
       const words = await getCollectionWords(user.id, collectionId);
       setCollectionWords(words);
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`collectionWords_${collectionId}`, JSON.stringify(words));
+      }
     } catch (err) {
       console.error('Error fetching collection words:', err);
     } finally {
@@ -106,28 +184,40 @@ export const VocabularyProvider: React.FC<VocabularyProviderProps> = ({ children
 
   const removeWordMeaning = async (wordVariantId: string) => {
     if (!selectedCollectionId || !user) return false;
-    
+
     const success = await removeWordFromCollection(
       selectedCollectionId,
       wordVariantId,
       user.id
     );
-    
+
     if (success) {
-      setCollectionWords(prevWords => 
-        prevWords.filter(word => word.wordVariantId !== wordVariantId)
-      );
+      setCollectionWords(prevWords => {
+        const newWords = prevWords.filter(word => word.wordVariantId !== wordVariantId);
+        if (typeof window !== 'undefined' && selectedCollectionId) {
+          localStorage.setItem(`collectionWords_${selectedCollectionId}`, JSON.stringify(newWords));
+        }
+        return newWords;
+      });
     }
-    
+
     return success;
   };
 
   useEffect(() => {
-    if (user) {
+    if (typeof window !== 'undefined' && selectedCollectionId) {
+      localStorage.setItem('selectedCollectionId', selectedCollectionId);
+    }
+  }, [selectedCollectionId]);
+
+  useEffect(() => {
+    if (user && !collectionsLoadedRef.current) {
       fetchCollections();
-    } else {
+    } else if (!user) {
       setCollections([]);
       setIsLoading(false);
+      collectionsLoadedRef.current = false;
+      initialLoadComplete.current = false;
     }
   }, [user]);
 
