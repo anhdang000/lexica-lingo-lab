@@ -160,7 +160,12 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
                 if (Array.isArray(item) && item.length >= 2) {
                   // Process text elements
                   if (item[0] === 'text' && typeof item[1] === 'string') {
-                    meaning += ' ' + cleanFormatting(item[1]);
+                    // Add a semicolon before adding new text if meaning already has content
+                    if (meaning.trim().length > 0) {
+                      meaning += '; ' + cleanFormatting(item[1]);
+                    } else {
+                      meaning += ' ' + cleanFormatting(item[1]);
+                    }
                   } 
                   // Process visual examples
                   else if (item[0] === 'vis' && Array.isArray(item[1])) {
@@ -199,12 +204,30 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
                             if (Array.isArray(dtElement) && dtElement.length >= 2) {
                               // Text elements - basic definition text
                               if (dtElement[0] === 'text') {
-                                meaning += ' ' + cleanFormatting(dtElement[1]);
+                                if (meaning.trim().length > 0) {
+                                  meaning += '; ' + cleanFormatting(dtElement[1]);
+                                } else {
+                                  meaning += ' ' + cleanFormatting(dtElement[1]);
+                                }
                               } 
                               // Visual examples
                               else if (dtElement[0] === 'vis' && Array.isArray(dtElement[1])) {
                                 const visExamples = extractExamples(dtElement[1]);
                                 examples.push(...visExamples);
+                              } 
+                              // Unstructured data - contains both meanings and examples
+                              else if (dtElement[0] === 'uns' && Array.isArray(dtElement[1])) {
+                                const unsResult = processUnsData(dtElement[1]);
+                                if (unsResult.meaning) {
+                                  if (meaning.trim().length > 0) {
+                                    meaning += '; ' + unsResult.meaning;
+                                  } else {
+                                    meaning += ' ' + unsResult.meaning;
+                                  }
+                                }
+                                if (unsResult.examples.length > 0) {
+                                  examples.push(...unsResult.examples);
+                                }
                               }
                             }
                           });
@@ -245,7 +268,11 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
                         if (Array.isArray(dtElement) && dtElement.length >= 2) {
                           // Text elements - basic definition text
                           if (dtElement[0] === 'text') {
-                            meaning += ' ' + cleanFormatting(dtElement[1]);
+                            if (meaning.trim().length > 0) {
+                              meaning += '; ' + cleanFormatting(dtElement[1]);
+                            } else {
+                              meaning += ' ' + cleanFormatting(dtElement[1]);
+                            }
                           } 
                           // Visual examples
                           else if (dtElement[0] === 'vis' && Array.isArray(dtElement[1])) {
@@ -256,7 +283,11 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
                           else if (dtElement[0] === 'uns' && Array.isArray(dtElement[1])) {
                             const unsResult = processUnsData(dtElement[1]);
                             if (unsResult.meaning) {
-                              meaning += ' ' + unsResult.meaning;
+                              if (meaning.trim().length > 0) {
+                                meaning += '; ' + unsResult.meaning;
+                              } else {
+                                meaning += ' ' + unsResult.meaning;
+                              }
                             }
                             if (unsResult.examples.length > 0) {
                               examples.push(...unsResult.examples);

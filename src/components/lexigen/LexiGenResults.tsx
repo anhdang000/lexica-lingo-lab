@@ -78,6 +78,66 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
     return [];
   };
 
+  // Function to render formatted definitions with {it} tags
+  const renderFormattedDefinition = (definition: string) => {
+    if (!definition) return null;
+
+    // Process {it} tags
+    const italicizedParts: {start: number, end: number, text: string}[] = [];
+    const itRegex = /\{it\}(.*?)\{\/it\}/g;
+    let processedText = definition;
+    let itMatch;
+    
+    while ((itMatch = itRegex.exec(definition)) !== null) {
+      const fullMatch = itMatch[0];
+      const innerText = itMatch[1];
+      const startPos = itMatch.index;
+      const endPos = startPos + fullMatch.length;
+      
+      italicizedParts.push({
+        start: startPos,
+        end: endPos,
+        text: innerText
+      });
+    }
+    
+    // If no formatting needed, return the plain text
+    if (italicizedParts.length === 0) {
+      return definition;
+    }
+    
+    // Build the elements
+    const parts: JSX.Element[] = [];
+    let lastPos = 0;
+    
+    italicizedParts.forEach((part, index) => {
+      // Add regular text before this italicized part
+      if (part.start > lastPos) {
+        const textBefore = processedText.substring(lastPos, part.start);
+        parts.push(<span key={`text-${lastPos}`}>{textBefore}</span>);
+      }
+      
+      // Add the italicized text
+      parts.push(
+        <span key={`it-${part.start}`} className="font-bold text-[#6366f1] dark:text-[#a78bfa]">
+          {part.text}
+        </span>
+      );
+      
+      lastPos = part.end;
+    });
+    
+    // Add any remaining text after the last italicized part
+    if (lastPos < processedText.length) {
+      const textAfter = processedText.substring(lastPos).replace(/\{it\}|\{\/it\}/g, '');
+      if (textAfter) {
+        parts.push(<span key={`text-${lastPos}`}>{textAfter}</span>);
+      }
+    }
+    
+    return <>{parts}</>;
+  };
+
   // Function to render formatted examples with {it} tags and [=...] explanations
   const renderFormattedExample = (example: string) => {
     if (!example) return null;
@@ -466,7 +526,7 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
                       {!isExpanded && item.definitions.length > 0 && (
                         <div className="group/def space-y-2">
                           <p className="text-gray-800 dark:text-gray-200 text-base">
-                            {getDefinitionText(item.definitions[0])}
+                            {renderFormattedDefinition(getDefinitionText(item.definitions[0]))}
                           </p>
                           {getExamples(item.definitions[0]).length > 0 && (
                             <div
@@ -501,7 +561,7 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
                           <div key={idx} className="group/def space-y-2">
                             <p className="text-gray-800 dark:text-gray-200 text-base">
                               {item.definitions.length > 1 ? `${idx + 1}. ` : ''}
-                              {getDefinitionText(def)}
+                              {renderFormattedDefinition(getDefinitionText(def))}
                             </p>
                             {getExamples(def).length > 0 && (
                               <div
