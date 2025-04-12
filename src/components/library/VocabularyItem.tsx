@@ -1,14 +1,13 @@
-
 import React from 'react';
 import { Volume2, Star } from 'lucide-react';
 
 interface VocabularyItemProps {
   item: {
     word: string;
-    phonetic?: string;
-    partOfSpeech?: string;
-    definition: string;
-    example: string;
+    phonetics?: string;
+    part_of_speech?: string;
+    definitions: string[];
+    examples?: string[];
   };
 }
 
@@ -44,12 +43,12 @@ const VocabularyItem: React.FC<VocabularyItemProps> = ({ item }) => {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 flex-wrap">
           <h4 className="text-lg font-bold">{item.word}</h4>
-          {item.phonetic && (
-            <span className="text-gray-400 text-sm italic">{item.phonetic}</span>
+          {item.phonetics && (
+            <span className="text-gray-400 text-sm italic">{item.phonetics}</span>
           )}
-          {item.partOfSpeech && (
-            <span className={`text-xs px-2 py-0.5 rounded-md ${getPartOfSpeechStyle(item.partOfSpeech)}`}>
-              {item.partOfSpeech}
+          {item.part_of_speech && (
+            <span className={`text-xs px-2 py-0.5 rounded-md ${getPartOfSpeechStyle(item.part_of_speech)}`}>
+              {item.part_of_speech}
             </span>
           )}
         </div>
@@ -62,8 +61,36 @@ const VocabularyItem: React.FC<VocabularyItemProps> = ({ item }) => {
           </button>
         </div>
       </div>
-      <p className="text-gray-600 mb-2">{item.definition}</p>
-      <p className="text-sm text-gray-500 italic">"{item.example}"</p>
+      
+      {/* Display definitions as a list if there are multiple */}
+      {item.definitions.length === 1 ? (
+        <p className="text-gray-600 mb-2">{item.definitions[0]}</p>
+      ) : (
+        <div className="mb-2">
+          <p className="text-gray-600 font-medium mb-1">Definitions:</p>
+          <ul className="list-disc pl-5">
+            {item.definitions.map((def, index) => (
+              <li key={index} className="text-gray-600">{def}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
+      {/* Display examples if available */}
+      {item.examples && item.examples.length > 0 && (
+        item.examples.length === 1 ? (
+          <p className="text-sm text-gray-500 italic">"{item.examples[0]}"</p>
+        ) : (
+          <div>
+            <p className="text-gray-600 font-medium mb-1">Examples:</p>
+            <ul className="list-disc pl-5">
+              {item.examples.map((example, index) => (
+                <li key={index} className="text-sm text-gray-500 italic">"{example}"</li>
+              ))}
+            </ul>
+          </div>
+        )
+      )}
     </div>
   );
 };

@@ -23,7 +23,7 @@ export interface WordDefinition {
   collectionName?: string;
 }
 
-export async function lookupWord(word: string): Promise<WordDefinition | null> {
+export async function lookupWord(word: string): Promise<WordDefinition[] | null> {
   const apiKey = import.meta.env.VITE_LEARNERS_DICTIONARY_API_KEY;
   if (!apiKey) {
     throw new Error('Dictionary API key not found');
@@ -48,118 +48,302 @@ export async function lookupWord(word: string): Promise<WordDefinition | null> {
       return null;
     }
 
-    const firstEntry = data[0];
+    // First, find any audio information from all entries for potential sharing
+    let fallbackAudio: string | undefined;
+    let fallbackPronunciation: string | undefined;
     
-    // Basic validation to ensure we have a proper word entry
-    if (!firstEntry.meta?.id) {
-      return null;
+    // Look through all entries to find audio information
+    for (const entry of data) {
+      if (entry.hwi?.prs?.[0]?.sound?.audio) {
+        fallbackAudio = entry.hwi.prs[0].sound.audio;
+        fallbackPronunciation = entry.hwi.prs[0].ipa;
+        break;
+      }
     }
 
-    // Use the cleaned word instead of the API response ID which might contain suffixes
-    const wordDef: WordDefinition = {
-      word: cleanWord,
-      partOfSpeech: firstEntry.fl || 'unknown',
-      definitions: []
-    };
+    // Helper function to process an entry and convert it to WordDefinition
+    const processEntry = (entry: any): WordDefinition | null => {
+      // Basic validation to ensure we have a proper word entry
+      if (!entry.meta?.id) {
+        return null;
+      }
 
-    // Add pronunciation if available
-    if (firstEntry.hwi?.prs?.[0]) {
-      const pron = firstEntry.hwi.prs[0];
-      wordDef.pronunciation = {
-        text: pron.ipa || '',
-        audio: pron.sound?.audio ? `https://media.merriam-webster.com/audio/prons/en/us/mp3/${pron.sound.audio[0]}/${pron.sound.audio}.mp3` : undefined
+      // Get the word from the entry ID
+      let entryWord = entry.meta.id;
+      // Remove any number suffix for display purposes
+      if (/:/.test(entryWord)) {
+        entryWord = entryWord.split(':')[0];
+      }
+
+      const wordDef: WordDefinition = {
+        word: entryWord,
+        partOfSpeech: entry.fl || 'unknown',
+        definitions: []
       };
-    }
 
-    // Add word variations/stems
-    if (firstEntry.meta.stems) {
-      wordDef.stems = firstEntry.meta.stems;
-    }
+      // Add pronunciation if available - handle both prs and altprs structures
+      if (entry.hwi) {
+        const mainPron = entry.hwi.prs?.[0];
+        const altPron = entry.hwi.altprs?.[0];
+        const pron = mainPron || altPron;
+        
+        if (pron) {
+          const audioFile = pron.sound?.audio || fallbackAudio;
+          wordDef.pronunciation = {
+            text: pron.ipa || fallbackPronunciation || '',
+            audio: audioFile ? `https://media.merriam-webster.com/audio/prons/en/us/mp3/${getAudioSubdirectory(audioFile)}/${audioFile}.mp3` : undefined
+          };
+        } else if (fallbackAudio) {
+          // If this entry has no pronunciation but we found one elsewhere, use it
+          wordDef.pronunciation = {
+            text: fallbackPronunciation || '',
+            audio: `https://media.merriam-webster.com/audio/prons/en/us/mp3/${getAudioSubdirectory(fallbackAudio)}/${fallbackAudio}.mp3`
+          };
+        }
+      } else if (fallbackAudio) {
+        // If this entry has no hwi at all but we found audio elsewhere, use it
+        wordDef.pronunciation = {
+          text: fallbackPronunciation || '',
+          audio: `https://media.merriam-webster.com/audio/prons/en/us/mp3/${getAudioSubdirectory(fallbackAudio)}/${fallbackAudio}.mp3`
+        };
+      }
 
-    // Helper function to clean formatting tokens
-    const cleanFormatting = (text: string): string => {
-      return text
-        .replace(/\{bc\}/g, ' ') // Replace with space instead of empty string
-        .replace(/\{it\}|\{\/it\}/g, '')
-        .replace(/\{phrase\}|\{\/phrase\}/g, '')
-        .replace(/\{dx\}.*?\{\/dx\}/g, '')
-        .replace(/\{sx\|([^|]+)\|\|.*?\}/g, '$1') // Improved sx token handling
-        .replace(/\{([^}]*)\}/g, '') // Clean any remaining formatting tokens
-        .replace(/\[\=.*?\]/g, '')
-        .replace(/\s+/g, ' ') // Normalize spaces
-        .trim();
-    };
+      // Add word variations/stems
+      if (entry.meta.stems) {
+        wordDef.stems = entry.meta.stems;
+      }
 
-    // Process definitions and examples from the detailed structure
-    if (firstEntry.def?.[0]?.sseq) {
-      firstEntry.def.forEach(defBlock => {
-        defBlock.sseq.forEach(senseSeq => {
-          senseSeq.forEach(sense => {
-            if (sense[0] === 'sense') {
-              const senseData = sense[1];
-              let meaning = '';
-              const examples: string[] = [];
+      // Helper function to clean formatting tokens
+      const cleanFormatting = (text: string): string => {
+        return text
+          .replace(/\{bc\}/g, ' ') // Replace with space instead of empty string
+          .replace(/\{it\}|\{\/it\}/g, '')
+          .replace(/\{phrase\}|\{\/phrase\}/g, '')
+          .replace(/\{dx\}.*?\{\/dx\}/g, '')
+          .replace(/\{sx\|([^|]+)\|\|.*?\}/g, '$1') // Improved sx token handling
+          .replace(/\{([^}]*)\}/g, '') // Clean any remaining formatting tokens
+          .replace(/\[\=.*?\]/g, '')
+          .replace(/\s+/g, ' ') // Normalize spaces
+          .trim();
+      };
 
-              // Process all dt elements
-              if (senseData.dt) {
-                senseData.dt.forEach(dtElement => {
-                  if (dtElement[0] === 'text') {
-                    // Concatenate text pieces for the meaning
-                    meaning += ' ' + cleanFormatting(dtElement[1]);
-                  } else if (dtElement[0] === 'vis') {
-                    // Add examples
-                    dtElement[1].forEach((ex: { t: string }) => {
-                      examples.push(cleanFormatting(ex.t));
-                    });
-                  } else if (dtElement[0] === 'uns') {
-                    // Handle unstructured data which can contain both text and examples
-                    const unsData = dtElement[1];
-                    if (Array.isArray(unsData)) {
-                      unsData.forEach(unsGroup => {
-                        if (Array.isArray(unsGroup)) {
-                          unsGroup.forEach(item => {
-                            if (Array.isArray(item) && item.length >= 2) {
-                              if (item[0] === 'text') {
-                                meaning += ' ' + cleanFormatting(item[1]);
-                              } else if (item[0] === 'vis' && Array.isArray(item[1])) {
-                                item[1].forEach((ex: { t: string }) => {
-                                  examples.push(cleanFormatting(ex.t));
-                                });
+      // Helper to extract examples from vis element
+      const extractExamples = (visArray: any[]): string[] => {
+        const examples: string[] = [];
+        if (Array.isArray(visArray)) {
+          visArray.forEach((ex: { t: string }) => {
+            if (ex && ex.t) {
+              examples.push(cleanFormatting(ex.t));
+            }
+          });
+        }
+        return examples;
+      };
+
+      // Helper to process unstructured data - this is the key improvement
+      const processUnsData = (unsData: any[]): {meaning: string, examples: string[]} => {
+        let meaning = '';
+        const examples: string[] = [];
+        
+        if (Array.isArray(unsData)) {
+          // Unstructured data is usually a nested array
+          unsData.forEach(unsGroup => {
+            if (Array.isArray(unsGroup)) {
+              // Each group can contain text and examples
+              unsGroup.forEach(item => {
+                if (Array.isArray(item) && item.length >= 2) {
+                  // Process text elements
+                  if (item[0] === 'text' && typeof item[1] === 'string') {
+                    meaning += ' ' + cleanFormatting(item[1]);
+                  } 
+                  // Process visual examples
+                  else if (item[0] === 'vis' && Array.isArray(item[1])) {
+                    const visExamples = extractExamples(item[1]);
+                    examples.push(...visExamples);
+                  }
+                }
+              });
+            }
+          });
+        }
+        
+        return {
+          meaning: meaning.trim(),
+          examples
+        };
+      };
+
+      // SPECIAL HANDLING FOR DROS ENTRIES (like "the ultimate in")
+      if (entry.dros && Array.isArray(entry.dros)) {
+        entry.dros.forEach((drosEntry: any) => {
+          if (drosEntry.def && Array.isArray(drosEntry.def)) {
+            drosEntry.def.forEach((defBlock: any) => {
+              if (defBlock.sseq && Array.isArray(defBlock.sseq)) {
+                defBlock.sseq.forEach((senseSeq: any) => {
+                  if (Array.isArray(senseSeq)) {
+                    senseSeq.forEach((sense: any) => {
+                      if (Array.isArray(sense) && sense[0] === 'sense' && sense[1]) {
+                        const senseData = sense[1];
+                        let meaning = '';
+                        const examples: string[] = [];
+
+                        // Process all dt elements
+                        if (Array.isArray(senseData.dt)) {
+                          senseData.dt.forEach((dtElement: any) => {
+                            if (Array.isArray(dtElement) && dtElement.length >= 2) {
+                              // Text elements - basic definition text
+                              if (dtElement[0] === 'text') {
+                                meaning += ' ' + cleanFormatting(dtElement[1]);
+                              } 
+                              // Visual examples
+                              else if (dtElement[0] === 'vis' && Array.isArray(dtElement[1])) {
+                                const visExamples = extractExamples(dtElement[1]);
+                                examples.push(...visExamples);
                               }
                             }
                           });
                         }
+
+                        // Add phrase definition
+                        if (meaning) {
+                          wordDef.definitions.push({
+                            meaning: `${drosEntry.drp || ''} - ${meaning.trim()}`,
+                            examples: examples.length > 0 ? examples : undefined
+                          });
+                        }
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+
+      // Process definitions and examples from the detailed structure
+      if (entry.def?.[0]?.sseq) {
+        entry.def.forEach((defBlock: any) => {
+          if (defBlock.sseq && Array.isArray(defBlock.sseq)) {
+            defBlock.sseq.forEach((senseSeq: any) => {
+              if (Array.isArray(senseSeq)) {
+                senseSeq.forEach((sense: any) => {
+                  if (Array.isArray(sense) && sense[0] === 'sense' && sense[1]) {
+                    const senseData = sense[1];
+                    let meaning = '';
+                    const examples: string[] = [];
+
+                    // Process all dt elements
+                    if (Array.isArray(senseData.dt)) {
+                      senseData.dt.forEach((dtElement: any) => {
+                        if (Array.isArray(dtElement) && dtElement.length >= 2) {
+                          // Text elements - basic definition text
+                          if (dtElement[0] === 'text') {
+                            meaning += ' ' + cleanFormatting(dtElement[1]);
+                          } 
+                          // Visual examples
+                          else if (dtElement[0] === 'vis' && Array.isArray(dtElement[1])) {
+                            const visExamples = extractExamples(dtElement[1]);
+                            examples.push(...visExamples);
+                          } 
+                          // Unstructured data - contains both meanings and examples
+                          else if (dtElement[0] === 'uns' && Array.isArray(dtElement[1])) {
+                            const unsResult = processUnsData(dtElement[1]);
+                            if (unsResult.meaning) {
+                              meaning += ' ' + unsResult.meaning;
+                            }
+                            if (unsResult.examples.length > 0) {
+                              examples.push(...unsResult.examples);
+                            }
+                          }
+                        }
+                      });
+                    }
+
+                    // Only add definition if we have a meaning
+                    if (meaning) {
+                      wordDef.definitions.push({
+                        meaning: meaning.trim(),
+                        examples: examples.length > 0 ? examples : undefined
                       });
                     }
                   }
                 });
               }
-
-              if (meaning) {
-                wordDef.definitions.push({
-                  meaning: meaning.trim(),
-                  examples: examples.length > 0 ? examples : undefined
-                });
-              }
-            }
-          });
+            });
+          }
         });
+      } 
+      
+      // If no definitions were found or processed, fall back to shortdef
+      if (wordDef.definitions.length === 0 && entry.shortdef && Array.isArray(entry.shortdef)) {
+        wordDef.definitions = entry.shortdef.map((def: string) => ({
+          meaning: cleanFormatting(def),
+          examples: []
+        }));
+      }
+      
+      // If we still have no definitions but have app-shortdef, use that as last resort
+      if (wordDef.definitions.length === 0 && entry.meta?.['app-shortdef']?.def) {
+        const appDefs = entry.meta['app-shortdef'].def;
+        if (Array.isArray(appDefs)) {
+          wordDef.definitions = appDefs.map((def: string) => ({
+            meaning: cleanFormatting(def),
+            examples: []
+          }));
+        }
+      }
+
+      // Only return if we have at least one definition
+      return wordDef.definitions.length > 0 ? wordDef : null;
+    };
+
+    // Helper function to get the correct audio subdirectory based on audio filename
+    function getAudioSubdirectory(audioFile: string): string {
+      // For audio files that start with "bix", use the "bix" subdirectory
+      if (audioFile.startsWith('bix')) {
+        return 'bix';
+      }
+      // For audio files that start with a digit, use the "number" subdirectory
+      else if (/^\d/.test(audioFile)) {
+        return 'number';
+      }
+      // For audio files that start with "gg", use the "gg" subdirectory
+      else if (audioFile.startsWith('gg')) {
+        return 'gg';
+      }
+      // For all other audio files, use the first character as the subdirectory
+      else {
+        return audioFile.charAt(0);
+      }
+    }
+
+    // Determine which entries to process based on the first entry's ID pattern
+    const firstEntry = data[0];
+    const firstEntryId = firstEntry.meta?.id || '';
+    
+    // Process all entries that match the pattern (for WORD:IDX pattern)
+    if (firstEntryId.includes(':')) {
+      // Get the base word part before the colon
+      const baseWord = firstEntryId.split(':')[0];
+      
+      // Filter only entries that match the base word with any index
+      const relevantEntries = data.filter(entry => {
+        const entryId = entry.meta?.id || '';
+        return entryId.startsWith(baseWord + ':');
       });
-    } else if (firstEntry.shortdef) {
-      // Fallback to shortdef if detailed structure is not available
-      wordDef.definitions = firstEntry.shortdef.map(def => ({
-        meaning: cleanFormatting(def),
-        examples: []
-      }));
+      
+      // Process all matching entries
+      const results = relevantEntries
+        .map(entry => processEntry(entry))
+        .filter((def): def is WordDefinition => def !== null);
+      
+      return results.length > 0 ? results : null;
+    } else {
+      // For a simple word entry (no index), only process the first entry
+      const result = processEntry(firstEntry);
+      return result ? [result] : null;
     }
-
-    // If stems are available, use the first stem as the word
-    if (wordDef.stems && wordDef.stems.length > 0) {
-      wordDef.word = wordDef.stems[0];
-    }
-
-    // console.log('Word definition result:', JSON.stringify(wordDef, null, 2));
-    return wordDef;
   } catch (error) {
     console.error('Error looking up word:', error);
     return null;
@@ -187,7 +371,7 @@ export interface AnalysisResults {
 
 // Helper function to read file as data URL
 function readFileAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       if (reader.result) {
@@ -300,7 +484,7 @@ Return the results in JSON format with three fields: "topicName" (string), "voca
     );
     
     return {
-      vocabulary: definitions.filter((def): def is WordDefinition => def !== null),
+      vocabulary: definitions.filter((def): def is WordDefinition[] => def !== null).flat(),
       topics: topics,
       topicName: generatedTopicName
     };
@@ -316,9 +500,9 @@ export async function analyzeVocabulary(input: string, files: FileInput[] = []):
     const lookupResult = await lookupWord(input);
     if (lookupResult) {
       return {
-        vocabulary: [lookupResult],
+        vocabulary: lookupResult,
         topics: [],
-        topicName: lookupResult.word
+        topicName: lookupResult[0]?.word || ''
       };
     }
   }
@@ -445,19 +629,19 @@ ${text}
     
     // Look up each word and filter out any null results
     const definitions = await Promise.all(
-      vocabularyItems.map(item => lookupWord(item.word).then(def => {
-        if (def) {
-          return {
+      vocabularyItems.map(item => lookupWord(item.word).then(defs => {
+        if (defs) {
+          return defs.map(def => ({
             ...def,
             collectionName: item.collectionName
-          };
+          }));
         }
         return null;
       }))
     );
     
     return {
-      vocabulary: definitions.filter((def): def is WordDefinition & { collectionName: string } => def !== null),
+      vocabulary: definitions.filter((defs): defs is WordDefinition[] => defs !== null).flat(),
       topics: topics,
       topicName: '',
       content: content
@@ -519,38 +703,41 @@ Return the results in JSON format with three fields: "vocabulary" (array of obje
       maxOutputTokens: 8192,
       responseMimeType: "application/json",
       responseSchema: {
-        type: SchemaType.OBJECT as const,
-        properties: {
-          vocabulary: {
-            type: SchemaType.ARRAY as const,
-            items: {
-              type: SchemaType.OBJECT as const,
-              properties: {
-                word: {
-                  type: SchemaType.STRING as const,
-                  description: "A vocabulary word that would be valuable for a language learner",
+        type: SchemaType.ARRAY as const,
+        items: {
+          type: SchemaType.OBJECT as const,
+          properties: {
+            vocabulary: {
+              type: SchemaType.ARRAY as const,
+              items: {
+                type: SchemaType.OBJECT as const,
+                properties: {
+                  word: {
+                    type: SchemaType.STRING as const,
+                    description: "A vocabulary word that would be valuable for a language learner",
+                  },
+                  collectionName: {
+                    type: SchemaType.STRING as const,
+                    description: "The collection name that categorizes this vocabulary word",
+                  }
                 },
-                collectionName: {
-                  type: SchemaType.STRING as const,
-                  description: "The collection name that categorizes this vocabulary word",
-                }
+                required: ["word", "collectionName"],
               },
-              required: ["word", "collectionName"],
             },
-          },
-          topics: {
-            type: SchemaType.ARRAY as const,
-            items: {
+            topics: {
+              type: SchemaType.ARRAY as const,
+              items: {
+                type: SchemaType.STRING as const,
+                description: "A relevant topic or theme that categorizes the content",
+              },
+            },
+            content: {
               type: SchemaType.STRING as const,
-              description: "A relevant topic or theme that categorizes the content",
+              description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
             },
           },
-          content: {
-            type: SchemaType.STRING as const,
-            description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
-          },
+          required: ["vocabulary", "topics", "content"],
         },
-        required: ["vocabulary", "topics", "content"],
       },
     };
     
@@ -596,19 +783,19 @@ Return the results in JSON format with three fields: "vocabulary" (array of obje
     
     // Look up each word and filter out any null results
     const definitions = await Promise.all(
-      vocabularyItems.map(item => lookupWord(item.word).then(def => {
-        if (def) {
-          return {
+      vocabularyItems.map(item => lookupWord(item.word).then(defs => {
+        if (defs) {
+          return defs.map(def => ({
             ...def,
             collectionName: item.collectionName
-          };
+          }));
         }
         return null;
       }))
     );
     
     return {
-      vocabulary: definitions.filter((def): def is WordDefinition & { collectionName: string } => def !== null),
+      vocabulary: definitions.filter((defs): defs is WordDefinition[] => defs !== null).flat(),
       topics: topics,
       topicName: '',
       content: content

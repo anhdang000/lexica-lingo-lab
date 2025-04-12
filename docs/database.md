@@ -86,7 +86,7 @@ Stores each word along with its meaning(s), phonetics, audio, stems, definitions
 create table public.words (
   word_id uuid default gen_random_uuid(),          -- group identifier for word
   word text not null,
-  meaning_id uuid default gen_random_uuid() primary key,
+  word_variant_id uuid default gen_random_uuid() primary key,
   part_of_speech text,
   phonetics text,
   audio_url text,
@@ -95,7 +95,7 @@ create table public.words (
   examples text[],
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now(),
-  unique(word_id, meaning_id)
+  unique(word_id, word_variant_id)
 );
 
 -- Indexes
@@ -113,13 +113,13 @@ create policy "Authenticated users can insert words"
 
 ### collection_words
 
-Junction table connecting collections with word meanings, including user-specific learning progress.
+Junction table connecting collections with word variants, including user-specific learning progress.
 
 ```sql
 create table public.collection_words (
   id uuid default gen_random_uuid() primary key,
   collection_id uuid references public.collections(id) on delete cascade,
-  meaning_id uuid references public.words(meaning_id) on delete cascade,
+  word_variant_id uuid references public.words(word_variant_id) on delete cascade,
   user_id uuid references auth.users(id),
   status text default 'new' check (status in ('new', 'learning', 'mastered')),
   last_reviewed_at timestamp with time zone,
@@ -127,7 +127,7 @@ create table public.collection_words (
   next_review_at timestamp with time zone,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now(),
-  unique(collection_id, meaning_id, user_id)
+  unique(collection_id, word_variant_id, user_id)
 );
 
 -- Indexes
@@ -168,14 +168,14 @@ create policy "Users can manage their practice sessions"
 
 ### practice_session_words
 
-Records words practiced in each session, including which meaning was tested.
+Records words practiced in each session, including which variant was tested.
 
 ```sql
 create table public.practice_session_words (
   id uuid default gen_random_uuid() primary key,
   session_id uuid references public.practice_sessions(id) on delete cascade,
   user_id uuid references auth.users(id),
-  meaning_id uuid references public.words(meaning_id),
+  word_variant_id uuid references public.words(word_variant_id),
   collection_id uuid references public.collections(id),
   is_correct boolean,
   created_at timestamp with time zone default now()
@@ -184,7 +184,7 @@ create table public.practice_session_words (
 -- Indexes
 create index practice_session_words_session_id_idx on public.practice_session_words(session_id);
 create index practice_session_words_user_id_idx on public.practice_session_words(user_id);
-create index practice_session_words_meaning_id_idx on public.practice_session_words(meaning_id);
+create index practice_session_words_word_variant_id_idx on public.practice_session_words(word_variant_id);
 create index practice_session_words_collection_id_idx on public.practice_session_words(collection_id);
 
 -- RLS Policies
@@ -248,7 +248,7 @@ begin
     end,
     updated_at = now()
   where collection_id = new.collection_id
-    and meaning_id = new.meaning_id
+    and word_variant_id = new.word_variant_id
     and user_id = new.user_id;
 
   update public.practice_sessions
@@ -269,7 +269,7 @@ begin
   update public.collections
   set 
     reviewed_word_count = (
-      select count(distinct cw.meaning_id)
+      select count(distinct cw.word_variant_id)
       from public.collection_words cw
       where cw.collection_id = new.collection_id
         and cw.last_reviewed_at is not null

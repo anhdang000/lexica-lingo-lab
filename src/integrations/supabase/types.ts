@@ -130,7 +130,7 @@ export interface Database {
           id: string;
           collection_id: string;
           word_id: string;
-          meaning_id: string;
+          word_variant_id: string;
           user_id: string;
           status: string;
           last_reviewed_at: string | null;
@@ -143,7 +143,7 @@ export interface Database {
           id?: string;
           collection_id: string;
           word_id: string;
-          meaning_id: string;
+          word_variant_id: string;
           user_id: string;
           status?: string;
           last_reviewed_at?: string | null;
@@ -156,7 +156,7 @@ export interface Database {
           id?: string;
           collection_id?: string;
           word_id?: string;
-          meaning_id?: string;
+          word_variant_id?: string;
           user_id?: string;
           status?: string;
           last_reviewed_at?: string | null;
@@ -204,7 +204,7 @@ export interface Database {
           session_id: string;
           user_id: string;
           word_id: string;
-          meaning_id: string;
+          word_variant_id: string;
           collection_id: string;
           is_correct: boolean;
           created_at: string;
@@ -214,7 +214,7 @@ export interface Database {
           session_id: string;
           user_id: string;
           word_id: string;
-          meaning_id: string;
+          word_variant_id: string;
           collection_id: string;
           is_correct: boolean;
           created_at?: string;
@@ -224,7 +224,7 @@ export interface Database {
           session_id?: string;
           user_id?: string;
           word_id?: string;
-          meaning_id?: string;
+          word_variant_id?: string;
           collection_id?: string;
           is_correct?: boolean;
           created_at?: string;

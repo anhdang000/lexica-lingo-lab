@@ -54,6 +54,30 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
 
   if (!isVisible || results.length === 0) return null;
 
+  // Helper function to get definition text based on definition format
+  const getDefinitionText = (def: any): string => {
+    // If definition is an object with meaning property (old format)
+    if (def && typeof def === 'object' && def.meaning) {
+      return def.meaning;
+    }
+    // If definition is a string (new format)
+    if (typeof def === 'string') {
+      return def;
+    }
+    // Fallback
+    return 'No definition available';
+  };
+
+  // Helper function to get examples based on definition format
+  const getExamples = (def: any): string[] => {
+    // If definition is an object with examples array (old format)
+    if (def && typeof def === 'object' && Array.isArray(def.examples)) {
+      return def.examples;
+    }
+    // No examples available
+    return [];
+  };
+
   const handleAddWord = async (index: number, wordData: WordDefinition) => {
     if (!user) {
       toast.error("Please log in to save words to your library");
@@ -334,18 +358,18 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
                           </div>
 
                       {/* First definition - always visible when collapsed */}
-                      {!isExpanded && (
+                      {!isExpanded && item.definitions.length > 0 && (
                         <div className="group/def space-y-2">
                           <p className="text-gray-800 dark:text-gray-200 text-base">
-                            {item.definitions[0].meaning}
+                            {getDefinitionText(item.definitions[0])}
                           </p>
-                          {item.definitions[0].examples && item.definitions[0].examples.length > 0 && (
+                          {getExamples(item.definitions[0]).length > 0 && (
                             <div
                               className="pl-6 border-l-2 border-[#6366f1]/30 group-hover/def:border-[#6366f1]
                                         transition-colors duration-300"
                             >
                               <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                                {item.definitions[0].examples[0]}
+                                {getExamples(item.definitions[0])[0]}
                               </p>
                             </div>
                           )}
@@ -371,15 +395,16 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
                         {item.definitions.map((def, idx) => (
                           <div key={idx} className="group/def space-y-2">
                             <p className="text-gray-800 dark:text-gray-200 text-base">
-                              {item.definitions.length > 1 ? `${idx + 1}. ` : ''}{def.meaning}
+                              {item.definitions.length > 1 ? `${idx + 1}. ` : ''}
+                              {getDefinitionText(def)}
                             </p>
-                            {def.examples && def.examples.length > 0 && (
+                            {getExamples(def).length > 0 && (
                               <div
                                 className="pl-6 border-l-2 border-[#6366f1]/30 group-hover/def:border-[#6366f1]
                                           transition-colors duration-300"
                               >
                                 <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                                  {def.examples[0]}
+                                  {getExamples(def)[0]}
                                 </p>
                               </div>
                             )}

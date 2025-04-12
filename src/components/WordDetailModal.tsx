@@ -10,23 +10,31 @@ import {
   DialogClose
 } from '@/components/ui/dialog';
 import { Volume2, Star } from 'lucide-react';
-import type { WordDefinition } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrCreateGeneralCollection, addWordToCollection } from '@/lib/database';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+interface WordProps {
+  word: string;
+  phonetics?: string;
+  part_of_speech?: string;
+  definitions: string[];
+  examples?: string[];
+  audio_url?: string;
+}
 
 interface WordDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  wordDetails: WordDefinition | null;
+  word: WordProps;
 }
 
-const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, wordDetails }) => {
+const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, word }) => {
   const { user } = useAuth();
   const [showFullDetails, setShowFullDetails] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   
-  if (!wordDetails) return null;
+  if (!word) return null;
 
   const handleAddToLibrary = async () => {
     if (!user) {
@@ -36,14 +44,88 @@ const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, w
 
     setIsAdding(true);
     try {
-      const collection = await getOrCreateGeneralCollection(user.id);
-      const success = await addWordToCollection(user.id, wordDetails, collection.id);
-
-      if (success) {
-        toast.success(`Added "${wordDetails.word}" to library`);
-      } else {
-        toast.error(`Failed to add "${wordDetails.word}" to library`);
+      // Get the general collection or create it if it doesn't exist
+      const { data: collections, error: collectionsError } = await supabase
+        .from('collections')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('name', 'General')
+        .single();
+        
+      if (collectionsError && collectionsError.code !== 'PGRST116') {
+        // PGRST116 is the code for "no rows returned", which means we need to create the collection
+        console.error('Error finding collection:', collectionsError);
+        toast.error("Failed to find your collections");
+        setIsAdding(false);
+        return;
       }
+      
+      let collectionId;
+      
+      if (!collections) {
+        // Create a general collection
+        const { data: newCollection, error: newCollectionError } = await supabase
+          .from('collections')
+          .insert({
+            name: 'General',
+            description: 'General collection of vocabulary words',
+            user_id: user.id,
+          })
+          .select()
+          .single();
+          
+        if (newCollectionError) {
+          console.error('Error creating collection:', newCollectionError);
+          toast.error("Failed to create a collection");
+          setIsAdding(false);
+          return;
+        }
+        
+        collectionId = newCollection.id;
+      } else {
+        collectionId = collections.id;
+      }
+      
+      // Insert the word into the words table
+      const { data: wordData, error: wordError } = await supabase
+        .from('words')
+        .insert({
+          word: word.word,
+          phonetics: word.phonetics || null,
+          part_of_speech: word.part_of_speech || null,
+          definitions: word.definitions,
+          examples: word.examples || [],
+          audio_url: word.audio_url || null,
+        })
+        .select()
+        .single();
+        
+      if (wordError) {
+        console.error('Error creating word:', wordError);
+        toast.error("Failed to add word. Please try again.");
+        setIsAdding(false);
+        return;
+      }
+      
+      // Add the word to the collection
+      const { error: collectionWordError } = await supabase
+        .from('collection_words')
+        .insert({
+          collection_id: collectionId,
+          word_variant_id: wordData.word_variant_id,
+          user_id: user.id,
+          status: 'new',
+        });
+        
+      if (collectionWordError) {
+        console.error('Error adding word to collection:', collectionWordError);
+        toast.error("Failed to add word to collection. Please try again.");
+        setIsAdding(false);
+        return;
+      }
+      
+      toast.success(`Added "${word.word}" to your library`);
+      
     } catch (error) {
       console.error('Error adding word:', error);
       toast.error("Failed to add word to library");
@@ -53,8 +135,10 @@ const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, w
   };
 
   // Function to get styling based on part of speech
-  const getPartOfSpeechStyle = (pos: string) => {
-    switch (pos?.toLowerCase()) {
+  const getPartOfSpeechStyle = (pos?: string) => {
+    if (!pos) return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    
+    switch (pos.toLowerCase()) {
       case 'noun':
         return 'bg-primary/10 text-primary';
       case 'verb':
@@ -86,19 +170,19 @@ const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, w
           <DialogHeader>
             <div className="flex items-center gap-3 flex-wrap">
               <DialogTitle className="text-2xl font-bold text-[#cd4631] dark:text-[#de6950]">
-                {wordDetails.word}
+                {word.word}
               </DialogTitle>
-              {wordDetails.pronunciation?.text && (
+              {word.phonetics && (
                 <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                  /{wordDetails.pronunciation.text}/
+                  /{word.phonetics}/
                 </span>
               )}
-              {wordDetails.partOfSpeech && (
+              {word.part_of_speech && (
                 <span className={cn(
                   "text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors",
-                  getPartOfSpeechStyle(wordDetails.partOfSpeech)
+                  getPartOfSpeechStyle(word.part_of_speech)
                 )}>
-                  {wordDetails.partOfSpeech}
+                  {word.part_of_speech}
                 </span>
               )}
             </div>
@@ -110,65 +194,36 @@ const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, w
 
               {/* Definitions with smooth height animation */}
               <div className="space-y-4 overflow-hidden transition-all duration-300 ease-in-out">
-                {(showFullDetails ? wordDetails.definitions : wordDetails.definitions.slice(0, 1)).map((def, idx) => (
+                {(showFullDetails ? word.definitions : word.definitions.slice(0, 1)).map((definition, idx) => (
                   <div key={idx} className="group/def space-y-2">
                     <p className="text-gray-800 dark:text-gray-200 text-base">
-                      {idx + 1}. {def.meaning}
+                      {idx + 1}. {definition}
                     </p>
-                    {def.examples && def.examples.length > 0 && (
+                    {word.examples && word.examples.length > idx && (
                       <div className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
                                     transition-colors duration-300">
                         <p className="text-gray-600 dark:text-gray-400 italic text-sm">
-                          {def.examples[0]}
+                          {word.examples[idx]}
                         </p>
                       </div>
                     )}
                   </div>
                 ))}
                 
-                {!showFullDetails && wordDetails.definitions.length > 1 && (
+                {!showFullDetails && word.definitions.length > 1 && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 pl-4 border-l-2 border-gray-200 dark:border-gray-700">
-                    + {wordDetails.definitions.length - 1} more definition{wordDetails.definitions.length > 2 ? 's' : ''}
+                    + {word.definitions.length - 1} more definition{word.definitions.length > 2 ? 's' : ''}
                   </p>
-                )}
-              </div>
-
-              {/* Word variations with smooth height animation */}
-              <div 
-                className={cn(
-                  "overflow-hidden transition-all duration-300 ease-in-out",
-                  showFullDetails ? "opacity-100 max-h-40" : "opacity-0 max-h-0"
-                )}
-              >
-                {showFullDetails && wordDetails.stems && wordDetails.stems.length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Word Forms & Phrases:
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {wordDetails.stems.map((stem, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2.5 py-1 text-xs bg-[#f8f2dc] dark:bg-[#cd4631]/10 
-                                   text-[#9e6240] dark:text-[#dea47e] rounded-full
-                                   hover:bg-[#f8f2dc]/70 dark:hover:bg-[#cd4631]/20
-                                   transition-colors duration-200"
-                        >
-                          {stem}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
                 )}
               </div>
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 mt-6" onClick={(e) => e.stopPropagation()}>
-            {wordDetails.pronunciation?.audio && (
+            {word.audio_url && (
               <Button 
                 variant="secondary" 
                 className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-                onClick={() => new Audio(wordDetails.pronunciation?.audio).play()}
+                onClick={() => new Audio(word.audio_url).play()}
               >
                 <Volume2 className="h-4 w-4" />
                 <span className="text-sm">Listen</span>

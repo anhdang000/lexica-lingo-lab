@@ -36,10 +36,10 @@ export async function getUserCollections(userId: string) {
 // Function to get practice statistics for a collection
 export async function getCollectionPracticeStats(userId: string, collectionId: string) {
   try {
-    // Get all meaning_ids in the collection
+    // Get all word_variant_ids in the collection
     const { data: collectionWords, error: totalError } = await supabase
       .from("collection_words")
-      .select("meaning_id")
+      .select("word_variant_id")
       .eq("collection_id", collectionId)
       .eq("user_id", userId);
 
@@ -48,9 +48,9 @@ export async function getCollectionPracticeStats(userId: string, collectionId: s
       return { totalWords: 0, practicedWords: 0, percentage: 0 };
     }
     
-    // Count distinct meaning_ids for total words
-    const distinctMeaningIds = new Set(collectionWords?.map(item => item.meaning_id) || []);
-    const totalWords = distinctMeaningIds.size;
+    // Count distinct word_variant_ids for total words
+    const distinctWordVariantIds = new Set(collectionWords?.map(item => item.word_variant_id) || []);
+    const totalWords = distinctWordVariantIds.size;
     
     if (totalWords === 0) {
       return { totalWords: 0, practicedWords: 0, percentage: 0 };
@@ -59,7 +59,7 @@ export async function getCollectionPracticeStats(userId: string, collectionId: s
     // Get all practice session words for this collection
     const { data: practicedWordsData, error: practicedError } = await supabase
       .from("practice_session_words")
-      .select("meaning_id")
+      .select("word_variant_id")
       .eq("collection_id", collectionId)
       .eq("user_id", userId);
 
@@ -68,9 +68,9 @@ export async function getCollectionPracticeStats(userId: string, collectionId: s
       return { totalWords, practicedWords: 0, percentage: 0 };
     }
     
-    // Count distinct practiced meaning_ids
-    const distinctPracticedMeaningIds = new Set(practicedWordsData?.map(item => item.meaning_id) || []);
-    const practicedWords = distinctPracticedMeaningIds.size;
+    // Count distinct practiced word_variant_ids
+    const distinctPracticedWordVariantIds = new Set(practicedWordsData?.map(item => item.word_variant_id) || []);
+    const practicedWords = distinctPracticedWordVariantIds.size;
 
     // Calculate percentage
     const percentage = totalWords > 0 ? (practicedWords / totalWords) * 100 : 0;
@@ -142,8 +142,9 @@ export async function getCollectionWords(
       .from("collection_words")
       .select(`
         *,
-        word_info:words!collection_words_meaning_id_fkey(
+        words!collection_words_word_variant_id_fkey(
           word_id,
+          word_variant_id,
           word,
           part_of_speech,
           phonetics,
@@ -168,29 +169,19 @@ export async function getCollectionWords(
 
     return (entries || []).map((e: any) => ({
       id: e.id,
-      word_id: e.word_info.word_id,  // Changed from wordId to word_id to match usage
-      meaningId: e.meaning_id,
+      wordVariantId: e.word_variant_id,
       collectionId: e.collection_id,
       status: e.status,
       lastReviewedAt: e.last_reviewed_at,
       reviewCount: e.review_count,
       nextReviewAt: e.next_review_at,
-      // Nest the word fields in a "words" object to match component expectations
-      words: {
-        word: e.word_info.word,
-        phonetic: e.word_info.phonetics,
-        audio_url: e.word_info.audio_url,  // Changed from audioUrl to audio_url to match usage
-        stems: e.word_info.stems,
-        definitions: e.word_info.definitions,
-        examples: e.word_info.examples,
-      },
-      // Keep the meanings structure for compatibility
-      meanings: {
-        id: e.meaning_id,
-        definition: e.word_info.definitions?.[0] || "",
-        examples: e.word_info.examples || [],
-        part_of_speech: e.word_info.part_of_speech,
-      }
+      word: e.words.word,
+      phonetics: e.words.phonetics,
+      part_of_speech: e.words.part_of_speech,
+      audioUrl: e.words.audio_url,
+      stems: e.words.stems,
+      definitions: e.words.definitions,
+      examples: e.words.examples,
     }));
   } catch (error) {
     console.error("Exception fetching collection words:", error);
@@ -345,7 +336,7 @@ export async function updatePracticeSessionTotalWords(
 // Function to record practice session word results
 export async function recordPracticeWordResult(
   sessionId: string,
-  meaningId: string,
+  wordVariantId: string,
   collectionId: string,
   isCorrect: boolean
 ) {
@@ -367,7 +358,7 @@ export async function recordPracticeWordResult(
       .insert({
         session_id: sessionId,
         user_id: session.user_id,
-        meaning_id: meaningId,
+        word_variant_id: wordVariantId,
         collection_id: collectionId,
         is_correct: isCorrect,
       });
@@ -395,18 +386,22 @@ export async function getOrCreateCollection(userId: string, name: string) {
     const displayName = name.trim();
     
     // First try to find existing collection with this name
-    const { data: existingCollection, error: findError } = await supabase
+    const { data: existingCollections, error: findError } = await supabase
       .from("collections")
       .select("*")
       .eq("user_id", userId)
-      .eq("name", displayName)  // Look for the original display name
-      .single();
+      .ilike("name", displayName);  // Using ilike for case-insensitive matching
 
-    if (findError && findError.code !== "PGRST116") { // PGRST116 is "not found" error
+    if (findError) {
       console.error(`Error finding collection '${collectionName}':`, findError);
       throw findError;
     }
 
+    // Check if we have a matching collection
+    const existingCollection = existingCollections?.find(
+      col => col.name.toLowerCase() === displayName.toLowerCase()
+    );
+    
     if (existingCollection) {
       return existingCollection;
     }
@@ -437,18 +432,22 @@ export async function getOrCreateCollection(userId: string, name: string) {
 export async function getOrCreateGeneralCollection(userId: string) {
   try {
     // First try to find existing general collection
-    const { data: existingCollection, error: findError } = await supabase
+    const { data: existingCollections, error: findError } = await supabase
       .from("collections")
       .select("*")
       .eq("user_id", userId)
-      .eq("name", "General")
-      .single();
+      .ilike("name", "General");
 
-    if (findError && findError.code !== "PGRST116") { // PGRST116 is "not found" error
+    if (findError) {
       console.error("Error finding general collection:", findError);
       throw findError;
     }
 
+    // Check if we have a matching collection
+    const existingCollection = existingCollections?.find(
+      col => col.name.toLowerCase() === "general"
+    );
+    
     if (existingCollection) {
       return existingCollection;
     }
@@ -482,41 +481,58 @@ export async function addWordToCollection(
   collectionId: string
 ) {
   try {
-    // Insert or get word+meaning row
+    // Transform wordDefinition format to the new schema format
+    const definitions = wordData.definitions.map(d => d.meaning);
+    const examples = wordData.definitions.flatMap(d => d.examples || []);
+    
+    // Insert word into words table
     const { data: wordRow, error: insertError } = await supabase
       .from("words")
       .insert({
         word: wordData.word,
         phonetics: wordData.pronunciation?.text || null,
+        part_of_speech: wordData.partOfSpeech || null,
         audio_url: wordData.pronunciation?.audio || null,
         stems: wordData.stems || [],
-        definitions: wordData.definitions.map((d) => d.meaning),
-        examples: wordData.definitions.flatMap((d) => d.examples || []),
+        definitions: definitions,
+        examples: examples,
       })
       .select()
       .single();
 
     let entry = wordRow;
-    if (insertError && insertError.code === "23505") {
-      // unique violation, fetch existing row
-      const { data: existing, error: fetchErr } = await supabase
-        .from("words")
-        .select("*")
-        .eq("word", wordData.word)
-        .single();
-      if (fetchErr) throw fetchErr;
-      entry = existing;
-    } else if (insertError) {
-      throw insertError;
+    if (insertError) {
+      if (insertError.code === "23505") {
+        // Unique violation, fetch existing row
+        const { data: existing, error: fetchErr } = await supabase
+          .from("words")
+          .select("*")
+          .eq("word", wordData.word)
+          .single();
+        if (fetchErr) throw fetchErr;
+        entry = existing;
+      } else {
+        throw insertError;
+      }
     }
 
-    // Link to collection
-    await supabase.from("collection_words").insert({
-      collection_id: collectionId,
-      meaning_id: entry.meaning_id,
-      user_id: userId,
-      status: "new",
-    });
+    // Link to collection with word_variant_id
+    const { error: linkError } = await supabase
+      .from("collection_words")
+      .insert({
+        collection_id: collectionId,
+        word_variant_id: entry.word_variant_id,
+        user_id: userId,
+        status: "new",
+      });
+      
+    if (linkError) {
+      if (linkError.code === "23505") {
+        // Word already exists in this collection, that's fine
+        return true;
+      }
+      throw linkError;
+    }
 
     return true;
   } catch (error) {
@@ -525,10 +541,10 @@ export async function addWordToCollection(
   }
 }
 
-// Function to remove a word-meaning from a collection
+// Function to remove a word-variant from a collection
 export async function removeWordFromCollection(
   collectionId: string,
-  meaningId: string,
+  wordVariantId: string,
   userId: string
 ) {
   try {
@@ -537,7 +553,7 @@ export async function removeWordFromCollection(
       .from("collection_words")
       .delete()
       .eq("collection_id", collectionId)
-      .eq("meaning_id", meaningId)
+      .eq("word_variant_id", wordVariantId)
       .eq("user_id", userId);
 
     if (collectionError) {
@@ -554,7 +570,7 @@ export async function removeWordFromCollection(
     const { error: practiceError } = await supabase
       .from("practice_session_words")
       .delete()
-      .eq("meaning_id", meaningId)
+      .eq("word_variant_id", wordVariantId)
       .eq("collection_id", collectionId)
       .eq("user_id", userId);
 
@@ -594,8 +610,9 @@ export async function getPracticeWords(
         .from("collection_words")
         .select(`
           *,
-          word_info:words!collection_words_meaning_id_fkey(
+          words!collection_words_word_variant_id_fkey(
             word_id,
+            word_variant_id,
             word,
             part_of_speech,
             phonetics,
@@ -626,13 +643,14 @@ export async function getPracticeWords(
     const shuffled = selected.sort(() => Math.random() - 0.5);
 
     return shuffled.map((e: any) => ({
-      id: e.meaning_id, // Using meaning_id instead of word_id as the identifier
-      meaningId: e.meaning_id,
-      word: e.word_info.word,
-      phonetic: { text: e.word_info.phonetics || "", audio: e.word_info.audio_url || "" },
-      partOfSpeech: e.word_info.part_of_speech,
-      definitions: e.word_info.definitions,
-      example: e.word_info.examples?.[0] || "",
+      id: e.word_variant_id, // Using word_variant_id as the identifier
+      wordVariantId: e.word_variant_id,
+      word: e.words.word,
+      phonetics: e.words.phonetics,
+      audio_url: e.words.audio_url,
+      part_of_speech: e.words.part_of_speech,
+      definitions: e.words.definitions,
+      examples: e.words.examples || [],
       collectionId: e.collection_id,
       status: e.status,
     }));

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -54,12 +53,19 @@ const AddWordForm: React.FC<AddWordFormProps> = ({ collectionId, onSuccess, onCa
     }
     
     try {
-      // 1. First insert the word
+      // Insert the word with all its data in a single operation
+      // The definitions and examples are now arrays in the words table
+      const definitions = [data.definition];
+      const examples = data.example ? [data.example] : [];
+      
       const { data: wordData, error: wordError } = await supabase
         .from('words')
         .insert({
           word: data.word,
-          phonetic: data.phonetic || null,
+          phonetics: data.phonetic || null,
+          part_of_speech: data.partOfSpeech || null,
+          definitions: definitions,
+          examples: examples,
         })
         .select()
         .single();
@@ -74,38 +80,12 @@ const AddWordForm: React.FC<AddWordFormProps> = ({ collectionId, onSuccess, onCa
         return;
       }
       
-      // 2. Then insert the word meaning
-      const examples = data.example ? [data.example] : [];
-      
-      const { data: meaningData, error: meaningError } = await supabase
-        .from('word_meanings')
-        .insert({
-          word_id: wordData.id,
-          ordinal_index: 1, // First meaning
-          part_of_speech: data.partOfSpeech || null,
-          definition: data.definition,
-          examples: examples,
-        })
-        .select()
-        .single();
-        
-      if (meaningError) {
-        console.error('Error creating word meaning:', meaningError);
-        toast({
-          title: "Error",
-          description: "Failed to add word definition. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // 3. Finally, add the word to the collection
+      // Add the word to the collection
       const { error: collectionWordError } = await supabase
         .from('collection_words')
         .insert({
           collection_id: collectionId,
-          word_id: wordData.id,
-          meaning_id: meaningData.id,
+          word_variant_id: wordData.word_variant_id,
           user_id: user.id,
           status: 'new',
         });
