@@ -63,7 +63,7 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [answeredQuestions, setAnsweredQuestions] = useState<QuizQuestion[]>([]);
   const [recordedAnswers, setRecordedAnswers] = useState<Set<string>>(new Set());
-  const questionsPerSession = 3;
+  const questionsPerSession = 5; // Changed to match requirement of 5 quizzes per session
   const isSessionActive = React.useRef(false);
   const STORAGE_KEY = 'quizGameState';
   const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
@@ -147,15 +147,12 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
 
   useEffect(() => {
     if (user) {
-      // Try to load existing game state first
-      const stateLoaded = loadGameState();
-      
-      // Only fetch new questions if no valid state was loaded
-      if (!stateLoaded) {
-        fetchQuizQuestions();
-      } else {
-        setIsLoading(false);
-      }
+      // Always start a new session when entering the quiz game
+      // Clear any persisted state first to ensure fresh start
+      localStorage.removeItem(STORAGE_KEY);
+      // Set loading state to true first, then fetch words
+      setIsLoading(true);
+      fetchQuizQuestions();
     }
 
     // Clean up effect - complete session when component unmounts
@@ -163,6 +160,8 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
       if (isSessionActive.current && sessionId && answeredQuestions.length > 0) {
         completeCurrentSession(false);
       }
+      // Clear storage when unmounting
+      localStorage.removeItem(STORAGE_KEY);
     };
   }, [user, sessionCount]);
 
@@ -207,14 +206,18 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
     if (quizQuestions.length > 0 && currentQuestionIndex < quizQuestions.length && selectedOption !== null) {
       // Add the current question to answered questions if not already included
       const currentQuestion = quizQuestions[currentQuestionIndex];
+      const questionKey = `${currentQuestion.wordId}-${currentQuestion.meaningId}`;
+      
       setAnsweredQuestions(prev => {
+        // First check if we already have this question in the answered list
+        // This prevents the infinite update loop
         if (!prev.some(q => q.wordId === currentQuestion.wordId && q.meaningId === currentQuestion.meaningId)) {
           return [...prev, currentQuestion];
         }
         return prev;
       });
     }
-  }, [currentQuestionIndex, selectedOption, quizQuestions]);
+  }, [currentQuestionIndex, selectedOption]);  // Remove quizQuestions from dependency array
 
   const fetchQuizQuestions = async () => {
     if (!user) return;
@@ -241,11 +244,40 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
         return;
       }
       
+      // Process each word to randomly select one definition and its corresponding example
+      const processedWords = practiceWords.map(word => {
+        // If no definitions, provide default values
+        if (!word.definitions || word.definitions.length === 0) {
+          return {
+            ...word,
+            selectedDefinition: "No definition available",
+            selectedExample: "No example available"
+          };
+        }
+        
+        // Pick a random index from the definitions array
+        const randomIndex = Math.floor(Math.random() * word.definitions.length);
+        
+        // Get the corresponding definition and example
+        const selectedDefinition = word.definitions[randomIndex];
+        
+        // Get the corresponding example if available at the same index
+        const selectedExample = word.examples && word.examples.length > randomIndex 
+          ? word.examples[randomIndex] 
+          : "";
+          
+        return {
+          ...word,
+          selectedDefinition,
+          selectedExample
+        };
+      });
+      
       // Format practice words for quiz generation
-      const wordInfoList: WordInfo[] = practiceWords.map(word => ({
+      const wordInfoList: WordInfo[] = processedWords.map(word => ({
         word: word.word,
-        definition: word.definition,
-        example: word.example
+        definition: word.selectedDefinition || "No definition available",
+        example: word.selectedExample || ""
       }));
       
       // Generate quiz questions using the utility function
@@ -256,8 +288,8 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
         const matchingWord = practiceWords.find(w => w.word.toLowerCase() === question.word.toLowerCase());
         return {
           ...question,
-          wordId: matchingWord?.id || '',
-          meaningId: matchingWord?.meaningId || '',
+          wordId: matchingWord?.wordVariantId || '', // Using wordVariantId as the word ID
+          meaningId: matchingWord?.wordVariantId || '', // Using wordVariantId as the meaning ID as well
           collectionId: matchingWord?.collectionId || ''
         };
       });
@@ -286,7 +318,7 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
     if (!sessionId || !user) return false;
 
     // Create a unique key to track recorded answers
-    const answerKey = `${question.wordId}-${question.meaningId}`;
+    const answerKey = `${question.wordId}-${question.collectionId}`;
     
     // Skip if already recorded
     if (recordedAnswers.has(answerKey)) {
@@ -298,8 +330,7 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
       
       const success = await recordPracticeWordResult(
         sessionId,
-        question.wordId,
-        question.meaningId,
+        question.wordId, // This is the wordVariantId from getPracticeWords
         question.collectionId,
         isCorrect
       );
@@ -392,6 +423,36 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
     }
   };
 
+  // Go to the previous question in the session
+  const handlePreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+      
+      // Restore the previously selected option for this question if it exists
+      const previousQuestion = quizQuestions[currentQuestionIndex - 1];
+      
+      // Check if this question has been answered already
+      const answeredIndex = answeredQuestions.findIndex(
+        q => q.wordId === previousQuestion.wordId && q.meaningId === previousQuestion.meaningId
+      );
+      
+      if (answeredIndex !== -1) {
+        // Find which option was selected before
+        const previousOptionIndex = answeredQuestions[answeredIndex].correct_option_idx === previousQuestion.correct_option_idx 
+          ? previousQuestion.correct_option_idx 
+          : answeredQuestions[answeredIndex].options.findIndex(
+              (option, idx) => option === previousQuestion.options[idx] && idx !== previousQuestion.correct_option_idx
+            );
+            
+        setSelectedOption(previousOptionIndex >= 0 ? previousOptionIndex : null);
+      } else {
+        setSelectedOption(null);
+      }
+      
+      setShowHint(false);
+    }
+  };
+
   const handleBack = async () => {
     // Fix recursive call to handleBack
     if (sessionId && answeredQuestions.length > 0) {
@@ -405,6 +466,40 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
     }
     
     onBack();
+  };
+
+  const handleFinishSession = async () => {
+    // Record the current answer if not already recorded
+    if (selectedOption !== null) {
+      await recordQuizAnswer(quizQuestions[currentQuestionIndex], selectedOption);
+    }
+    
+    // Complete the current session as fully completed
+    await completeCurrentSession(true);
+    
+    // Show completion dialog and navigate back after timeout
+    setShowCompletionDialog(true);
+    setTimeout(() => {
+      setShowCompletionDialog(false);
+      onBack();
+    }, 2000);
+  };
+
+  const handleContinueSession = async () => {
+    // Record the current answer if not already recorded
+    if (selectedOption !== null) {
+      await recordQuizAnswer(quizQuestions[currentQuestionIndex], selectedOption);
+    }
+    
+    // Complete the current session as fully completed
+    await completeCurrentSession(true);
+    
+    // Clear state for new session
+    localStorage.removeItem(STORAGE_KEY);
+    setSessionId(null);
+    
+    // Increment session count to trigger new session fetch
+    setSessionCount(prev => prev + 1);
   };
 
   const getOptionClassName = (index: number) => {
@@ -499,22 +594,53 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
 
       {/* Actions Section */}
       <div className="flex justify-between">
-        <Button 
-          variant="outline" 
-          onClick={onBack}
-          className="text-gray-500"
-        >
-          Back
-        </Button>
+        {currentQuestionIndex > 0 ? (
+          <Button 
+            variant="outline" 
+            onClick={handlePreviousQuestion}
+            className="text-gray-500"
+          >
+            Previous Question
+          </Button>
+        ) : (
+          <Button 
+            variant="outline" 
+            onClick={onBack}
+            className="text-gray-500"
+          >
+            Exit Quiz
+          </Button>
+        )}
         
-        <Button
-          onClick={handleNextQuestion}
-          disabled={selectedOption === null}
-          className="bg-[#cd4631] hover:bg-[#cd4631]/90"
-        >
-          {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish' : 'Next Question'}
-          <MoveRight className="ml-2 h-4 w-4" />
-        </Button>
+        {currentQuestionIndex === quizQuestions.length - 1 ? (
+          <div className="space-x-3">
+            <Button
+              onClick={handleFinishSession}
+              variant="outline"
+              disabled={selectedOption === null}
+              className="border-[#cd4631] text-[#cd4631] hover:bg-[#cd4631]/10"
+            >
+              Finish
+            </Button>
+            <Button
+              onClick={handleContinueSession}
+              disabled={selectedOption === null}
+              className="bg-[#cd4631] hover:bg-[#cd4631]/90"
+            >
+              Next Session
+              <MoveRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            onClick={handleNextQuestion}
+            disabled={selectedOption === null}
+            className="bg-[#cd4631] hover:bg-[#cd4631]/90"
+          >
+            Next Question
+            <MoveRight className="ml-2 h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
