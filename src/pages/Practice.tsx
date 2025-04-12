@@ -8,6 +8,7 @@ import { QuizGame, QuizGameRef } from '@/components/practice/QuizGame';
 
 const Practice = () => {
   const [currentGame, setCurrentGame] = useState<string | null>(null);
+  const [gameKey, setGameKey] = useState<number>(0); // Add a key to force component remounting
   const flashcardRef = useRef<FlashcardGameRef>(null);
   const quizRef = useRef<QuizGameRef>(null);
 
@@ -53,7 +54,12 @@ const Practice = () => {
   ];
 
   const handleStartPractice = (gameType: string) => {
+    // Increment the key to force component remounting
+    setGameKey(prevKey => prevKey + 1);
     setCurrentGame(gameType);
+    
+    // Clear any persisting flashcard state
+    localStorage.removeItem('flashcardGameState');
   };
 
   const handleReturnToPracticeMenu = async () => {
@@ -62,6 +68,10 @@ const Practice = () => {
     } else if (currentGame === "Quizz with AI" && quizRef.current) {
       await quizRef.current.handleBack();
     }
+    
+    // Clear any persisting flashcard state
+    localStorage.removeItem('flashcardGameState');
+    
     setCurrentGame(null);
   };
 
@@ -77,8 +87,8 @@ const Practice = () => {
           Back to Practice
         </Button>
         
-        {currentGame === "Flashcards" && <FlashcardGame ref={flashcardRef} onBack={handleReturnToPracticeMenu} />}
-        {currentGame === "Quizz with AI" && <QuizGame ref={quizRef} onBack={handleReturnToPracticeMenu} />}
+        {currentGame === "Flashcards" && <FlashcardGame key={gameKey} ref={flashcardRef} onBack={handleReturnToPracticeMenu} />}
+        {currentGame === "Quizz with AI" && <QuizGame key={gameKey} ref={quizRef} onBack={handleReturnToPracticeMenu} />}
       </div>
     );
   }

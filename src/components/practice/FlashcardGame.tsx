@@ -22,16 +22,18 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface Word {
   id: string;
+  wordVariantId: string;
   word: string;
-  phonetic: {
-    text: string;
-    audio: string;
-  };
-  partOfSpeech: string;
-  definition: string;
-  example: string;
+  phonetics: string;
+  audio_url: string;
+  part_of_speech: string;
+  definitions: string[];
+  examples: string[];
   collectionId: string;
-  meaningId: string;
+  status: string;
+  // Selected definition and example (randomly chosen)
+  selectedDefinition?: string;
+  selectedExample?: string;
 }
 
 // Define the structure of the persisted state
@@ -78,8 +80,11 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         // Complete current session
         await completeCurrentSession(false);
         
-        // Show completion dialog if user has practiced any words
-        if (practicedWords.length > 0) {
+        // Check if dialog was already shown (by handleFinishSession)
+        const dialogAlreadyShown = localStorage.getItem('dialogAlreadyShown');
+        
+        // Show completion dialog if user has practiced any words AND dialog wasn't already shown
+        if (practicedWords.length > 0 && !dialogAlreadyShown) {
           setShowCompletionDialog(true);
           // Return a promise that resolves after the dialog timeout
           return new Promise<void>(resolve => {
@@ -90,7 +95,8 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
           });
         }
         
-        // Clear the persisted state when going back
+        // Clear the flag and persisted state when going back
+        localStorage.removeItem('dialogAlreadyShown');
         localStorage.removeItem(STORAGE_KEY);
         
         return Promise.resolve();
@@ -156,15 +162,13 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
 
     useEffect(() => {
       if (user) {
-        // Try to load existing game state first
-        const stateLoaded = loadGameState();
-        
-        // Only fetch new words if no valid state was loaded
-        if (!stateLoaded) {
-          fetchWords();
-        } else {
-          setIsLoading(false);
-        }
+        // Always start fresh when the component mounts for the first time or sessionCount changes
+        // Clear any persisted state first
+        localStorage.removeItem(STORAGE_KEY);
+        // Set loading state to true first, then fetch words
+        setIsLoading(true);
+        fetchWords();
+        // Don't set isLoading to false here, it will be set in fetchWords when data is ready
       }
 
       // Clean up effect - complete session when component unmounts
@@ -172,6 +176,8 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         if (isSessionActive.current && sessionId && practicedWords.length > 0) {
           completeCurrentSession(false);
         }
+        // Clear storage when unmounting
+        localStorage.removeItem(STORAGE_KEY);
       };
     }, [user, sessionCount]);
 
@@ -222,7 +228,12 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
     const fetchWords = async () => {
       if (!user) return;
       
+      // Reset the state before fetching new words
+      setPracticedWords([]);
+      setRecordedWords(new Set());
+      setCurrentWordIndex(0);
       setIsLoading(true);
+      
       try {
         // Create a new practice session
         const session = await createPracticeSession(user.id, 'flashcard', cardsPerSession);
@@ -232,9 +243,9 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         }
         
         // Fetch flashcard words using the dedicated function
-        const flashcardWords = await getPracticeWords(user.id, cardsPerSession);
+        const fetchedWords = await getPracticeWords(user.id, cardsPerSession);
         
-        if (flashcardWords.length === 0) {
+        if (fetchedWords.length === 0) {
           toast({
             title: "No words found",
             description: "Add some words to your collections to practice with flashcards.",
@@ -244,7 +255,36 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
           return;
         }
         
-        setWords(flashcardWords);
+        // Process each word to randomly select one definition and its corresponding example
+        const processedWords = fetchedWords.map(word => {
+          // If no definitions, provide default values
+          if (!word.definitions || word.definitions.length === 0) {
+            return {
+              ...word,
+              selectedDefinition: "No definition available",
+              selectedExample: "No example available"
+            };
+          }
+          
+          // Pick a random index from the definitions array
+          const randomIndex = Math.floor(Math.random() * word.definitions.length);
+          
+          // Get the corresponding definition and example
+          const selectedDefinition = word.definitions[randomIndex];
+          
+          // Get the corresponding example if available at the same index
+          const selectedExample = word.examples && word.examples.length > randomIndex 
+            ? word.examples[randomIndex] 
+            : "No example available";
+            
+          return {
+            ...word,
+            selectedDefinition,
+            selectedExample
+          };
+        });
+        
+        setWords(processedWords);
         setCurrentWordIndex(0);
         // Reset tracked words for new session
         setPracticedWords([]);
@@ -266,7 +306,7 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
       if (!sessionId || !user) return false;
 
       // Create a unique key to track recorded words
-      const wordKey = `${word.id}-${word.meaningId}`;
+      const wordKey = `${word.wordVariantId}`;
       
       // Skip if already recorded
       if (recordedWords.has(wordKey)) {
@@ -276,8 +316,7 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
       try {
         const success = await recordPracticeWordResult(
           sessionId,
-          word.id,
-          word.meaningId,
+          word.wordVariantId,
           word.collectionId,
           true // All flashcard reviews are considered correct
         );
@@ -359,7 +398,7 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         
         // Add the current word to practiced words if not already included
         setPracticedWords(prev => {
-          if (!prev.some(word => word.id === currentWord.id && word.meaningId === currentWord.meaningId)) {
+          if (!prev.some(word => word.id === currentWord.id && word.wordVariantId === currentWord.wordVariantId)) {
             return [...prev, currentWord];
           }
           return prev;
@@ -373,13 +412,23 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
     const handleContinueSession = async () => {
       // Complete current session before starting a new one
       await completeCurrentSession(true);
+      // Clear saved state to ensure we start fresh
+      localStorage.removeItem(STORAGE_KEY);
       setSessionId(null);
       setSessionCount(prev => prev + 1);
     };
 
     const handleFinishSession = async () => {
       await completeCurrentSession(true);
+      // Clear saved state to ensure we start fresh on next entry
+      localStorage.removeItem(STORAGE_KEY);
+      
+      // Show completion dialog and pass a flag to prevent showing it again in handleBack
       setShowCompletionDialog(true);
+      
+      // Create a flag in localStorage to indicate we've already shown the dialog
+      localStorage.setItem('dialogAlreadyShown', 'true');
+      
       setTimeout(() => {
         setShowCompletionDialog(false);
         onBack();
@@ -390,15 +439,23 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
     const handleBack = async () => {
       await completeCurrentSession(false);
       
-      // Show completion dialog if user has flipped any cards
-      if (recordedWords.size > 0) {
+      // Clear saved state to ensure a fresh start on next entry
+      localStorage.removeItem(STORAGE_KEY);
+      
+      // Check if dialog was already shown (by handleFinishSession)
+      const dialogAlreadyShown = localStorage.getItem('dialogAlreadyShown');
+      
+      // Show completion dialog if user has flipped any cards AND dialog wasn't already shown
+      if (recordedWords.size > 0 && !dialogAlreadyShown) {
         setShowCompletionDialog(true);
         setTimeout(() => {
           setShowCompletionDialog(false);
           onBack();
         }, 2000);
       } else {
-        // Navigate back immediately if no words practiced
+        // Clear the flag
+        localStorage.removeItem('dialogAlreadyShown');
+        // Navigate back immediately if no words practiced or dialog was already shown
         onBack();
       }
     };
@@ -412,11 +469,11 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         return (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
             <span className="text-sm text-gray-500 mb-4 px-3 py-1 rounded-full bg-gray-100">
-              {currentWord.partOfSpeech}
+              {currentWord.part_of_speech}
             </span>
-            <p className="text-xl font-semibold mb-6">{currentWord.definition}</p>
+            <p className="text-xl font-semibold mb-6">{currentWord.selectedDefinition}</p>
             <p className="text-sm text-gray-600 italic border-l-2 border-[#cd4631] pl-4">
-              {currentWord.example}
+              {currentWord.selectedExample}
             </p>
           </div>
         );
@@ -424,8 +481,8 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
       return (
         <div className="flex flex-col items-center justify-center h-full p-8 text-center">
           <h2 className="text-4xl font-bold mb-4 text-[#cd4631]">{currentWord.word}</h2>
-          {currentWord.phonetic?.text && (
-            <p className="text-gray-600 font-mono">/{currentWord.phonetic.text}/</p>
+          {currentWord.phonetics && (
+            <p className="text-gray-600 font-mono">/{currentWord.phonetics}/</p>
           )}
         </div>
       );
@@ -436,6 +493,7 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
       visible: { opacity: 1 }
     };
 
+    // Improved loading state handling to prevent "No words" flash
     if (isLoading) {
       return (
         <div className="container max-w-2xl mx-auto px-4 py-8 flex justify-center items-center h-[400px]">
@@ -444,7 +502,8 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
       );
     }
 
-    if (words.length === 0) {
+    // Only show this when not loading AND we know there are no words
+    if (!isLoading && words.length === 0) {
       return (
         <div className="container max-w-2xl mx-auto px-4 py-8 flex flex-col justify-center items-center h-[400px]">
           <p className="mb-4">No words available for practice.</p>
