@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import LexiGrabInputBox from '@/components/lexigrab/LexiGrabInputBox';
 import LexiGrabResults from '@/components/lexigrab/LexiGrabResults';
 import { useAppState } from '@/contexts/AppStateContext';
-import { isSingleWordOrPhrases, FileInput, AnalysisResults } from '@/lib/utils';
+import { isSingleWordOrPhrases, FileInput, AnalysisResults, TuningOptions } from '@/lib/utils';
 import WordDetailModal from '@/components/WordDetailModal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { TuningOptions } from '@/components/lexigrab/LexiGrabInputBox';
 import {
   BookOpen,
   History,
@@ -34,6 +33,7 @@ const LexiGrab = () => {
   const [activeTab, setActiveTab] = useState('input');
   const [recentSources, setRecentSources] = useState<{ type: string; name: string; date: string; content?: string; files?: FileInput[]; urls?: string[] }[]>([]);
   const [activeTuningOptions, setActiveTuningOptions] = useState<TuningOptions | null>(null);
+  const [showTuningOptions, setShowTuningOptions] = useState(false);
 
   const {
     setVocabularyResults,
@@ -489,6 +489,8 @@ const LexiGrab = () => {
                 setRecognizedUrls={setLexigrabRecognizedUrls}
                 activeTuningOptions={activeTuningOptions}
                 setActiveTuningOptions={setActiveTuningOptions}
+                showTuningOptions={showTuningOptions}
+                setShowTuningOptions={setShowTuningOptions}
               />
 
               <div className="md:hidden mt-8 animate-fade-in">

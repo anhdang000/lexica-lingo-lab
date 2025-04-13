@@ -23,6 +23,15 @@ export interface WordDefinition {
   collectionName?: string;
 }
 
+// Add TuningOptions interface
+export interface TuningOptions {
+  level: string; // 'auto', 'beginner', 'intermediate', 'advanced', 'all'
+  vocabularyFocus: string; // 'general', 'academic', 'business', 'technical', 'spoken', 'idioms'
+  frequency: string; // 'low', 'medium', 'high'
+  partsOfSpeech: string[]; // 'noun', 'verb', 'adjective', etc.
+  sourceTypeHint: string; // 'auto', 'news', 'academic', etc.
+}
+
 export async function lookupWord(word: string): Promise<WordDefinition[] | null> {
   const apiKey = import.meta.env.VITE_LEARNERS_DICTIONARY_API_KEY;
   if (!apiKey) {
@@ -531,7 +540,7 @@ Return the results in JSON format with three fields: "topicName" (string), "voca
   }
 }
 
-export async function analyzeVocabulary(input: string, files: FileInput[] = []): Promise<AnalysisResults> {
+export async function analyzeVocabulary(input: string, files: FileInput[] = [], tuningOptions?: TuningOptions): Promise<AnalysisResults> {
   // If input is a single word or short phrase and no files are provided, try lookupWord first
   if (isSingleWordOrPhrases(input) && files.length === 0) {
     const lookupResult = await lookupWord(input);
@@ -546,14 +555,14 @@ export async function analyzeVocabulary(input: string, files: FileInput[] = []):
   
   // For files analysis
   if (files.length > 0) {
-    return analyzeFiles(files);
+    return analyzeFiles(files, tuningOptions);
   }
   
   // For longer text analysis
-  return analyzeText(input);
+  return analyzeText(input, tuningOptions);
 }
 
-export async function analyzeText(text: string): Promise<AnalysisResults> {
+export async function analyzeText(text: string, tuningOptions?: TuningOptions): Promise<AnalysisResults> {
   // Get a random API key from the comma-separated list
   const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
   const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
@@ -565,6 +574,20 @@ export async function analyzeText(text: string): Promise<AnalysisResults> {
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-2.0-flash-lite';
   
+  // Add tuning options to the prompt if available
+  let tuningInstructions = '';
+  if (tuningOptions) {
+    tuningInstructions = `
+Apply these specific tuning preferences to your selection of vocabulary words:
+
+1. Language Level: ${tuningOptions.level !== 'auto' ? tuningOptions.level : 'Auto-detect based on content complexity'}
+2. Vocabulary Focus: ${tuningOptions.vocabularyFocus} vocabulary
+3. Word Frequency: Prioritize ${tuningOptions.frequency} frequency words
+4. Parts of Speech: Emphasize these parts of speech: ${tuningOptions.partsOfSpeech.join(', ')}
+5. Source Type Context: Treat content as ${tuningOptions.sourceTypeHint !== 'auto' ? tuningOptions.sourceTypeHint + ' material' : 'general material (auto-detect)'}
+`;
+  }
+  
   // Create prompt text for vocabulary and topic extraction
   const promptText = `
 You are an advanced vocabulary instructor tasked with identifying the most valuable vocabulary words and related topics from the provided content.
@@ -573,6 +596,8 @@ Your task is to extract three things:
 1. Vocabulary: A carefully curated array of sophisticated words that would enhance an English language learner's lexicon
 2. Topics: 3-5 relevant topics or themes that categorize the content
 3. Content: An simple summary writeup, strictly use vocabulary extracted from the original source, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word><synonym>lexicon</synonym>. The synonym should be a word that is similar in meaning to the vocabulary word, wrapped in <synonym> tags and must be simpler.
+
+${tuningInstructions}
 
 For vocabulary, select words that meet these criteria:
 - Advanced and relatively uncommon and align with the main topic
@@ -689,7 +714,7 @@ ${text}
   }
 }
 
-export async function analyzeFiles(files: FileInput[]): Promise<AnalysisResults> {
+export async function analyzeFiles(files: FileInput[], tuningOptions?: TuningOptions): Promise<AnalysisResults> {
   // Get a random API key from the comma-separated list
   const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
   const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
@@ -701,6 +726,20 @@ export async function analyzeFiles(files: FileInput[]): Promise<AnalysisResults>
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-2.0-flash-lite';
   
+  // Add tuning options to the prompt if available
+  let tuningInstructions = '';
+  if (tuningOptions) {
+    tuningInstructions = `
+Apply these specific tuning preferences to your selection of vocabulary words:
+
+1. Language Level: ${tuningOptions.level !== 'auto' ? tuningOptions.level : 'Auto-detect based on content complexity'}
+2. Vocabulary Focus: ${tuningOptions.vocabularyFocus} vocabulary
+3. Word Frequency: Prioritize ${tuningOptions.frequency} frequency words
+4. Parts of Speech: Emphasize these parts of speech: ${tuningOptions.partsOfSpeech.join(', ')}
+5. Source Type Context: Treat content as ${tuningOptions.sourceTypeHint !== 'auto' ? tuningOptions.sourceTypeHint + ' material' : 'general material (auto-detect)'}
+`;
+  }
+  
   // Create prompt text for vocabulary and topic extraction
   const promptText = `
 You are an advanced vocabulary instructor tasked with identifying the most valuable vocabulary words and related topics from the provided content.
@@ -709,6 +748,8 @@ Your task is to extract three things:
 1. Vocabulary: A carefully curated array of sophisticated words that would enhance an English language learner's lexicon
 2. Topics: 3-5 relevant topics or themes that categorize the content
 3. Content: An simple explanatory writeup, strictly use vocabulary extracted, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word><synonym>lexicon</synonym>. The synonym should be a word that is similar in meaning to the vocabulary word, wrapped in <synonym> tags and must be simpler.
+
+${tuningInstructions}
 
 For vocabulary, select words that meet these criteria:
 - Advanced and relatively uncommon and align with the main topic
@@ -740,41 +781,38 @@ Return the results in JSON format with three fields: "vocabulary" (array of obje
       maxOutputTokens: 8192,
       responseMimeType: "application/json",
       responseSchema: {
-        type: SchemaType.ARRAY as const,
-        items: {
-          type: SchemaType.OBJECT as const,
-          properties: {
-            vocabulary: {
-              type: SchemaType.ARRAY as const,
-              items: {
-                type: SchemaType.OBJECT as const,
-                properties: {
-                  word: {
-                    type: SchemaType.STRING as const,
-                    description: "A vocabulary word that would be valuable for a language learner",
-                  },
-                  collectionName: {
-                    type: SchemaType.STRING as const,
-                    description: "The collection name that categorizes this vocabulary word",
-                  }
+        type: SchemaType.OBJECT as const, // Changed from ARRAY to OBJECT
+        properties: {
+          vocabulary: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.OBJECT as const,
+              properties: {
+                word: {
+                  type: SchemaType.STRING as const,
+                  description: "A vocabulary word that would be valuable for a language learner",
                 },
-                required: ["word", "collectionName"],
+                collectionName: {
+                  type: SchemaType.STRING as const,
+                  description: "The collection name that categorizes this vocabulary word",
+                }
               },
-            },
-            topics: {
-              type: SchemaType.ARRAY as const,
-              items: {
-                type: SchemaType.STRING as const,
-                description: "A relevant topic or theme that categorizes the content",
-              },
-            },
-            content: {
-              type: SchemaType.STRING as const,
-              description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
+              required: ["word", "collectionName"],
             },
           },
-          required: ["vocabulary", "topics", "content"],
+          topics: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.STRING as const,
+              description: "A relevant topic or theme that categorizes the content",
+            },
+          },
+          content: {
+            type: SchemaType.STRING as const,
+            description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
+          },
         },
+        required: ["vocabulary", "topics", "content"],
       },
     };
     

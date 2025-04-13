@@ -79,8 +79,10 @@ interface LexiGrabInputBoxProps {
   setActiveFiles: (files: ActiveFile[] | ((prevFiles: ActiveFile[]) => ActiveFile[])) => void;
   recognizedUrls: string[];
   setRecognizedUrls: (urls: string[]) => void;
-  activeTuningOptions?: TuningOptions | null;
+  activeTuningOptions?: TuningOptions | null; // Keep prop for initialization
   setActiveTuningOptions?: (options: TuningOptions | null) => void;
+  showTuningOptions?: boolean;
+  setShowTuningOptions?: (show: boolean) => void;
 }
 
 const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
@@ -92,8 +94,10 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
   setActiveFiles,
   recognizedUrls,
   setRecognizedUrls,
-  activeTuningOptions,
+  activeTuningOptions, // Use for initial state only
   setActiveTuningOptions,
+  showTuningOptions,
+  setShowTuningOptions
 }) => {
   const [fontSize, setFontSize] = useState(24);
   const [isUrlFetching, setIsUrlFetching] = useState(false);
@@ -364,10 +368,11 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
       }
 
       try {
-        const analysisResults = await analyzeVocabulary(aggregatedText, fileInputs);
+        const currentTuningOptions = tuningOptions;
+        const analysisResults = await analyzeVocabulary(aggregatedText, fileInputs, currentTuningOptions);
 
         // Pass tuning options to parent component for processing
-        await onAnalyze(aggregatedText, fileInputs, analysisResults, tuningOptions);
+        await onAnalyze(aggregatedText, fileInputs, analysisResults, currentTuningOptions);
       } catch (error) {
         console.error("Error in LexiGrabInputBox analysis:", error);
         toast.error("Failed to analyze vocabulary.");
@@ -520,28 +525,15 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
     };
   }, [isLoadingState]);
 
-  const [showTuningOptions, setShowTuningOptions] = useState(false);
-  const [tuningOptions, setTuningOptions] = useState<TuningOptions>({
-    level: 'auto',
-    vocabularyFocus: 'general',
-    frequency: 'medium',
-    partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
-    sourceTypeHint: 'auto',
+  const [tuningOptions, setTuningOptions] = useState<TuningOptions>(() => {
+    return activeTuningOptions || {
+      level: 'auto',
+      vocabularyFocus: 'general',
+      frequency: 'medium',
+      partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
+      sourceTypeHint: 'auto',
+    };
   });
-
-  // Initialize tuning options from parent component if provided
-  useEffect(() => {
-    if (activeTuningOptions) {
-      setTuningOptions(activeTuningOptions);
-    }
-  }, [activeTuningOptions]);
-
-  // Update parent component's state when tuning options change
-  useEffect(() => {
-    if (setActiveTuningOptions) {
-      setActiveTuningOptions(tuningOptions);
-    }
-  }, [tuningOptions, setActiveTuningOptions]);
 
   const partsOfSpeechOptions = [
     { id: 'noun', label: 'Nouns' },
@@ -768,7 +760,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
             )}
             
             <Button
-              onClick={() => setShowTuningOptions(!showTuningOptions)}
+              onClick={() => setShowTuningOptions?.(!(showTuningOptions || false))}
               variant={showTuningOptions ? "default" : "ghost"}
               size="sm"
               className={cn(
@@ -842,7 +834,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
               
               {/* Vocabulary Focus */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Vocabulary Focus</Label>
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Objective</Label>
                 <Select 
                   value={tuningOptions.vocabularyFocus} 
                   onValueChange={(value) => setTuningOptions({...tuningOptions, vocabularyFocus: value})}
