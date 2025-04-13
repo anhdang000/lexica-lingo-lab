@@ -1,6 +1,7 @@
 import React, { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
   TooltipContent,
@@ -17,13 +18,46 @@ import {
   GripHorizontal,
   RefreshCw,
   FileText,
-  File
+  File,
+  Sliders,
+  Settings,
+  Check
 } from 'lucide-react';
 import { FileInput, fetchUrlContent, AnalysisResults, analyzeVocabulary } from '@/lib/utils';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // Define the input source types
 type InputSourceType = 'text' | 'file' | 'url';
+
+// Define the tuning options structure
+export interface TuningOptions {
+  level: string;
+  vocabularyFocus: string;
+  frequency: string;
+  partsOfSpeech: string[];
+  sourceTypeHint: string;
+}
 
 // Define the structure for active files, mirroring AppStateContext
 interface ActiveFile {
@@ -37,7 +71,7 @@ interface ActiveFile {
 }
 
 interface LexiGrabInputBoxProps {
-  onAnalyze: (text: string, files: FileInput[], analysisResults?: AnalysisResults) => Promise<void>;
+  onAnalyze: (text: string, files: FileInput[], analysisResults?: AnalysisResults, tuningOptions?: TuningOptions) => Promise<void>;
   isAnalyzing: boolean;
   inputValue: string;
   setInputValue: (value: string) => void;
@@ -45,6 +79,8 @@ interface LexiGrabInputBoxProps {
   setActiveFiles: (files: ActiveFile[] | ((prevFiles: ActiveFile[]) => ActiveFile[])) => void;
   recognizedUrls: string[];
   setRecognizedUrls: (urls: string[]) => void;
+  activeTuningOptions?: TuningOptions | null;
+  setActiveTuningOptions?: (options: TuningOptions | null) => void;
 }
 
 const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
@@ -56,6 +92,8 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
   setActiveFiles,
   recognizedUrls,
   setRecognizedUrls,
+  activeTuningOptions,
+  setActiveTuningOptions,
 }) => {
   const [fontSize, setFontSize] = useState(24);
   const [isUrlFetching, setIsUrlFetching] = useState(false);
@@ -328,7 +366,8 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
       try {
         const analysisResults = await analyzeVocabulary(aggregatedText, fileInputs);
 
-        await onAnalyze(aggregatedText, fileInputs, analysisResults);
+        // Pass tuning options to parent component for processing
+        await onAnalyze(aggregatedText, fileInputs, analysisResults, tuningOptions);
       } catch (error) {
         console.error("Error in LexiGrabInputBox analysis:", error);
         toast.error("Failed to analyze vocabulary.");
@@ -480,6 +519,40 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
       }
     };
   }, [isLoadingState]);
+
+  const [showTuningOptions, setShowTuningOptions] = useState(false);
+  const [tuningOptions, setTuningOptions] = useState<TuningOptions>({
+    level: 'auto',
+    vocabularyFocus: 'general',
+    frequency: 'medium',
+    partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
+    sourceTypeHint: 'auto',
+  });
+
+  // Initialize tuning options from parent component if provided
+  useEffect(() => {
+    if (activeTuningOptions) {
+      setTuningOptions(activeTuningOptions);
+    }
+  }, [activeTuningOptions]);
+
+  // Update parent component's state when tuning options change
+  useEffect(() => {
+    if (setActiveTuningOptions) {
+      setActiveTuningOptions(tuningOptions);
+    }
+  }, [tuningOptions, setActiveTuningOptions]);
+
+  const partsOfSpeechOptions = [
+    { id: 'noun', label: 'Nouns' },
+    { id: 'verb', label: 'Verbs' },
+    { id: 'adjective', label: 'Adjectives' },
+    { id: 'adverb', label: 'Adverbs' },
+    { id: 'pronoun', label: 'Pronouns' },
+    { id: 'preposition', label: 'Prepositions' },
+    { id: 'conjunction', label: 'Conjunctions' },
+    { id: 'interjection', label: 'Interjections' },
+  ];
 
   return (
     <div className="w-full max-w-4xl mx-auto animate-slide-in-up">
@@ -693,6 +766,21 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
                 <span>Clear</span>
               </Button>
             )}
+            
+            <Button
+              onClick={() => setShowTuningOptions(!showTuningOptions)}
+              variant={showTuningOptions ? "default" : "ghost"}
+              size="sm"
+              className={cn(
+                "text-gray-500 dark:text-gray-400",
+                "hover:bg-[#81ADC8] hover:text-white dark:hover:bg-[#81ADC8] dark:hover:text-white",
+                showTuningOptions && `bg-gradient-to-r from-blue-500 to-purple-500 text-white`
+              )}
+              disabled={isLoadingState}
+            >
+              <Sliders className="h-4 w-4 mr-2" />
+              <span>Tuning Options</span>
+            </Button>
           </div>
 
           <Button
@@ -716,6 +804,166 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
             <span>Let's <span className="font-['Pacifico'] text-lg">grab</span>!</span>
           </Button>
         </div>
+        
+        {/* Tuning Options Panel */}
+        {showTuningOptions && (
+          <div className="border-t border-gray-100 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/50 animate-slide-down">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                <Settings className="h-4 w-4 mr-2 text-blue-500" />
+                Vocabulary Extraction Preferences
+              </h3>
+              <Badge variant="outline" className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                <Check className="h-3 w-3 mr-1" /> Custom tuning
+              </Badge>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* English Level */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">English Level</Label>
+                <Select 
+                  value={tuningOptions.level} 
+                  onValueChange={(value) => setTuningOptions({...tuningOptions, level: value})}
+                >
+                  <SelectTrigger className="w-full text-sm">
+                    <SelectValue placeholder="Select level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto-detect</SelectItem>
+                    <SelectItem value="beginner">Beginner (A1-A2)</SelectItem>
+                    <SelectItem value="intermediate">Intermediate (B1-B2)</SelectItem>
+                    <SelectItem value="advanced">Advanced (C1-C2)</SelectItem>
+                    <SelectItem value="all">All Levels</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Target vocabulary suitable for this proficiency level</p>
+              </div>
+              
+              {/* Vocabulary Focus */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Vocabulary Focus</Label>
+                <Select 
+                  value={tuningOptions.vocabularyFocus} 
+                  onValueChange={(value) => setTuningOptions({...tuningOptions, vocabularyFocus: value})}
+                >
+                  <SelectTrigger className="w-full text-sm">
+                    <SelectValue placeholder="Select focus" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General Vocabulary</SelectItem>
+                    <SelectItem value="academic">Academic</SelectItem>
+                    <SelectItem value="business">Business</SelectItem>
+                    <SelectItem value="technical">Technical Terminology</SelectItem>
+                    <SelectItem value="spoken">Conversational</SelectItem>
+                    <SelectItem value="idioms">Idioms & Expressions</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Prioritize specific types of vocabulary</p>
+              </div>
+              
+              {/* Frequency */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Word Frequency</Label>
+                <RadioGroup 
+                  value={tuningOptions.frequency}
+                  onValueChange={(value) => setTuningOptions({...tuningOptions, frequency: value})}
+                  className="flex space-x-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="low" id="frequency-low" />
+                    <Label htmlFor="frequency-low" className="text-sm">Low</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="medium" id="frequency-medium" />
+                    <Label htmlFor="frequency-medium" className="text-sm">Medium</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="high" id="frequency-high" />
+                    <Label htmlFor="frequency-high" className="text-sm">High</Label>
+                  </div>
+                </RadioGroup>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Extract words based on their frequency in the text</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {/* Parts of Speech */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Parts of Speech</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {partsOfSpeechOptions.map((part) => (
+                    <div className="flex items-center space-x-2" key={part.id}>
+                      <Checkbox 
+                        id={`pos-${part.id}`} 
+                        checked={tuningOptions.partsOfSpeech.includes(part.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setTuningOptions({
+                              ...tuningOptions, 
+                              partsOfSpeech: [...tuningOptions.partsOfSpeech, part.id]
+                            });
+                          } else {
+                            setTuningOptions({
+                              ...tuningOptions, 
+                              partsOfSpeech: tuningOptions.partsOfSpeech.filter(pos => pos !== part.id)
+                            });
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`pos-${part.id}`} className="text-sm">{part.label}</Label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Select parts of speech to extract</p>
+              </div>
+              
+              {/* Source Type Hint */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Source Type Hint</Label>
+                <Select 
+                  value={tuningOptions.sourceTypeHint} 
+                  onValueChange={(value) => setTuningOptions({...tuningOptions, sourceTypeHint: value})}
+                >
+                  <SelectTrigger className="w-full text-sm">
+                    <SelectValue placeholder="Source type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto-detect</SelectItem>
+                    <SelectItem value="news">News Article</SelectItem>
+                    <SelectItem value="academic">Academic Paper</SelectItem>
+                    <SelectItem value="fiction">Fiction Novel</SelectItem>
+                    <SelectItem value="nonfiction">Non-fiction Book</SelectItem>
+                    <SelectItem value="conversation">Casual Conversation</SelectItem>
+                    <SelectItem value="social">Social Media</SelectItem>
+                    <SelectItem value="technical">Technical Documentation</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Provide context about the source material</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end mt-4">
+              <Button
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setTuningOptions({
+                    level: 'auto',
+                    vocabularyFocus: 'general',
+                    frequency: 'medium',
+                    partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
+                    sourceTypeHint: 'auto',
+                  });
+                }}
+                className="text-xs mr-2"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Reset to Defaults
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,9 @@ import { isSingleWordOrPhrases, FileInput, AnalysisResults } from '@/lib/utils';
 import WordDetailModal from '@/components/WordDetailModal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { TuningOptions } from '@/components/lexigrab/LexiGrabInputBox';
 import {
   BookOpen,
   History,
@@ -16,7 +19,8 @@ import {
   FileUp,
   PanelRight,
   Lightbulb,
-  X
+  X,
+  Sliders
 } from 'lucide-react';
 import {
   Accordion,
@@ -24,13 +28,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 const LexiGrab = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeTab, setActiveTab] = useState('input');
   const [recentSources, setRecentSources] = useState<{ type: string; name: string; date: string; content?: string; files?: FileInput[]; urls?: string[] }[]>([]);
+  const [activeTuningOptions, setActiveTuningOptions] = useState<TuningOptions | null>(null);
 
   const {
     setVocabularyResults,
@@ -249,7 +252,8 @@ const LexiGrab = () => {
   const handleAnalyzeVocabulary = async (
     text: string,
     files: FileInput[],
-    analysisResults?: AnalysisResults
+    analysisResults?: AnalysisResults,
+    tuningOptions?: TuningOptions
   ) => {
     setIsAnalyzing(true);
 
@@ -264,6 +268,11 @@ const LexiGrab = () => {
         setVocabularyResults(analysisResults.vocabulary, 'lexigrab');
         setTopicResults(analysisResults.topics, 'lexigrab');
         setLexigrabSummaryContent(analysisResults.content || "");
+      }
+
+      // Save active tuning options for the current session
+      if (tuningOptions) {
+        setActiveTuningOptions(tuningOptions);
       }
 
       setShowResults(true, 'lexigrab');
@@ -478,6 +487,8 @@ const LexiGrab = () => {
                 setActiveFiles={setLexigrabActiveFiles}
                 recognizedUrls={lexigrabRecognizedUrls}
                 setRecognizedUrls={setLexigrabRecognizedUrls}
+                activeTuningOptions={activeTuningOptions}
+                setActiveTuningOptions={setActiveTuningOptions}
               />
 
               <div className="md:hidden mt-8 animate-fade-in">
