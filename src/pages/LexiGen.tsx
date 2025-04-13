@@ -342,7 +342,10 @@ const LexiGen = () => {
       <WordDetailModal
         open={currentWord !== null}
         onOpenChange={(open) => !open && setCurrentWord(null)}
-        wordDetails={currentWord}
+        word={currentWord ? {
+          ...currentWord,
+          definitions: currentWord.definitions.map(def => def.meaning)
+        } : null}
       />
     </div>
   );
