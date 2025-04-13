@@ -210,7 +210,7 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
 
   // Helper function to process explanation placeholders
   const processExplanationPlaceholders = (text: string, explanations: {placeholder: string, text: string}[]): JSX.Element[] => {
-    if (!explanations.length) return [<span key="plain">{text}</span>];
+    if (!explanations.length) return [<span key={`plain-${Math.random()}`}>{text}</span>];
     
     const parts: JSX.Element[] = [];
     let remainingText = text;
@@ -237,7 +237,7 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
     
     // Add any remaining text
     if (remainingText) {
-      parts.push(<span key="remaining">{remainingText}</span>);
+      parts.push(<span key={`remaining-${Math.random()}`}>{remainingText}</span>);
     }
     
     return parts;

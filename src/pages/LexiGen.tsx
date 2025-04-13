@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import LexiGenInputBox from '@/components/lexigen/LexiGenInputBox';
+import LexiGenInputBox, { TuningOptions } from '@/components/lexigen/LexiGenInputBox';
 import LexiGenResults from '@/components/lexigen/LexiGenResults';
 import { useAppState } from '@/contexts/AppStateContext';
 import { isSingleWordOrPhrases, generateVocabularyFromTopic } from '@/lib/utils';
@@ -30,6 +30,8 @@ const LexiGen = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [topicName, setTopicName] = useState<string>('');
   const [activeTab, setActiveTab] = useState('input');
+  const [showTuningOptions, setShowTuningOptions] = useState(false);
+  const [activeTuningOptions, setActiveTuningOptions] = useState<TuningOptions | null>(null);
   const [popularTopics, setPopularTopics] = useState<string[]>([
     'Business & Marketing',
     'Medical Terminology',
@@ -62,8 +64,13 @@ const LexiGen = () => {
   // Use lexigenResults directly instead of getCurrentResults
   const { vocabularyResults, topicResults, showResults } = lexigenResults;
 
-  const handleGenerateVocabulary = async (text: string) => {
+  const handleGenerateVocabulary = async (text: string, tuningOptions?: TuningOptions) => {
     setIsAnalyzing(true);
+    
+    // Save active tuning options
+    if (tuningOptions) {
+      setActiveTuningOptions(tuningOptions);
+    }
     
     // Force a repaint to ensure the loading state is immediately visible
     await new Promise(resolve => requestAnimationFrame(() => {
@@ -75,7 +82,7 @@ const LexiGen = () => {
       await new Promise(resolve => setTimeout(resolve, 100)); 
       
       // Generate vocabulary based on the topic
-      const results = await generateVocabularyFromTopic(text);
+      const results = await generateVocabularyFromTopic(text, tuningOptions);
       setVocabularyResults(results.vocabulary, 'lexigen');
       setTopicResults(results.topics, 'lexigen');
       setTopicName(results.topicName || text);
@@ -275,6 +282,10 @@ const LexiGen = () => {
               <LexiGenInputBox 
                 onAnalyze={handleGenerateVocabulary}
                 isAnalyzing={isAnalyzing}
+                showTuningOptions={showTuningOptions}
+                setShowTuningOptions={setShowTuningOptions}
+                activeTuningOptions={activeTuningOptions}
+                setActiveTuningOptions={setActiveTuningOptions}
               />
               
               {/* Mobile-only info panel */}
@@ -309,22 +320,6 @@ const LexiGen = () => {
             </TabsContent>
             
             <TabsContent value="results" className="mt-0">
-              <Card className="mb-4 bg-white dark:bg-gray-800/50">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">
-                      Vocabulary for: <span className="text-primary">{topicName}</span>
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCloseResults}
-                    >
-                      Back to Input
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
               <LexiGenResults 
                 results={vocabularyResults}
                 topics={topicResults}

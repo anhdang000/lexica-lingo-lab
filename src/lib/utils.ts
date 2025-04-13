@@ -26,10 +26,11 @@ export interface WordDefinition {
 // Add TuningOptions interface
 export interface TuningOptions {
   level: string; // 'auto', 'beginner', 'intermediate', 'advanced', 'all'
-  vocabularyFocus: string; // 'general', 'academic', 'business', 'technical', 'spoken', 'idioms'
-  frequency: string; // 'low', 'medium', 'high'
+  useCase?: string; // For LexiGen: 'general', 'conversation', 'business', etc.
+  vocabularyFocus?: string; // For LexiGrab: 'general', 'academic', 'business', 'technical', etc.
+  frequency?: string; // 'low', 'medium', 'high'
   partsOfSpeech: string[]; // 'noun', 'verb', 'adjective', etc.
-  sourceTypeHint: string; // 'auto', 'news', 'academic', etc.
+  sourceTypeHint?: string; // 'auto', 'news', 'academic', etc.
 }
 
 export async function lookupWord(word: string): Promise<WordDefinition[] | null> {
@@ -431,7 +432,7 @@ function readFileAsDataURL(file: File): Promise<string> {
   });
 }
 
-export async function generateVocabularyFromTopic(inputText: string): Promise<AnalysisResults> {
+export async function generateVocabularyFromTopic(inputText: string, tuningOptions?: TuningOptions): Promise<AnalysisResults> {
   // Get a random API key from the comma-separated list
   const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
   const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
@@ -443,11 +444,28 @@ export async function generateVocabularyFromTopic(inputText: string): Promise<An
   const genAI = new GoogleGenerativeAI(apiKey);
   const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-2.0-flash-lite';
   
+  // Add tuning options to the prompt if available
+  let tuningInstructions = '';
+  if (tuningOptions) {
+    // Choose the appropriate property based on what's available
+    const focusProperty = tuningOptions.useCase || tuningOptions.vocabularyFocus || 'general';
+    
+    tuningInstructions = `
+Apply these specific tuning preferences to your selection of vocabulary words:
+
+1. Language Level: ${tuningOptions.level !== 'auto' ? tuningOptions.level : 'Auto-detect based on content complexity'}
+2. Vocabulary Focus: ${focusProperty} vocabulary
+3. Parts of Speech: Emphasize these parts of speech: ${tuningOptions.partsOfSpeech.join(', ')}
+`;
+  }
+  console.log('Tuning Instructions:', tuningInstructions);
   // Create prompt text for vocabulary generation from a topic
   const promptText = `
 You are an advanced vocabulary instructor tasked with generating useful vocabulary words related to a given input.
 
 Input text: ${inputText}
+
+${tuningInstructions}
 
 Your task is to:
 1. Generate a concise topic name (1-3 words) that best represents the input text
@@ -577,11 +595,14 @@ export async function analyzeText(text: string, tuningOptions?: TuningOptions): 
   // Add tuning options to the prompt if available
   let tuningInstructions = '';
   if (tuningOptions) {
+    // Choose the appropriate property based on what's available
+    const focusProperty = tuningOptions.useCase || tuningOptions.vocabularyFocus || 'general';
+    
     tuningInstructions = `
 Apply these specific tuning preferences to your selection of vocabulary words:
 
 1. Language Level: ${tuningOptions.level !== 'auto' ? tuningOptions.level : 'Auto-detect based on content complexity'}
-2. Vocabulary Focus: ${tuningOptions.vocabularyFocus} vocabulary
+2. Vocabulary Focus: ${focusProperty} vocabulary
 3. Word Frequency: Prioritize ${tuningOptions.frequency} frequency words
 4. Parts of Speech: Emphasize these parts of speech: ${tuningOptions.partsOfSpeech.join(', ')}
 5. Source Type Context: Treat content as ${tuningOptions.sourceTypeHint !== 'auto' ? tuningOptions.sourceTypeHint + ' material' : 'general material (auto-detect)'}
@@ -729,11 +750,14 @@ export async function analyzeFiles(files: FileInput[], tuningOptions?: TuningOpt
   // Add tuning options to the prompt if available
   let tuningInstructions = '';
   if (tuningOptions) {
+    // Choose the appropriate property based on what's available
+    const focusProperty = tuningOptions.useCase || tuningOptions.vocabularyFocus || 'general';
+    
     tuningInstructions = `
 Apply these specific tuning preferences to your selection of vocabulary words:
 
 1. Language Level: ${tuningOptions.level !== 'auto' ? tuningOptions.level : 'Auto-detect based on content complexity'}
-2. Vocabulary Focus: ${tuningOptions.vocabularyFocus} vocabulary
+2. Vocabulary Focus: ${focusProperty} vocabulary
 3. Word Frequency: Prioritize ${tuningOptions.frequency} frequency words
 4. Parts of Speech: Emphasize these parts of speech: ${tuningOptions.partsOfSpeech.join(', ')}
 5. Source Type Context: Treat content as ${tuningOptions.sourceTypeHint !== 'auto' ? tuningOptions.sourceTypeHint + ' material' : 'general material (auto-detect)'}
@@ -781,38 +805,41 @@ Return the results in JSON format with three fields: "vocabulary" (array of obje
       maxOutputTokens: 8192,
       responseMimeType: "application/json",
       responseSchema: {
-        type: SchemaType.OBJECT as const, // Changed from ARRAY to OBJECT
-        properties: {
-          vocabulary: {
-            type: SchemaType.ARRAY as const,
-            items: {
-              type: SchemaType.OBJECT as const,
-              properties: {
-                word: {
-                  type: SchemaType.STRING as const,
-                  description: "A vocabulary word that would be valuable for a language learner",
+        type: SchemaType.ARRAY as const,
+        items: {
+          type: SchemaType.OBJECT as const,
+          properties: {
+            vocabulary: {
+              type: SchemaType.ARRAY as const,
+              items: {
+                type: SchemaType.OBJECT as const,
+                properties: {
+                  word: {
+                    type: SchemaType.STRING as const,
+                    description: "A vocabulary word that would be valuable for a language learner",
+                  },
+                  collectionName: {
+                    type: SchemaType.STRING as const,
+                    description: "The collection name that categorizes this vocabulary word",
+                  }
                 },
-                collectionName: {
-                  type: SchemaType.STRING as const,
-                  description: "The collection name that categorizes this vocabulary word",
-                }
+                required: ["word", "collectionName"],
               },
-              required: ["word", "collectionName"],
             },
-          },
-          topics: {
-            type: SchemaType.ARRAY as const,
-            items: {
+            topics: {
+              type: SchemaType.ARRAY as const,
+              items: {
+                type: SchemaType.STRING as const,
+                description: "A relevant topic or theme that categorizes the content",
+              },
+            },
+            content: {
               type: SchemaType.STRING as const,
-              description: "A relevant topic or theme that categorizes the content",
+              description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
             },
           },
-          content: {
-            type: SchemaType.STRING as const,
-            description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
-          },
+          required: ["vocabulary", "topics", "content"],
         },
-        required: ["vocabulary", "topics", "content"],
       },
     };
     
