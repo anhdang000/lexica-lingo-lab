@@ -39,6 +39,9 @@ interface AppState {
   setLexigrabRecognizedUrls: (urls: string[]) => void;
   setLexigrabSummaryContent: (content: string) => void;
 
+  lexigenInputValue: string;
+  setLexigenInputValue: (value: string) => void;
+
   getCurrentResults: () => TabResults;
 }
 
@@ -64,6 +67,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [lexigrabActiveFiles, setLexigrabActiveFiles] = useState<ActiveFile[]>([]);
   const [lexigrabRecognizedUrls, setLexigrabRecognizedUrls] = useState<string[]>([]);
   const [lexigrabSummaryContent, setLexigrabSummaryContent] = useState<string>("");
+  const [lexigenInputValue, setLexigenInputValue] = useState('');
 
   const setVocabularyResults = (results: WordDefinition[], tool: ToolType) => {
     if (tool === 'lexigrab') {
@@ -112,6 +116,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setLexigrabActiveFiles,
     setLexigrabRecognizedUrls,
     setLexigrabSummaryContent,
+    lexigenInputValue,
+    setLexigenInputValue,
   };
 
   return (

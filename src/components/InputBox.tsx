@@ -32,7 +32,12 @@ interface InputBoxProps {
 }
 
 const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
-  const { currentTool, setCurrentTool } = useAppState();
+  const { 
+    currentTool, 
+    setCurrentTool,
+    lexigenInputValue,
+    setLexigenInputValue
+  } = useAppState();
   const [inputValue, setInputValue] = useState('');
   const [activeTool, setActiveTool] = useState<'lexigrab' | 'lexigen'>(currentTool);
   const [fontSize, setFontSize] = useState(24);
@@ -63,10 +68,27 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
     setActiveTool(currentTool);
   }, [currentTool]);
 
+  // Initial setup of input based on active tool
+  useEffect(() => {
+    if (activeTool === 'lexigen' && lexigenInputValue) {
+      // Load saved LexiGen input from global state
+      setInputValue(lexigenInputValue);
+      
+      // Update font size for the loaded input
+      const newFontSize = calculateFontSize(lexigenInputValue);
+      setFontSize(newFontSize);
+    }
+  }, [activeTool, lexigenInputValue]);
+
   // Update the context when the active tool changes
   const handleToolChange = (tool: 'lexigrab' | 'lexigen') => {
     if (tool !== activeTool) {
-      // Clear input field when switching tabs
+      // When switching, we'll save the current LexiGen input if needed
+      if (activeTool === 'lexigen' && inputValue) {
+        setLexigenInputValue(inputValue);
+      }
+      
+      // Clear local input and other states (but the global state preserves the content)
       setInputValue('');
       setFiles([]);
       setRecognizedUrls([]);
@@ -190,13 +212,14 @@ const InputBox: React.FC<InputBoxProps> = ({ onAnalyze, isAnalyzing }) => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
-    setInputValue(newValue);
     
-    // Only detect URLs in LexiGrab mode
     if (activeTool === 'lexigrab') {
+      setInputValue(newValue);
       setRecognizedUrls(extractUrls(newValue));
     } else {
-      setRecognizedUrls([]);
+      // For LexiGen, update the global state directly
+      setLexigenInputValue(newValue);
+      setInputValue(newValue); // Keep local state in sync for UI rendering
     }
   };
 

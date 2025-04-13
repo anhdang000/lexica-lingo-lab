@@ -2,12 +2,13 @@ import React, { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Loader2, Sparkles, Sliders, Settings, Check, RefreshCw } from 'lucide-react';
+import { Loader2, Sparkles, Sliders, Settings, Check, RefreshCw, BookOpen, MessageCircle, Briefcase, GraduationCap, Plane, Feather } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useAppState } from '@/contexts/AppStateContext';
 import {
   Select,
   SelectContent,
@@ -40,7 +41,7 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
   activeTuningOptions,
   setActiveTuningOptions
 }) => {
-  const [inputValue, setInputValue] = useState('');
+  const { lexigenInputValue, setLexigenInputValue } = useAppState();
   const [fontSize, setFontSize] = useState(24);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [localIsAnalyzing, setLocalIsAnalyzing] = useState(false);
@@ -93,14 +94,14 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
   };
 
   useEffect(() => {
-    const newFontSize = calculateFontSize(inputValue);
+    const newFontSize = calculateFontSize(lexigenInputValue);
     setFontSize(newFontSize);
     adjustTextareaHeight();
-  }, [inputValue]);
+  }, [lexigenInputValue]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
-    setInputValue(newValue);
+    setLexigenInputValue(newValue);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -114,7 +115,7 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
   };
 
   const handleAnalyze = async () => {
-    if (!inputValue.trim()) {
+    if (!lexigenInputValue.trim()) {
       toast.error('Please enter a topic');
       return;
     }
@@ -124,7 +125,7 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
     
     try {
       // Pass tuning options to parent component
-      await onAnalyze(inputValue, tuningOptions);
+      await onAnalyze(lexigenInputValue, tuningOptions);
     } catch (error) {
       console.error("Error in LexiGen analysis:", error);
       toast.error("Failed to generate vocabulary.");
@@ -197,7 +198,7 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
         <div className="p-4 relative">
           <Textarea
             ref={textareaRef}
-            value={inputValue}
+            value={lexigenInputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="Enter a topic or theme to generate relevant vocabulary..."
@@ -239,7 +240,7 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
           {/* Right side - Generate button */}
           <Button
             onClick={handleAnalyze}
-            disabled={isLoadingState || !inputValue.trim()}
+            disabled={isLoadingState || !lexigenInputValue.trim()}
             className={cn(
               `bg-gradient-to-r ${theme.gradient} hover:${theme.hoverGradient}`,
               "text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md",
@@ -301,16 +302,42 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
                     <SelectValue placeholder="Select use case" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="general">General Vocabulary</SelectItem>
-                    <SelectItem value="conversation">Casual Conversation</SelectItem>
-                    <SelectItem value="business">Business & Professional</SelectItem>
-                    <SelectItem value="academic">Academic Writing</SelectItem>
-                    <SelectItem value="email">Email Communication</SelectItem>
-                    <SelectItem value="presentation">Presentations & Speeches</SelectItem>
-                    <SelectItem value="creative">Creative Writing</SelectItem>
-                    <SelectItem value="technical">Technical Documentation</SelectItem>
-                    <SelectItem value="travel">Travel & Tourism</SelectItem>
-                    <SelectItem value="interview">Job Interviews</SelectItem>
+                    <SelectItem value="general">
+                      <div className="flex items-center">
+                        <BookOpen className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>General Vocabulary</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="casual">
+                      <div className="flex items-center">
+                        <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
+                        <span>Casual Conversation</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="professional">
+                      <div className="flex items-center">
+                        <Briefcase className="h-4 w-4 mr-2 text-purple-500" />
+                        <span>Professional & Business</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="academic">
+                      <div className="flex items-center">
+                        <GraduationCap className="h-4 w-4 mr-2 text-amber-500" />
+                        <span>Academic & Educational</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="travel">
+                      <div className="flex items-center">
+                        <Plane className="h-4 w-4 mr-2 text-cyan-500" />
+                        <span>Travel & Tourism</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="creative">
+                      <div className="flex items-center">
+                        <Feather className="h-4 w-4 mr-2 text-rose-500" />
+                        <span>Creative Writing</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Vocabulary tailored to specific contexts</p>
