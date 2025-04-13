@@ -20,6 +20,35 @@ import {
 } from '@/lib/database';
 import { supabase } from '@/integrations/supabase/client';
 
+// Helper functions to process text content
+const processDefinition = (definition: string, word: string): string => {
+  // First, remove the {it} and {/it} tags (instead of replacing with placeholders)
+  let processed = definition.replace(/{it}(.*?){\/it}/g, '$1');
+  
+  // Check if the definition contains the word and hide it
+  // Create a regex that matches the word as a whole word (with word boundaries)
+  const wordRegex = new RegExp(`\\b${word}\\b`, 'gi');
+  
+  // Replace the word with underscore placeholders
+  processed = processed.replace(wordRegex, '______');
+  
+  return processed;
+};
+
+const processExample = (example: string, word: string): string => {
+  // First, remove the {it} and {/it} tags (instead of replacing with placeholders)
+  let processed = example.replace(/{it}(.*?){\/it}/g, '$1');
+  
+  // Remove explanations in format [=...]
+  processed = processed.replace(/\[=.*?\]/g, '');
+  
+  // Check if the example contains the word and hide it
+  const wordRegex = new RegExp(`\\b${word}\\b`, 'gi');
+  processed = processed.replace(wordRegex, '______');
+  
+  return processed;
+};
+
 interface Word {
   id: string;
   wordVariantId: string;
@@ -49,6 +78,7 @@ interface FlashcardGameState {
   cardFlippedOnce: boolean;
   isSessionActive: boolean;
   timestamp: number;
+  totalPracticedWords: Word[]; // Add totalPracticedWords to persisted state
 }
 
 export interface FlashcardGameRef {
@@ -69,6 +99,8 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
     const [practicedWords, setPracticedWords] = useState<Word[]>([]);
     const [recordedWords, setRecordedWords] = useState<Set<string>>(new Set());
     const [cardFlippedOnce, setCardFlippedOnce] = useState(false);
+    // Add a new state to track total practiced words across all sessions
+    const [totalPracticedWords, setTotalPracticedWords] = useState<Word[]>([]);
     const cardsPerSession = 5;
     const isSessionActive = useRef(false);
     const STORAGE_KEY = 'flashcardGameState';
@@ -118,7 +150,8 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         recordedWords: Array.from(recordedWords),
         cardFlippedOnce,
         isSessionActive: isSessionActive.current,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        totalPracticedWords // Include totalPracticedWords in saved state
       };
       
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -152,6 +185,11 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         setCardFlippedOnce(state.cardFlippedOnce);
         isSessionActive.current = state.isSessionActive;
         
+        // Restore totalPracticedWords if it exists in the saved state
+        if (state.totalPracticedWords) {
+          setTotalPracticedWords(state.totalPracticedWords);
+        }
+        
         return true;
       } catch (error) {
         console.error("Error loading game state:", error);
@@ -162,9 +200,21 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
 
     useEffect(() => {
       if (user) {
-        // Always start fresh when the component mounts for the first time or sessionCount changes
-        // Clear any persisted state first
-        localStorage.removeItem(STORAGE_KEY);
+        // Don't clear the entire state, as we want to preserve totalPracticedWords
+        // Only clear the session-specific state
+        const savedState = localStorage.getItem(STORAGE_KEY);
+        if (savedState) {
+          try {
+            const state: FlashcardGameState = JSON.parse(savedState);
+            // Preserve the totalPracticedWords state when starting a new session
+            if (state.totalPracticedWords && state.totalPracticedWords.length > 0) {
+              setTotalPracticedWords(state.totalPracticedWords);
+            }
+          } catch (error) {
+            console.error("Error parsing saved state:", error);
+          }
+        }
+        
         // Set loading state to true first, then fetch words
         setIsLoading(true);
         fetchWords();
@@ -176,8 +226,6 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         if (isSessionActive.current && sessionId && practicedWords.length > 0) {
           completeCurrentSession(false);
         }
-        // Clear storage when unmounting
-        localStorage.removeItem(STORAGE_KEY);
       };
     }, [user, sessionCount]);
 
@@ -214,7 +262,8 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
       sessionId, 
       practicedWords, 
       recordedWords,
-      cardFlippedOnce
+      cardFlippedOnce,
+      totalPracticedWords // Add totalPracticedWords to dependencies
     ]);
 
     useEffect(() => {
@@ -224,6 +273,25 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
         setCardFlippedOnce(false); // Reset flip tracking for the new card
       }
     }, [currentWordIndex, words]);
+
+    // Update the totalPracticedWords state whenever practicedWords changes
+    useEffect(() => {
+      if (practicedWords.length > 0) {
+        setTotalPracticedWords(prev => {
+          // Combine previous total with current session words, avoiding duplicates
+          const combinedWords = [...prev];
+          
+          practicedWords.forEach(word => {
+            // Only add if not already in the total (using wordVariantId as unique identifier)
+            if (!combinedWords.some(w => w.wordVariantId === word.wordVariantId)) {
+              combinedWords.push(word);
+            }
+          });
+          
+          return combinedWords;
+        });
+      }
+    }, [practicedWords]);
 
     const fetchWords = async () => {
       if (!user) return;
@@ -262,7 +330,7 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
             return {
               ...word,
               selectedDefinition: "No definition available",
-              selectedExample: "No example available"
+              selectedExample: ""
             };
           }
           
@@ -270,12 +338,12 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
           const randomIndex = Math.floor(Math.random() * word.definitions.length);
           
           // Get the corresponding definition and example
-          const selectedDefinition = word.definitions[randomIndex];
+          const selectedDefinition = processDefinition(word.definitions[randomIndex], word.word);
           
           // Get the corresponding example if available at the same index
           const selectedExample = word.examples && word.examples.length > randomIndex 
-            ? word.examples[randomIndex] 
-            : "No example available";
+            ? processExample(word.examples[randomIndex], word.word) 
+            : "";
             
           return {
             ...word,
@@ -412,16 +480,39 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
     const handleContinueSession = async () => {
       // Complete current session before starting a new one
       await completeCurrentSession(true);
-      // Clear saved state to ensure we start fresh
+      
+      // Save the current totalPracticedWords before clearing other session data
+      const currentTotalPracticedWords = [...totalPracticedWords];
+      
+      // Clear saved state for the session but preserve totalPracticedWords
       localStorage.removeItem(STORAGE_KEY);
+      
+      // Save the current totalPracticedWords back for the next session
+      const partialState = {
+        totalPracticedWords: currentTotalPracticedWords,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(partialState));
+      
       setSessionId(null);
       setSessionCount(prev => prev + 1);
     };
 
     const handleFinishSession = async () => {
       await completeCurrentSession(true);
-      // Clear saved state to ensure we start fresh on next entry
+      
+      // Save the current totalPracticedWords before clearing other session data
+      const currentTotalPracticedWords = [...totalPracticedWords];
+      
+      // Clear saved state but preserve totalPracticedWords
       localStorage.removeItem(STORAGE_KEY);
+      
+      // Save the totalPracticedWords for future sessions
+      const partialState = {
+        totalPracticedWords: currentTotalPracticedWords,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(partialState));
       
       // Show completion dialog and pass a flag to prevent showing it again in handleBack
       setShowCompletionDialog(true);
@@ -570,14 +661,6 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
 
         <div className="flex justify-between items-center">
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleBack} 
-              className="text-sm text-gray-500"
-            >
-              Back
-            </Button>
             <p className="text-sm text-gray-500 flex items-center">
               Card {currentWordIndex + 1} of {Math.min(cardsPerSession, words.length)} · Session {sessionCount}
             </p>
@@ -619,7 +702,7 @@ export const FlashcardGame = forwardRef<FlashcardGameRef, { onBack: () => void }
                 Congratulations!
               </DialogTitle>
               <DialogDescription className="text-center py-4 text-lg">
-                You've successfully learned {practicedWords.length} words!
+                You've successfully learned {totalPracticedWords.length} words!
               </DialogDescription>
             </DialogHeader>
           </DialogContent>

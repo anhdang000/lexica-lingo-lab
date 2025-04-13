@@ -611,21 +611,22 @@ export async function getPracticeWords(
         .select(`
           *,
           words!collection_words_word_variant_id_fkey(
-            word_id,
-            word_variant_id,
-            word,
-            part_of_speech,
-            phonetics,
-            audio_url,
-            stems,
-            definitions,
-            examples
+        word_id,
+        word_variant_id,
+        word,
+        part_of_speech,
+        phonetics,
+        audio_url,
+        stems,
+        definitions,
+        examples
           )
         `)
         .in("collection_id", ids)
         .eq("user_id", userId)
         .eq("status", status)
-        .order("word_variant_id")
+        .order("word_variant_id", { ascending: true })
+        .order("updated_at", { ascending: true })
         .limit(limit);
       return data || [];
     };

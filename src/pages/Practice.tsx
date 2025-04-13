@@ -58,8 +58,8 @@ const Practice = () => {
     setGameKey(prevKey => prevKey + 1);
     setCurrentGame(gameType);
     
-    // Clear any persisting flashcard state
-    localStorage.removeItem('flashcardGameState');
+    // DON'T clear the flashcard state completely, as it would remove totalPracticedWords
+    // Instead, we'll let the component handle its own state management
   };
 
   const handleReturnToPracticeMenu = async () => {
@@ -69,8 +69,8 @@ const Practice = () => {
       await quizRef.current.handleBack();
     }
     
-    // Clear any persisting flashcard state
-    localStorage.removeItem('flashcardGameState');
+    // Don't completely remove the flashcard state as it contains totalPracticedWords
+    // The component will handle its own state management
     
     setCurrentGame(null);
   };

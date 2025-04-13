@@ -20,6 +20,35 @@ import {
 } from '@/lib/database';
 import { getQuizQuestions, WordInfo } from '@/lib/utils';
 
+// Helper functions to process text content
+const processDefinition = (definition: string, word: string): string => {
+  // First, remove the {it} and {/it} tags (instead of replacing with placeholders)
+  let processed = definition.replace(/{it}(.*?){\/it}/g, '$1');
+  
+  // Check if the definition contains the word and hide it
+  // Create a regex that matches the word as a whole word (with word boundaries)
+  const wordRegex = new RegExp(`\\b${word}\\b`, 'gi');
+  
+  // Replace the word with underscore placeholders
+  processed = processed.replace(wordRegex, '______');
+  
+  return processed;
+};
+
+const processExample = (example: string, word: string): string => {
+  // First, remove the {it} and {/it} tags (instead of replacing with placeholders)
+  let processed = example.replace(/{it}(.*?){\/it}/g, '$1');
+  
+  // Remove explanations in format [=...]
+  processed = processed.replace(/\[=.*?\]/g, '');
+  
+  // Check if the example contains the word and hide it
+  const wordRegex = new RegExp(`\\b${word}\\b`, 'gi');
+  processed = processed.replace(wordRegex, '______');
+  
+  return processed;
+};
+
 interface QuizQuestion {
   word: string;
   definition: string;
@@ -56,6 +85,8 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [score, setScore] = useState(0);
+  // Add a new state to track total score across all sessions
+  const [totalScore, setTotalScore] = useState(0);
   const [showHint, setShowHint] = useState(false);
   const [sessionCount, setSessionCount] = useState(1);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
@@ -219,6 +250,13 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
     }
   }, [currentQuestionIndex, selectedOption]);  // Remove quizQuestions from dependency array
 
+  // Update the totalScore state whenever the score changes
+  useEffect(() => {
+    if (score > 0) {
+      setTotalScore(prev => prev + score);
+    }
+  }, [score, currentQuestionIndex === quizQuestions.length - 1]);
+
   const fetchQuizQuestions = async () => {
     if (!user) return;
     
@@ -259,12 +297,12 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
         const randomIndex = Math.floor(Math.random() * word.definitions.length);
         
         // Get the corresponding definition and example
-        const selectedDefinition = word.definitions[randomIndex];
+        const selectedDefinition = processDefinition(word.definitions[randomIndex], word.word);
         
         // Get the corresponding example if available at the same index
         const selectedExample = word.examples && word.examples.length > randomIndex 
-          ? word.examples[randomIndex] 
-          : "";
+          ? processExample(word.examples[randomIndex], word.word) 
+          : "No example available";
           
         return {
           ...word,
@@ -651,7 +689,7 @@ export const QuizGame = forwardRef<QuizGameRef, { onBack: () => void }>(({ onBac
               Great job!
             </DialogTitle>
             <DialogDescription className="text-center py-4 text-lg">
-              You scored {score} out of {quizQuestions.length} questions!
+              You scored {totalScore} out of {quizQuestions.length * sessionCount} questions!
             </DialogDescription>
           </DialogHeader>
         </DialogContent>
