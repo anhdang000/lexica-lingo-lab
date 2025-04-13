@@ -33,11 +33,32 @@ const Header: React.FC = () => {
     { name: 'Practice', path: '/practice', icon: <Dumbbell className="h-5 w-5" />, color: "text-gray-600" },
   ];
 
-  // Get user initials for avatar fallback
+  // Get user initials for avatar fallback from username instead of email
   const getUserInitials = () => {
     if (!user) return 'U';
+    
+    const username = user.user_metadata?.username;
+    if (username) {
+      // Get initials from username (up to 2 characters)
+      const words = username.split(/\s+/);
+      if (words.length > 1) {
+        // If username has multiple words, use first letter of first and last word
+        return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+      } else {
+        // If username is a single word, use first two letters
+        return username.substring(0, 2).toUpperCase();
+      }
+    }
+    
+    // Fallback to using email if no username
     const email = user.email || '';
     return email.substring(0, 2).toUpperCase();
+  };
+
+  // Get username from user metadata
+  const getUserName = () => {
+    if (!user || !user.user_metadata) return 'User';
+    return user.user_metadata.username || user.email;
   };
 
   // Simplified version for mobile
@@ -114,7 +135,7 @@ const Header: React.FC = () => {
                     <AvatarFallback>{getUserInitials()}</AvatarFallback>
                   </Avatar>
                   <div className="ml-3">
-                    <p className="text-sm font-medium">{user?.email}</p>
+                    <p className="text-sm font-medium">{getUserName()}</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={handleSignOut}>
@@ -189,7 +210,7 @@ const Header: React.FC = () => {
               <AvatarFallback>{getUserInitials()}</AvatarFallback>
             </Avatar>
             <div className="ml-3">
-              <p className="text-sm font-medium">{user?.email}</p>
+              <p className="text-sm font-medium">{getUserName()}</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out">
