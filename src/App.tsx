@@ -49,8 +49,12 @@ const App = () => (
                 {/* Auth route - this should always be accessible */}
                 <Route path="/auth" element={<Auth />} />
                 
-                {/* Redirect root to lexigrab */}
-                <Route path="/" element={<Navigate to="/lexigrab" replace />} />
+                {/* Home route - use our new landing page */}
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <Layout><Index /></Layout>
+                  </ProtectedRoute>
+                } />
                 
                 {/* Protected routes - these require authentication */}
                 <Route path="/lexigrab" element={
