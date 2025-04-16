@@ -89,7 +89,7 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (textarea) {
-      textarea.style.height = '80px'; // Reduced from 150px to 80px
+      textarea.style.height = '90px'; // Reduced from 150px to 80px
     }
   };
 
