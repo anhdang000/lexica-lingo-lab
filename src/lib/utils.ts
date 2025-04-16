@@ -452,13 +452,12 @@ export async function generateVocabularyFromTopic(inputText: string, tuningOptio
     
     tuningInstructions = `
 Apply these specific tuning preferences to your selection of vocabulary words:
-
 1. Language Level: ${tuningOptions.level !== 'auto' ? tuningOptions.level : 'Auto-detect based on content complexity'}
 2. Vocabulary Focus: ${focusProperty} vocabulary
 3. Parts of Speech: Emphasize these parts of speech: ${tuningOptions.partsOfSpeech.join(', ')}
 `;
   }
-  console.log('Tuning Instructions:', tuningInstructions);
+
   // Create prompt text for vocabulary generation from a topic
   const promptText = `
 You are an advanced vocabulary instructor tasked with generating useful vocabulary words related to a given input.
@@ -599,8 +598,6 @@ export async function analyzeText(text: string, tuningOptions?: TuningOptions): 
     const focusProperty = tuningOptions.useCase || tuningOptions.vocabularyFocus || 'general';
     
     tuningInstructions = `
-Apply these specific tuning preferences to your selection of vocabulary words:
-
 1. Language Level: ${tuningOptions.level !== 'auto' ? tuningOptions.level : 'Auto-detect based on content complexity'}
 2. Vocabulary Focus: ${focusProperty} vocabulary
 3. Word Frequency: Prioritize ${tuningOptions.frequency} frequency words
@@ -618,9 +615,10 @@ Your task is to extract three things:
 2. Topics: 3-5 relevant topics or themes that categorize the content
 3. Content: An simple summary writeup, strictly use vocabulary extracted from the original source, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word><synonym>lexicon</synonym>. The synonym should be a word that is similar in meaning to the vocabulary word, wrapped in <synonym> tags and must be simpler.
 
+User's preferences for extracted vocabulary:
 ${tuningInstructions}
 
-For vocabulary, select words that meet these criteria:
+For vocabulary, select words that meet these criteria and strictly follow user's preferences:
 - Advanced and relatively uncommon and align with the main topic
 - First to prioritize nouns specifically to the main topic of the text
 - Then verbs, adjectives, and other parts of speech used in the text
@@ -636,7 +634,7 @@ For the explanatory content:
 - IMPORTANT: Ensure EVERY vocabulary word from your list appears in the writeup
 - IMPORTANT: Ensure EVERY vocabulary word from your list appears in the ORIGINAL TEXT
 - IMPORTANT: Wrap EACH vocabulary word in <word> tags, like this: <word>vocabulary</word>
-- IMPORTANT: Each vocabulary word MUST be immediately followed by an appropriate synonym wrapped in <synonym> tags: <synonym>lexicon</synonym>
+- IMPORTANT: Each vocabulary word MUST be immediately followed by a simple synonym or an explanatory phrase wrapped in <synonym> tags: <synonym>lexicon</synonym>
 
 Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
 Return the results in JSON format with three fields: "vocabulary" (array of objects with "word" and "collectionName" properties), "topics" (array of strings), and "content" (string).
@@ -754,8 +752,6 @@ export async function analyzeFiles(files: FileInput[], tuningOptions?: TuningOpt
     const focusProperty = tuningOptions.useCase || tuningOptions.vocabularyFocus || 'general';
     
     tuningInstructions = `
-Apply these specific tuning preferences to your selection of vocabulary words:
-
 1. Language Level: ${tuningOptions.level !== 'auto' ? tuningOptions.level : 'Auto-detect based on content complexity'}
 2. Vocabulary Focus: ${focusProperty} vocabulary
 3. Word Frequency: Prioritize ${tuningOptions.frequency} frequency words
@@ -773,9 +769,10 @@ Your task is to extract three things:
 2. Topics: 3-5 relevant topics or themes that categorize the content
 3. Content: An simple explanatory writeup, strictly use vocabulary extracted, each vocabulary word from your vocabulary list MUST be wrapped in <word> tags, like this: <word>vocabulary</word><synonym>lexicon</synonym>. The synonym should be a word that is similar in meaning to the vocabulary word, wrapped in <synonym> tags and must be simpler.
 
+User's preferences for extracted vocabulary:
 ${tuningInstructions}
 
-For vocabulary, select words that meet these criteria:
+For vocabulary, select words that meet these criteria and strictly follow user's preferences:
 - Advanced and relatively uncommon and align with the main topic
 - First to prioritize nouns specifically to the main topic of the text
 - Then verbs, adjectives, and other parts of speech used in the text
@@ -791,6 +788,7 @@ For the explanatory content:
 - IMPORTANT: Ensure EVERY vocabulary word from your list appears in the writeup
 - IMPORTANT: Ensure EVERY vocabulary word from your list appears in the ORIGINAL TEXT
 - IMPORTANT: Wrap EACH vocabulary word in <word> tags, like this: <word>vocabulary</word><synonym>lexicon</synonym>
+- IMPORTANT: Each vocabulary word MUST be immediately followed by a simple synonym or an explanatory phrase wrapped in <synonym> tags: <synonym>lexicon</synonym>
 
 Return words in singular and infinitive forms (e.g., "analyze" instead of "analyzing")
 Return the results in JSON format with three fields: "vocabulary" (array of objects with "word" and "collectionName" properties), "topics" (array of strings), and "content" (string).
@@ -1058,6 +1056,8 @@ For each word:
 2. Provide 4 possible word choices, including the correct word
 3. Make wrong options plausible but clearly incorrect (similar parts of speech, thematic relation, etc.)
 4. Vary question formats (definition-based, context clues, synonyms, etc.)
+
+IMPORTANT: The question should be funny and attractive to learners (you are encouraged to use icons) and be in various types instead of just a single question.
 
 Words and their information:
 ${wordInfoText}
