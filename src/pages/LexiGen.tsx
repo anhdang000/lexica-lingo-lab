@@ -30,7 +30,6 @@ const LexiGen = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [topicName, setTopicName] = useState<string>('');
   const [activeTab, setActiveTab] = useState('input');
-  const [showTuningOptions, setShowTuningOptions] = useState(false);
   const [activeTuningOptions, setActiveTuningOptions] = useState<TuningOptions | null>(null);
   const [popularTopics, setPopularTopics] = useState<string[]>([
     'Business & Marketing',
@@ -53,7 +52,9 @@ const LexiGen = () => {
     setCurrentWord,
     setCurrentTool,
     lexigenResults,
-    currentWord
+    currentWord,
+    showTuningOptions,
+    setShowTuningOptions
   } = useAppState();
 
   // Set current tool to lexigen when component mounts

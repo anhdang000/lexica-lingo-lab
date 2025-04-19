@@ -21,10 +21,21 @@ import {
   File,
   Sliders,
   Settings,
-  Check
+  Check,
+  BookOpen,
+  GraduationCap,
+  Briefcase,
+  MessageCircle,
+  Feather,
+  Gauge,
+  BadgePlus,
+  BadgeCheck,
+  Award,
+  Layers
 } from 'lucide-react';
 import { FileInput, fetchUrlContent, AnalysisResults, analyzeVocabulary } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useAppState } from '@/contexts/AppStateContext';
 import {
   Select,
   SelectContent,
@@ -56,7 +67,6 @@ export interface TuningOptions {
   vocabularyFocus: string;
   frequency: string;
   partsOfSpeech: string[];
-  sourceTypeHint: string;
 }
 
 // Define the structure for active files, mirroring AppStateContext
@@ -81,8 +91,6 @@ interface LexiGrabInputBoxProps {
   setRecognizedUrls: (urls: string[]) => void;
   activeTuningOptions?: TuningOptions | null; // Keep prop for initialization
   setActiveTuningOptions?: (options: TuningOptions | null) => void;
-  showTuningOptions?: boolean;
-  setShowTuningOptions?: (show: boolean) => void;
 }
 
 const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
@@ -95,10 +103,9 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
   recognizedUrls,
   setRecognizedUrls,
   activeTuningOptions, // Use for initial state only
-  setActiveTuningOptions,
-  showTuningOptions,
-  setShowTuningOptions
+  setActiveTuningOptions
 }) => {
+  const { showTuningOptions, setShowTuningOptions } = useAppState();
   const [fontSize, setFontSize] = useState(24);
   const [isUrlFetching, setIsUrlFetching] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -531,20 +538,30 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
       vocabularyFocus: 'general',
       frequency: 'medium',
       partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
-      sourceTypeHint: 'auto',
     };
   });
 
   const partsOfSpeechOptions = [
-    { id: 'noun', label: 'Nouns' },
-    { id: 'verb', label: 'Verbs' },
-    { id: 'adjective', label: 'Adjectives' },
-    { id: 'adverb', label: 'Adverbs' },
-    { id: 'pronoun', label: 'Pronouns' },
-    { id: 'preposition', label: 'Prepositions' },
-    { id: 'conjunction', label: 'Conjunctions' },
-    { id: 'interjection', label: 'Interjections' },
+    { id: 'noun', label: 'noun' },
+    { id: 'verb', label: 'verb' },
+    { id: 'adjective', label: 'adjective' },
+    { id: 'adverb', label: 'adverb' },
   ];
+
+  const getPartOfSpeechStyle = (pos: string) => {
+    switch (pos.toLowerCase()) {
+      case 'noun':
+        return 'bg-primary/10 text-primary';
+      case 'verb':
+        return 'bg-secondary/10 text-secondary';
+      case 'adjective':
+        return 'bg-[#dea47e]/20 text-[#9e6240]';
+      case 'adverb':
+        return 'bg-[#81adc8]/20 text-[#81adc8]';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    }
+  };
 
   return (
     <div className="w-full max-w-4xl mx-auto animate-slide-in-up">
@@ -810,10 +827,10 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
               </Badge>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* English Level */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">English Level</Label>
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Level</Label>
                 <Select 
                   value={tuningOptions.level} 
                   onValueChange={(value) => setTuningOptions({...tuningOptions, level: value})}
@@ -822,11 +839,36 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
                     <SelectValue placeholder="Select level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="auto">Auto-detect</SelectItem>
-                    <SelectItem value="beginner">Beginner (A1-A2)</SelectItem>
-                    <SelectItem value="intermediate">Intermediate (B1-B2)</SelectItem>
-                    <SelectItem value="advanced">Advanced (C1-C2)</SelectItem>
-                    <SelectItem value="all">All Levels</SelectItem>
+                    <SelectItem value="auto">
+                      <div className="flex items-center">
+                        <Gauge className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>Auto-detect</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="beginner">
+                      <div className="flex items-center">
+                        <BadgePlus className="h-4 w-4 mr-2 text-green-500" />
+                        <span>Beginner (A1-A2)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="intermediate">
+                      <div className="flex items-center">
+                        <BadgeCheck className="h-4 w-4 mr-2 text-amber-500" />
+                        <span>Intermediate (B1-B2)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="advanced">
+                      <div className="flex items-center">
+                        <Award className="h-4 w-4 mr-2 text-purple-500" />
+                        <span>Advanced (C1-C2)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="all">
+                      <div className="flex items-center">
+                        <Layers className="h-4 w-4 mr-2 text-gray-500" />
+                        <span>All Levels</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Target vocabulary suitable for this proficiency level</p>
@@ -834,7 +876,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
               
               {/* Vocabulary Focus */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Objective</Label>
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Focus on</Label>
                 <Select 
                   value={tuningOptions.vocabularyFocus} 
                   onValueChange={(value) => setTuningOptions({...tuningOptions, vocabularyFocus: value})}
@@ -843,18 +885,85 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
                     <SelectValue placeholder="Select focus" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="general">General Vocabulary</SelectItem>
-                    <SelectItem value="academic">Academic</SelectItem>
-                    <SelectItem value="business">Business</SelectItem>
-                    <SelectItem value="technical">Technical Terminology</SelectItem>
-                    <SelectItem value="spoken">Conversational</SelectItem>
-                    <SelectItem value="idioms">Idioms & Expressions</SelectItem>
+                    <SelectItem value="general">
+                      <div className="flex items-center">
+                        <BookOpen className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>General Vocabulary</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="academic">
+                      <div className="flex items-center">
+                        <GraduationCap className="h-4 w-4 mr-2 text-amber-500" />
+                        <span>Academic</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="business">
+                      <div className="flex items-center">
+                        <Briefcase className="h-4 w-4 mr-2 text-purple-500" />
+                        <span>Business</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="technical">
+                      <div className="flex items-center">
+                        <Settings className="h-4 w-4 mr-2 text-gray-500" />
+                        <span>Technical Terminology</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="spoken">
+                      <div className="flex items-center">
+                        <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
+                        <span>Conversational</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="idioms">
+                      <div className="flex items-center">
+                        <Feather className="h-4 w-4 mr-2 text-rose-500" />
+                        <span>Idioms & Expressions</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Prioritize specific types of vocabulary</p>
               </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {/* Parts of Speech */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Parts of Speech</Label>
+                <div className="flex flex-wrap gap-2">
+                  {partsOfSpeechOptions.map((part) => (
+                    <Badge
+                      key={part.id}
+                      variant={tuningOptions.partsOfSpeech.includes(part.id) ? "default" : "outline"}
+                      className={cn(
+                        "cursor-pointer transition-all",
+                        tuningOptions.partsOfSpeech.includes(part.id) 
+                          ? getPartOfSpeechStyle(part.id)
+                          : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                      )}
+                      onClick={() => {
+                        if (tuningOptions.partsOfSpeech.includes(part.id)) {
+                          setTuningOptions({
+                            ...tuningOptions, 
+                            partsOfSpeech: tuningOptions.partsOfSpeech.filter(pos => pos !== part.id)
+                          });
+                        } else {
+                          setTuningOptions({
+                            ...tuningOptions, 
+                            partsOfSpeech: [...tuningOptions.partsOfSpeech, part.id]
+                          });
+                        }
+                      }}
+                    >
+                      {part.label}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Select parts of speech to extract</p>
+              </div>
               
-              {/* Frequency */}
+              {/* Word Frequency */}
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Word Frequency</Label>
                 <RadioGroup 
@@ -879,62 +988,6 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              {/* Parts of Speech */}
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Parts of Speech</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {partsOfSpeechOptions.map((part) => (
-                    <div className="flex items-center space-x-2" key={part.id}>
-                      <Checkbox 
-                        id={`pos-${part.id}`} 
-                        checked={tuningOptions.partsOfSpeech.includes(part.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setTuningOptions({
-                              ...tuningOptions, 
-                              partsOfSpeech: [...tuningOptions.partsOfSpeech, part.id]
-                            });
-                          } else {
-                            setTuningOptions({
-                              ...tuningOptions, 
-                              partsOfSpeech: tuningOptions.partsOfSpeech.filter(pos => pos !== part.id)
-                            });
-                          }
-                        }}
-                      />
-                      <Label htmlFor={`pos-${part.id}`} className="text-sm">{part.label}</Label>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Select parts of speech to extract</p>
-              </div>
-              
-              {/* Source Type Hint */}
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Source Type Hint</Label>
-                <Select 
-                  value={tuningOptions.sourceTypeHint} 
-                  onValueChange={(value) => setTuningOptions({...tuningOptions, sourceTypeHint: value})}
-                >
-                  <SelectTrigger className="w-full text-sm">
-                    <SelectValue placeholder="Source type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">Auto-detect</SelectItem>
-                    <SelectItem value="news">News Article</SelectItem>
-                    <SelectItem value="academic">Academic Paper</SelectItem>
-                    <SelectItem value="fiction">Fiction Novel</SelectItem>
-                    <SelectItem value="nonfiction">Non-fiction Book</SelectItem>
-                    <SelectItem value="conversation">Casual Conversation</SelectItem>
-                    <SelectItem value="social">Social Media</SelectItem>
-                    <SelectItem value="technical">Technical Documentation</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Provide context about the source material</p>
-              </div>
-            </div>
-            
             <div className="flex justify-end mt-4">
               <Button
                 variant="outline" 
@@ -945,7 +998,6 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
                     vocabularyFocus: 'general',
                     frequency: 'medium',
                     partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
-                    sourceTypeHint: 'auto',
                   });
                 }}
                 className="text-xs mr-2"

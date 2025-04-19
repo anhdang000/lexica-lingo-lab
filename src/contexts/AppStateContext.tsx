@@ -42,6 +42,9 @@ interface AppState {
   lexigenInputValue: string;
   setLexigenInputValue: (value: string) => void;
 
+  showTuningOptions: boolean;
+  setShowTuningOptions: (show: boolean) => void;
+
   getCurrentResults: () => TabResults;
 }
 
@@ -68,6 +71,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [lexigrabRecognizedUrls, setLexigrabRecognizedUrls] = useState<string[]>([]);
   const [lexigrabSummaryContent, setLexigrabSummaryContent] = useState<string>("");
   const [lexigenInputValue, setLexigenInputValue] = useState('');
+  const [showTuningOptions, setShowTuningOptions] = useState(false);
 
   const setVocabularyResults = (results: WordDefinition[], tool: ToolType) => {
     if (tool === 'lexigrab') {
@@ -118,6 +122,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setLexigrabSummaryContent,
     lexigenInputValue,
     setLexigenInputValue,
+    showTuningOptions,
+    setShowTuningOptions,
   };
 
   return (

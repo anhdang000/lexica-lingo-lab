@@ -33,7 +33,6 @@ const LexiGrab = () => {
   const [activeTab, setActiveTab] = useState('input');
   const [recentSources, setRecentSources] = useState<{ type: string; name: string; date: string; content?: string; files?: FileInput[]; urls?: string[] }[]>([]);
   const [activeTuningOptions, setActiveTuningOptions] = useState<TuningOptions | null>(null);
-  const [showTuningOptions, setShowTuningOptions] = useState(false);
 
   const {
     setVocabularyResults,
@@ -51,6 +50,8 @@ const LexiGrab = () => {
     setLexigrabRecognizedUrls,
     lexigrabSummaryContent,
     setLexigrabSummaryContent,
+    showTuningOptions,
+    setShowTuningOptions,
   } = useAppState();
 
   useEffect(() => {

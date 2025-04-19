@@ -2,12 +2,10 @@ import React, { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Loader2, Sparkles, Sliders, Settings, Check, RefreshCw, BookOpen, MessageCircle, Briefcase, GraduationCap, Plane, Feather } from 'lucide-react';
+import { Loader2, Sparkles, Sliders, Settings, Check, RefreshCw, BookOpen, MessageCircle, Briefcase, GraduationCap, Plane, Feather, Gauge, BadgePlus, BadgeCheck, Award, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAppState } from '@/contexts/AppStateContext';
 import {
   Select,
@@ -27,8 +25,6 @@ export interface TuningOptions {
 interface LexiGenInputBoxProps {
   onAnalyze: (text: string, tuningOptions?: TuningOptions) => Promise<void>;
   isAnalyzing: boolean;
-  showTuningOptions?: boolean;
-  setShowTuningOptions?: (show: boolean) => void;
   activeTuningOptions?: TuningOptions | null;
   setActiveTuningOptions?: (options: TuningOptions | null) => void;
 }
@@ -36,12 +32,10 @@ interface LexiGenInputBoxProps {
 const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({ 
   onAnalyze, 
   isAnalyzing,
-  showTuningOptions,
-  setShowTuningOptions,
   activeTuningOptions,
   setActiveTuningOptions
 }) => {
-  const { lexigenInputValue, setLexigenInputValue } = useAppState();
+  const { lexigenInputValue, setLexigenInputValue, showTuningOptions, setShowTuningOptions } = useAppState();
   const [fontSize, setFontSize] = useState(24);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [localIsAnalyzing, setLocalIsAnalyzing] = useState(false);
@@ -67,15 +61,35 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
   });
 
   const partsOfSpeechOptions = [
-    { id: 'noun', label: 'Nouns' },
-    { id: 'verb', label: 'Verbs' },
-    { id: 'adjective', label: 'Adjectives' },
-    { id: 'adverb', label: 'Adverbs' },
-    { id: 'pronoun', label: 'Pronouns' },
-    { id: 'preposition', label: 'Prepositions' },
-    { id: 'conjunction', label: 'Conjunctions' },
-    { id: 'interjection', label: 'Interjections' },
+    { id: 'noun', label: 'noun' },
+    { id: 'verb', label: 'verb' },
+    { id: 'adjective', label: 'adjective' },
+    { id: 'adverb', label: 'adverb' },
   ];
+
+  // Function to get styling based on part of speech
+  const getPartOfSpeechStyle = (pos: string) => {
+    switch (pos.toLowerCase()) {
+      case 'noun':
+        return 'bg-primary/10 text-primary';
+      case 'verb':
+        return 'bg-secondary/10 text-secondary';
+      case 'adjective':
+        return 'bg-[#dea47e]/20 text-[#9e6240]';
+      case 'adverb':
+        return 'bg-[#81adc8]/20 text-[#81adc8]';
+      case 'pronoun':
+        return 'bg-[#f8f2dc]/40 text-[#9e6240]';
+      case 'preposition':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'conjunction':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'interjection':
+        return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    }
+  };
 
   const calculateFontSize = (text: string) => {
     const lines = text.split('\n').length;
@@ -272,7 +286,7 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* English Level */}
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">English Level</Label>
+                <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Level</Label>
                 <Select 
                   value={tuningOptions.level} 
                   onValueChange={(value) => setTuningOptions({...tuningOptions, level: value})}
@@ -281,11 +295,36 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
                     <SelectValue placeholder="Select level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="auto">Auto-detect</SelectItem>
-                    <SelectItem value="beginner">Beginner (A1-A2)</SelectItem>
-                    <SelectItem value="intermediate">Intermediate (B1-B2)</SelectItem>
-                    <SelectItem value="advanced">Advanced (C1-C2)</SelectItem>
-                    <SelectItem value="all">All Levels</SelectItem>
+                    <SelectItem value="auto">
+                      <div className="flex items-center">
+                        <Gauge className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>Auto-detect</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="beginner">
+                      <div className="flex items-center">
+                        <BadgePlus className="h-4 w-4 mr-2 text-green-500" />
+                        <span>Beginner (A1-A2)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="intermediate">
+                      <div className="flex items-center">
+                        <BadgeCheck className="h-4 w-4 mr-2 text-amber-500" />
+                        <span>Intermediate (B1-B2)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="advanced">
+                      <div className="flex items-center">
+                        <Award className="h-4 w-4 mr-2 text-purple-500" />
+                        <span>Advanced (C1-C2)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="all">
+                      <div className="flex items-center">
+                        <Layers className="h-4 w-4 mr-2 text-gray-500" />
+                        <span>All Levels</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Generate vocabulary suitable for this proficiency level</p>
@@ -348,28 +387,33 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
               {/* Parts of Speech */}
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Parts of Speech</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="flex flex-wrap gap-2">
                   {partsOfSpeechOptions.map((part) => (
-                    <div className="flex items-center space-x-2" key={part.id}>
-                      <Checkbox 
-                        id={`pos-${part.id}`} 
-                        checked={tuningOptions.partsOfSpeech.includes(part.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setTuningOptions({
-                              ...tuningOptions, 
-                              partsOfSpeech: [...tuningOptions.partsOfSpeech, part.id]
-                            });
-                          } else {
-                            setTuningOptions({
-                              ...tuningOptions, 
-                              partsOfSpeech: tuningOptions.partsOfSpeech.filter(pos => pos !== part.id)
-                            });
-                          }
-                        }}
-                      />
-                      <Label htmlFor={`pos-${part.id}`} className="text-sm">{part.label}</Label>
-                    </div>
+                    <Badge
+                      key={part.id}
+                      variant={tuningOptions.partsOfSpeech.includes(part.id) ? "default" : "outline"}
+                      className={cn(
+                        "cursor-pointer transition-all",
+                        tuningOptions.partsOfSpeech.includes(part.id) 
+                          ? getPartOfSpeechStyle(part.id)
+                          : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                      )}
+                      onClick={() => {
+                        if (tuningOptions.partsOfSpeech.includes(part.id)) {
+                          setTuningOptions({
+                            ...tuningOptions, 
+                            partsOfSpeech: tuningOptions.partsOfSpeech.filter(pos => pos !== part.id)
+                          });
+                        } else {
+                          setTuningOptions({
+                            ...tuningOptions, 
+                            partsOfSpeech: [...tuningOptions.partsOfSpeech, part.id]
+                          });
+                        }
+                      }}
+                    >
+                      {part.label}
+                    </Badge>
                   ))}
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Select parts of speech to focus on when generating vocabulary</p>

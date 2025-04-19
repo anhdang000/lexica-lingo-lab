@@ -30,7 +30,6 @@ export interface TuningOptions {
   vocabularyFocus?: string; // For LexiGrab: 'general', 'academic', 'business', 'technical', etc.
   frequency?: string; // 'low', 'medium', 'high'
   partsOfSpeech: string[]; // 'noun', 'verb', 'adjective', etc.
-  sourceTypeHint?: string; // 'auto', 'news', 'academic', etc.
 }
 
 export async function lookupWord(word: string): Promise<WordDefinition[] | null> {
@@ -602,7 +601,6 @@ export async function analyzeText(text: string, tuningOptions?: TuningOptions): 
 2. Vocabulary Focus: ${focusProperty} vocabulary
 3. Word Frequency: Prioritize ${tuningOptions.frequency} frequency words
 4. Parts of Speech: Emphasize these parts of speech: ${tuningOptions.partsOfSpeech.join(', ')}
-5. Source Type Context: Treat content as ${tuningOptions.sourceTypeHint !== 'auto' ? tuningOptions.sourceTypeHint + ' material' : 'general material (auto-detect)'}
 `;
   }
   
@@ -756,7 +754,6 @@ export async function analyzeFiles(files: FileInput[], tuningOptions?: TuningOpt
 2. Vocabulary Focus: ${focusProperty} vocabulary
 3. Word Frequency: Prioritize ${tuningOptions.frequency} frequency words
 4. Parts of Speech: Emphasize these parts of speech: ${tuningOptions.partsOfSpeech.join(', ')}
-5. Source Type Context: Treat content as ${tuningOptions.sourceTypeHint !== 'auto' ? tuningOptions.sourceTypeHint + ' material' : 'general material (auto-detect)'}
 `;
   }
   
