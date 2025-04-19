@@ -901,8 +901,8 @@ Return the results in JSON format with three fields: "vocabulary" (array of obje
 }
 
 /**
- * Fetches content from a specified URL
- * Note: Due to CORS restrictions, this uses a simplified text extraction approach
+ * Fetches content from a specified URL using the backend API
+ * This avoids CORS issues by using a server-side request
  * 
  * @param url - The URL to fetch content from
  * @param options - Optional configuration for the request
@@ -910,104 +910,33 @@ Return the results in JSON format with three fields: "vocabulary" (array of obje
  */
 export async function fetchUrlContent(url: string, options?: { render?: 'html' }): Promise<string> {
   try {
-    // In a production environment, this would use a proxy server or backend API
-    // to avoid CORS issues. For this demo, we'll use a simplified approach.
-    
-    // First, try a simple extraction approach with a CORS proxy
-    // Note: This is not reliable for production use and is rate-limited
-    const corsProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    
-    try {
-      const response = await fetch(corsProxyUrl, { 
-        method: 'GET',
-        mode: 'cors',
-        headers: {
-          'Content-Type': 'text/plain',
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch via proxy: ${response.status}`);
-      }
-      
-      const content = await response.text();
-      return processHtmlContent(content, url);
-    
-    } catch (proxyError) {
-      console.warn(`CORS proxy failed: ${proxyError.message}. Attempting URL metadata extraction.`);
-      
-      // Fallback to metadata extraction - pretend we successfully got content
-      // In a real app, you would implement server-side URL fetching
-      return extractTextFromUrl(url);
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    if (!backendUrl) {
+      throw new Error('Backend URL environment variable not defined');
     }
+    
+    const apiUrl = `${backendUrl}/web/fetch`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch via backend: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Format the response as "TITLE\nCONTENT"
+    return `${data.title || 'No Title'}\n\n${data.content || 'No content available'}`.trim();
   } catch (error) {
     console.error('Error fetching URL content:', error);
     throw new Error(`Failed to fetch content: ${error.message}`);
   }
-}
-
-/**
- * Process HTML content to extract the main text
- */
-function processHtmlContent(htmlContent: string, url: string): string {
-  try {
-    // Create a new DOM parser
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, 'text/html');
-    
-    // Get the page title
-    const title = doc.title || url;
-    
-    // Get main content - focus on article content, paragraphs, and headings
-    const mainContent = doc.querySelector('article') || doc.body;
-    
-    // Extract text from paragraphs and headings
-    const paragraphs = Array.from(mainContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6'));
-    
-    const textContent = paragraphs
-      .map(p => p.textContent?.trim())
-      .filter(text => text && text.length > 20) // Filter out short text fragments
-      .join('\n\n');
-    
-    return `Title: ${title}\n\n${textContent || mainContent.textContent}`.trim();
-  } catch (error) {
-    // If HTML processing fails, return raw HTML (better than nothing)
-    console.warn('HTML processing failed, returning unprocessed content');
-    return htmlContent;
-  }
-}
-
-/**
- * Fallback method to extract text from URL when direct fetching fails
- * This simulates content extraction in case CORS or other issues prevent direct access
- */
-function extractTextFromUrl(url: string): string {
-  // Get domain from URL
-  const domain = new URL(url).hostname;
-  const path = new URL(url).pathname;
-  
-  // Extract potential title from URL
-  const pathSegments = path.split('/').filter(Boolean);
-  const lastSegment = pathSegments[pathSegments.length - 1] || '';
-  const title = lastSegment
-    .replace(/[_-]/g, ' ')
-    .replace(/\.\w+$/, '') // Remove file extension
-    .trim();
-  
-  // Create a simulated article text based on the URL
-  return `
-  URL: ${url}
-  
-  [Note: Direct content extraction failed due to CORS restrictions. Using URL metadata only.]
-  
-  Title: ${title || 'Unknown article'}
-  
-  Source: ${domain}
-  
-  Path: ${path}
-  
-  This URL appears to contain content about ${title || 'an unknown topic'}.
-  `.trim();
 }
 
 export interface WordInfo {
