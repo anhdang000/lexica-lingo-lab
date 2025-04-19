@@ -28,7 +28,6 @@ import { Button } from '@/components/ui/button';
 
 const LexiGen = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [topicName, setTopicName] = useState<string>('');
   const [activeTab, setActiveTab] = useState('input');
   const [activeTuningOptions, setActiveTuningOptions] = useState<TuningOptions | null>(null);
   const [popularTopics, setPopularTopics] = useState<string[]>([
@@ -56,14 +55,27 @@ const LexiGen = () => {
     showTuningOptions,
     setShowTuningOptions
   } = useAppState();
-
-  // Set current tool to lexigen when component mounts
-  useEffect(() => {
-    setCurrentTool('lexigen');
-  }, [setCurrentTool]);
-
+  
   // Use lexigenResults directly instead of getCurrentResults
-  const { vocabularyResults, topicResults, showResults } = lexigenResults;
+  // Important: Extract these BEFORE they're used in useEffect
+  const { vocabularyResults, topicResults, showResults, topicName } = lexigenResults;
+
+  // Use URL parameters to determine initial active tab
+  useEffect(() => {
+    // Check if there's a tab parameter in the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    
+    // If the tab parameter exists and matches one of our tabs, set it as active
+    if (tabParam === 'results' && showResults) {
+      setActiveTab('results');
+    } else if (tabParam === 'input') {
+      setActiveTab('input');
+    }
+
+    // Set current tool to lexigen when component mounts
+    setCurrentTool('lexigen');
+  }, [setCurrentTool, showResults]);
 
   const handleGenerateVocabulary = async (text: string, tuningOptions?: TuningOptions) => {
     setIsAnalyzing(true);
@@ -86,7 +98,6 @@ const LexiGen = () => {
       const results = await generateVocabularyFromTopic(text, tuningOptions);
       setVocabularyResults(results.vocabulary, 'lexigen');
       setTopicResults(results.topics, 'lexigen');
-      setTopicName(results.topicName || text);
       
       setShowResults(true, 'lexigen');
       

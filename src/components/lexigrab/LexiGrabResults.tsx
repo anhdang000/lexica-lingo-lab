@@ -7,6 +7,9 @@ import { cn } from '@/lib/utils';
 import type { WordDefinition } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOrCreateCollection, addWordToCollection } from '@/lib/database';
+import { useNavigate } from 'react-router-dom';
+import { useAppState } from '@/contexts/AppStateContext';
+import { generateVocabularyFromTopic } from '@/lib/utils';
 
 interface LexiGrabResultsProps {
   results: WordDefinition[];
@@ -26,6 +29,8 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
   content = ""
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { setVocabularyResults, setTopicResults, setShowResults, setCurrentTool } = useAppState();
   const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
   const [allSaved, setAllSaved] = useState(false);
   const [expandedWords, setExpandedWords] = useState<Set<number>>(new Set());
@@ -53,6 +58,47 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
   }, [results, isVisible]);
 
   if (!isVisible || results.length === 0) return null;
+
+  // New function to handle clicking on a topic
+  const handleTopicClick = async (topic: string) => {
+    // Show a toast notification that we're generating vocabulary
+    const toastId = toast.loading(`Generating vocabulary for "${topic}"...`);
+    
+    try {
+      // Generate vocabulary based on the topic
+      const results = await generateVocabularyFromTopic(topic);
+      
+      // Update the results in the app state
+      setVocabularyResults(results.vocabulary, 'lexigen');
+      setTopicResults(results.topics, 'lexigen');
+      
+      // Explicitly set the topic name to the clicked topic
+      const topicName = topic;
+      
+      // Set the topic name in the app state
+      setShowResults(true, 'lexigen', topicName);
+      
+      // Show success toast with an action to navigate to LexiGen
+      toast.success(`Generated vocabulary for "${topic}"`, {
+        id: toastId,
+        duration: 5000,
+        action: {
+          label: "View in LexiGen",
+          onClick: () => {
+            // Navigate to LexiGen with a query param to show results tab directly
+            navigate('/lexigen?tab=results');
+            setCurrentTool('lexigen');
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error generating vocabulary from topic:', error);
+      toast.error('Failed to generate vocabulary', {
+        id: toastId,
+        duration: 3000
+      });
+    }
+  };
 
   // Helper function to get definition text based on definition format
   const getDefinitionText = (def: any): string => {
@@ -469,15 +515,16 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
               </div>
               <div className="flex flex-wrap gap-2">
                 {topics.map((topic, index) => (
-                  <span
+                  <button
                     key={index}
+                    onClick={() => handleTopicClick(topic)}
                     className="px-3 py-1.5 text-sm bg-[#f8f2dc] dark:bg-[#cd4631]/10
                             text-[#9e6240] dark:text-[#dea47e] rounded-full
                             hover:bg-[#f8f2dc]/70 dark:hover:bg-[#cd4631]/20
                             transition-colors duration-200"
                   >
                     {topic}
-                  </span>
+                  </button>
                 ))}
               </div>
               <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-6"></div>

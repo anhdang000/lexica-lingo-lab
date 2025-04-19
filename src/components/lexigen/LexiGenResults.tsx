@@ -3,10 +3,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Volume2, Plus, ArrowUpRight, X, Check, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, generateVocabularyFromTopic } from '@/lib/utils';
 import type { WordDefinition } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOrCreateCollection, addWordToCollection } from '@/lib/database';
+import { useAppState } from '@/contexts/AppStateContext';
 
 interface LexiGenResultsProps {
   results: WordDefinition[];
@@ -26,6 +27,7 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
   topicName = 'Vocabulary Collection'
 }) => {
   const { user } = useAuth();
+  const { setVocabularyResults, setTopicResults, setShowResults } = useAppState();
   const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
   const [allSaved, setAllSaved] = useState(false);
   const [expandedWords, setExpandedWords] = useState<Set<number>>(new Set());
@@ -53,6 +55,33 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
   }, [results, isVisible]);
 
   if (!isVisible || results.length === 0) return null;
+
+  // Function to handle clicking on a topic and generating new vocabulary
+  const handleGenerateVocabulary = async (topic: string) => {
+    // Show a toast notification that we're generating vocabulary
+    const toastId = toast.loading(`Generating vocabulary for "${topic}"...`);
+    
+    try {
+      // Generate vocabulary based on the topic
+      const results = await generateVocabularyFromTopic(topic);
+      
+      // Update the results in the app state
+      setVocabularyResults(results.vocabulary, 'lexigen');
+      setTopicResults(results.topics, 'lexigen');
+      
+      // Show success toast
+      toast.success(`Generated vocabulary for "${topic}"`, {
+        id: toastId,
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('Error generating vocabulary from topic:', error);
+      toast.error('Failed to generate vocabulary', {
+        id: toastId,
+        duration: 3000
+      });
+    }
+  };
 
   // Helper function to get definition text based on definition format
   const getDefinitionText = (def: any): string => {
@@ -404,15 +433,22 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
               </div>
               <div className="flex flex-wrap gap-2">
                 {topics.map((topic, index) => (
-                  <span
+                  <button
                     key={index}
+                    onClick={() => {
+                      // Show a toast notification
+                      toast.info(`Generating vocabulary for "${topic}"...`);
+                      
+                      // Generate vocabulary based on the topic
+                      handleGenerateVocabulary(topic);
+                    }}
                     className="px-3 py-1.5 text-sm bg-[#6366f1]/10 dark:bg-[#6366f1]/20
                             text-[#6366f1] dark:text-[#a78bfa] rounded-full
                             hover:bg-[#6366f1]/20 dark:hover:bg-[#6366f1]/30
-                            transition-colors duration-200"
+                            transition-colors duration-200 cursor-pointer"
                   >
                     {topic}
-                  </span>
+                  </button>
                 ))}
               </div>
               <div className="mt-6 border-t border-gray-100 dark:border-gray-800 pt-6"></div>

@@ -17,6 +17,7 @@ interface TabResults {
   vocabularyResults: WordDefinition[];
   topicResults: string[];
   showResults: boolean;
+  topicName?: string;
 }
 
 interface AppState {
@@ -26,7 +27,7 @@ interface AppState {
   currentTool: ToolType;
   setVocabularyResults: (results: WordDefinition[], tool: ToolType) => void;
   setTopicResults: (topics: string[], tool: ToolType) => void;
-  setShowResults: (show: boolean, tool: ToolType) => void;
+  setShowResults: (show: boolean, tool: ToolType, topicName?: string) => void;
   setCurrentWord: (word: WordDefinition | null) => void;
   setCurrentTool: (tool: ToolType) => void;
 
@@ -89,11 +90,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const setShowResults = (show: boolean, tool: ToolType) => {
+  const setShowResults = (show: boolean, tool: ToolType, topicName?: string) => {
     if (tool === 'lexigrab') {
-      setLexigrabResults(prev => ({ ...prev, showResults: show }));
+      setLexigrabResults(prev => ({ ...prev, showResults: show, topicName }));
     } else {
-      setLexigenResults(prev => ({ ...prev, showResults: show }));
+      setLexigenResults(prev => ({ ...prev, showResults: show, topicName }));
     }
   };
 
