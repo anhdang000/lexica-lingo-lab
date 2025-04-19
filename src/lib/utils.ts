@@ -930,7 +930,7 @@ export async function fetchUrlContent(url: string, options?: { render?: 'html' }
     }
     
     const data = await response.json();
-    
+    console.log('Fetched data:', data);
     // Format the response as "TITLE\nCONTENT"
     return `${data.title || 'No Title'}\n\n${data.content || 'No content available'}`.trim();
   } catch (error) {
