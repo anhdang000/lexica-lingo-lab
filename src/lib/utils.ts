@@ -800,41 +800,38 @@ Return the results in JSON format with three fields: "vocabulary" (array of obje
       maxOutputTokens: 8192,
       responseMimeType: "application/json",
       responseSchema: {
-        type: SchemaType.ARRAY as const,
-        items: {
-          type: SchemaType.OBJECT as const,
-          properties: {
-            vocabulary: {
-              type: SchemaType.ARRAY as const,
-              items: {
-                type: SchemaType.OBJECT as const,
-                properties: {
-                  word: {
-                    type: SchemaType.STRING as const,
-                    description: "A vocabulary word that would be valuable for a language learner",
-                  },
-                  collectionName: {
-                    type: SchemaType.STRING as const,
-                    description: "The collection name that categorizes this vocabulary word",
-                  }
+        type: SchemaType.OBJECT as const,
+        properties: {
+          vocabulary: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.OBJECT as const,
+              properties: {
+                word: {
+                  type: SchemaType.STRING as const,
+                  description: "A vocabulary word that would be valuable for a language learner",
                 },
-                required: ["word", "collectionName"],
+                collectionName: {
+                  type: SchemaType.STRING as const,
+                  description: "The collection name that categorizes this vocabulary word",
+                }
               },
-            },
-            topics: {
-              type: SchemaType.ARRAY as const,
-              items: {
-                type: SchemaType.STRING as const,
-                description: "A relevant topic or theme that categorizes the content",
-              },
-            },
-            content: {
-              type: SchemaType.STRING as const,
-              description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
+              required: ["word", "collectionName"],
             },
           },
-          required: ["vocabulary", "topics", "content"],
+          topics: {
+            type: SchemaType.ARRAY as const,
+            items: {
+              type: SchemaType.STRING as const,
+              description: "A relevant topic or theme that categorizes the content",
+            },
+          },
+          content: {
+            type: SchemaType.STRING as const,
+            description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
+          },
         },
+        required: ["vocabulary", "topics", "content"],
       },
     };
     
