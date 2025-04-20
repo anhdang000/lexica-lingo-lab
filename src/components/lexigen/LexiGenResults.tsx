@@ -521,7 +521,7 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
     )}>
       <Card>
         <CardContent className="p-6">
-          <div className="mb-4">
+          <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <Sliders className="h-4 w-4 mr-2 text-[#6366f1]" />
@@ -679,8 +679,6 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
                 </div>
               </div>
             )}
-            
-            <div className="border-t border-gray-100 dark:border-gray-800 pt-4"></div>
           </div>
         </CardContent>
       </Card>

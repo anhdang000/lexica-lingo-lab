@@ -592,7 +592,7 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
       {/* Tuning Options Panel at the Top */}
       <Card className="mb-6">
         <CardContent className="p-6">
-          <div className="mb-4">
+          <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <Sliders className="h-4 w-4 mr-2 text-[#cd4631]" />
@@ -615,7 +615,7 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
             </div>
             
             {showTuningOptionsInResults && (
-              <div className="animate-fade-in mb-4 border rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+              <div className="animate-fade-in border rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* English Level */}
                   <div className="space-y-2">
@@ -717,9 +717,9 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                     <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Word Frequency</Label>
                     <div className="flex flex-wrap gap-2">
                       {[
-                        { id: 'low', label: 'Low Frequency' },
-                        { id: 'medium', label: 'Medium Frequency' },
-                        { id: 'high', label: 'High Frequency' }
+                        { id: 'low', label: 'Low' },
+                        { id: 'medium', label: 'Medium' },
+                        { id: 'high', label: 'High' }
                       ].map((freq) => (
                         <Badge
                           key={freq.id}
@@ -777,8 +777,6 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                 </div>
               </div>
             )}
-            
-            <div className="border-t border-gray-100 dark:border-gray-800 pt-4"></div>
           </div>
         </CardContent>
       </Card>
