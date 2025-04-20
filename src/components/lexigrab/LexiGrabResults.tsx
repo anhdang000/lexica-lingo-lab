@@ -977,24 +977,6 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                             
                             <div className="flex items-center gap-2">
                               {/* Add to Library Button */}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 rounded-full hover:bg-[#cd4631]/10 hover:text-[#cd4631]"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddWord(index, item);
-                                }}
-                                disabled={addedWords.has(index) || isProcessing}
-                              >
-                                {addedWords.has(index) ? (
-                                  <Check className="h-4 w-4" />
-                                ) : (
-                                  <Plus className="h-4 w-4" />
-                                )}
-                              </Button>
-                              
-                              {/* Explore Insights Button */}
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -1004,19 +986,51 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                                       className="h-8 w-8 p-0 rounded-full hover:bg-[#cd4631]/10 hover:text-[#cd4631]"
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        handleAddWord(index, item);
+                                      }}
+                                      disabled={addedWords.has(index) || isProcessing}
+                                    >
+                                      {addedWords.has(index) ? (
+                                        <Check className="h-4 w-4" />
+                                      ) : (
+                                        <Plus className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {addedWords.has(index) ? "Added to library" : "Add to library"}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              
+                              {/* Explore Insights Button */}
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className={cn(
+                                        "bg-[#cd4631]/10 hover:bg-[#cd4631]/20 text-[#cd4631] flex items-center gap-1",
+                                        "dark:bg-[#cd4631]/20 dark:hover:bg-[#cd4631]/30 dark:text-[#de6950]",
+                                        "transition-colors duration-200"
+                                      )}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         handleFetchInsights(index, item);
                                       }}
                                       disabled={insightLoading[index]}
                                     >
                                       {insightLoading[index] ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                       ) : (
-                                        <Wand2 className="h-4 w-4" />
+                                        <Sparkles className="h-3.5 w-3.5" />
                                       )}
+                                      <span className="text-xs font-medium">Explore Insights</span>
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    Explore Insights
+                                    Explore word usage insights, examples and more
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
