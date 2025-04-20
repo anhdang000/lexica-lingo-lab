@@ -968,7 +968,7 @@ Generate 200-500 words detail info of below word. Provide explanation and meanin
 Word info:
 ${wordInfoJson}
 
-Just the content, no comment, no greetings, use just the word as title
+Just the content, no comment, no greetings, use just the word as title. Return in HTML format, no more than 300 words
 `;
 
   try {

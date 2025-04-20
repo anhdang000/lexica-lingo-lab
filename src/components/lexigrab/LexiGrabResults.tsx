@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { GraduationCap, Briefcase, MessageCircle, Feather, Gauge, BadgePlus, BadgeCheck, Award, Layers } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import ReactMarkdown from 'react-markdown';
 import {
   Tooltip,
   TooltipContent,
@@ -568,7 +567,20 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
     setInsightLoading((prev) => ({ ...prev, [index]: true }));
     try {
       const insights = await getWordInsights(wordDef);
-      setWordInsights((prev) => ({ ...prev, [index]: insights }));
+      
+      // Trim the markdown code block delimiters if present
+      let processedInsights = insights.trim();
+      if (processedInsights.startsWith('```html')) {
+        processedInsights = processedInsights.substring('```html'.length);
+      }
+      // More robust check for closing backticks that handles whitespace
+      if (processedInsights.trim().endsWith('```')) {
+        processedInsights = processedInsights.substring(0, processedInsights.lastIndexOf('```'));
+      }
+      // Final trim to clean up any remaining whitespace
+      processedInsights = processedInsights.trim();
+      
+      setWordInsights((prev) => ({ ...prev, [index]: processedInsights }));
       setShowInsights((prev) => new Set(prev).add(index));
     } catch (error) {
       console.error('Error fetching word insights:', error);
@@ -1124,7 +1136,8 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                               Word Insights:
                             </h5>
                           </div>
-                          <div className="prose prose-sm max-w-none dark:prose-invert 
+                          <div
+                            className="prose prose-sm max-w-none dark:prose-invert 
                             prose-headings:text-[#cd4631] dark:prose-headings:text-[#de6950] 
                             prose-a:text-[#cd4631] dark:prose-a:text-[#de6950]
                             prose-h1:text-xl prose-h1:font-bold prose-h1:mt-4 prose-h1:mb-2
@@ -1137,9 +1150,9 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                             prose-strong:font-bold prose-strong:text-[#cd4631]
                             prose-em:italic
                             prose-blockquote:border-l-4 prose-blockquote:border-[#cd4631]/30 prose-blockquote:pl-4 prose-blockquote:italic
-                            ">
-                            <ReactMarkdown>{wordInsights[index]}</ReactMarkdown>
-                          </div>
+                            "
+                            dangerouslySetInnerHTML={{ __html: wordInsights[index] }}
+                          />
                         </div>
                       )}
 
