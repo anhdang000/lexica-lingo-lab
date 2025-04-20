@@ -266,7 +266,7 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
               <Loader2 className="loading-indicator mr-2 h-4 w-4 animate-spin" />
               <Sparkles className="normal-indicator mr-2 h-4 w-4" />
             </>
-            <span>Let's <span className="font-['Pacifico'] text-lg">gen</span>!</span>
+            <span className="inline-block align-middle -mt-1">Let's <span className="font-['Pacifico'] text-lg">gen</span>!</span>
           </Button>
         </div>
         

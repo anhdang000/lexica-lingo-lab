@@ -810,7 +810,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
               <Loader2 className="loading-indicator mr-2 h-4 w-4 animate-spin" />
               <GripHorizontal className="normal-indicator mr-2 h-4 w-4" />
             </>
-            <span>Let's <span className="font-['Pacifico'] text-lg">grab</span>!</span>
+            <span className="inline-block align-middle -mt-1">Let's <span className="font-['Pacifico'] text-lg">grab</span>!</span>
           </Button>
         </div>
         

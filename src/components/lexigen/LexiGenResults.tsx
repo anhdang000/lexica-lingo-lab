@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Plus, ArrowUpRight, X, Check, Tag } from 'lucide-react';
+import { Volume2, Plus, ArrowUpRight, X, Check, Tag, Loader2, Sparkles, RefreshCw, Settings, Sliders } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn, generateVocabularyFromTopic } from '@/lib/utils';
@@ -8,6 +8,19 @@ import type { WordDefinition } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOrCreateCollection, addWordToCollection } from '@/lib/database';
 import { useAppState } from '@/contexts/AppStateContext';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BookOpen, MessageCircle, Briefcase, GraduationCap, Plane, Feather, Gauge, BadgePlus, BadgeCheck, Award, Layers } from 'lucide-react';
+
+// Import TuningOptions type that's already defined in LexiGenInputBox
+import { TuningOptions } from './LexiGenInputBox';
 
 interface LexiGenResultsProps {
   results: WordDefinition[];
@@ -27,12 +40,38 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
   topicName = 'Vocabulary Collection'
 }) => {
   const { user } = useAuth();
-  const { setVocabularyResults, setTopicResults, setShowResults } = useAppState();
+  const { setVocabularyResults, setTopicResults, setShowResults, lexigenInputValue } = useAppState();
   const [addedWords, setAddedWords] = useState<Set<number>>(new Set());
   const [allSaved, setAllSaved] = useState(false);
   const [expandedWords, setExpandedWords] = useState<Set<number>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
   const [visuallyVisible, setVisuallyVisible] = useState(false);
+  
+  // New states for tuning options in results view
+  const [showTuningOptionsInResults, setShowTuningOptionsInResults] = useState(true);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [tuningOptions, setTuningOptions] = useState<TuningOptions>({
+    level: 'auto',
+    useCase: 'general',
+    partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
+  });
+
+  // Define theme specific to LexiGen - same as in LexiGenInputBox
+  const theme = {
+    gradient: "from-[#6366f1] to-[#a855f7]",
+    hoverGradient: "from-[#6366f1]/90 to-[#a855f7]/90",
+    ring: "ring-[#6366f1] border-[#6366f1]",
+    iconColor: "text-[#6366f1]",
+    borderColor: "border-[#6366f1]"
+  };
+  
+  // Parts of speech options - same as in LexiGenInputBox
+  const partsOfSpeechOptions = [
+    { id: 'noun', label: 'noun' },
+    { id: 'verb', label: 'verb' },
+    { id: 'adjective', label: 'adjective' },
+    { id: 'adverb', label: 'adverb' },
+  ];
 
   // Handle animation and visibility
   useEffect(() => {
@@ -53,6 +92,91 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
     setAddedWords(new Set());
     setAllSaved(false);
   }, [results, isVisible]);
+  
+  // Add effect to manage loading indicator styles for the Re-gen button
+  useEffect(() => {
+    // Create and append style element for loading indicators
+    const style = document.createElement('style');
+    style.textContent = `
+      .loading-indicator-regen {
+        display: none !important;
+      }
+      
+      .normal-indicator-regen {
+        display: inline-flex !important;
+      }
+      
+      .is-loading-regen .loading-indicator-regen {
+        display: inline-flex !important;
+      }
+      
+      .is-loading-regen .normal-indicator-regen {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Cleanup function to remove the style when component unmounts
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // Add effect to manage loading state for the Re-gen button
+  useEffect(() => {
+    const button = document.querySelector("[data-loading-button-regen]");
+    if (button) {
+      if (isRegenerating) {
+        button.classList.add("is-loading-regen");
+      } else {
+        button.classList.remove("is-loading-regen");
+      }
+    }
+    
+    return () => {
+      const button = document.querySelector("[data-loading-button-regen]");
+      if (button) {
+        button.classList.remove("is-loading-regen");
+      }
+    };
+  }, [isRegenerating]);
+
+  // Function to handle regenerating vocabulary with the current tuning options
+  const handleRegenerate = async () => {
+    if (!lexigenInputValue.trim()) {
+      toast.error('No topic available to regenerate vocabulary');
+      return;
+    }
+    
+    setIsRegenerating(true);
+    const toastId = toast.loading(`Regenerating vocabulary for "${topicName}"...`);
+    
+    try {
+      // Generate vocabulary based on the original topic with new tuning options
+      const results = await generateVocabularyFromTopic(lexigenInputValue, tuningOptions);
+      
+      // Update the results in the app state
+      setVocabularyResults(results.vocabulary, 'lexigen');
+      setTopicResults(results.topics, 'lexigen');
+      
+      // Pass the topic name to the context state
+      setShowResults(true, 'lexigen', results.topicName);
+      
+      // Show success toast
+      toast.success(`Regenerated vocabulary for "${results.topicName || topicName}"`, {
+        id: toastId,
+        duration: 3000
+      });
+    } catch (error) {
+      console.error("Error regenerating vocabulary:", error);
+      toast.error("Failed to regenerate vocabulary", {
+        id: toastId,
+        duration: 3000
+      });
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   if (!isVisible || results.length === 0) return null;
 
@@ -395,6 +519,172 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
       "mt-8 w-full max-w-4xl mx-auto transition-all duration-300 ease-in-out",
       visuallyVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
     )}>
+      <Card>
+        <CardContent className="p-6">
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <Sliders className="h-4 w-4 mr-2 text-[#6366f1]" />
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Tuning Options
+                </h4>
+              </div>
+              <Button
+                onClick={() => setShowTuningOptionsInResults(!showTuningOptionsInResults)}
+                variant={showTuningOptionsInResults ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "text-gray-500 dark:text-gray-400",
+                  "hover:bg-[#6366f1]/10 hover:text-[#6366f1]",
+                  showTuningOptionsInResults && "bg-[#6366f1]/10 text-[#6366f1]"
+                )}
+              >
+                {showTuningOptionsInResults ? "Hide Options" : "Show Options"}
+              </Button>
+            </div>
+            
+            {showTuningOptionsInResults && (
+              <div className="animate-fade-in mb-4 border rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* English Level */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Level</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: 'auto', label: 'Auto-detect', icon: <Gauge className="h-3.5 w-3.5 mr-1" />, color: 'blue' },
+                        { id: 'beginner', label: 'Beginner', icon: <BadgePlus className="h-3.5 w-3.5 mr-1" />, color: 'green' },
+                        { id: 'intermediate', label: 'Intermediate', icon: <BadgeCheck className="h-3.5 w-3.5 mr-1" />, color: 'amber' },
+                        { id: 'advanced', label: 'Advanced', icon: <Award className="h-3.5 w-3.5 mr-1" />, color: 'purple' },
+                        { id: 'all', label: 'All Levels', icon: <Layers className="h-3.5 w-3.5 mr-1" />, color: 'gray' }
+                      ].map((level) => (
+                        <Badge
+                          key={level.id}
+                          variant={tuningOptions.level === level.id ? "default" : "outline"}
+                          className={cn(
+                            "cursor-pointer transition-all flex items-center",
+                            tuningOptions.level === level.id 
+                              ? `bg-${level.color}-100 text-${level.color}-800 dark:bg-${level.color}-900 dark:text-${level.color}-200`
+                              : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                          )}
+                          onClick={() => setTuningOptions({...tuningOptions, level: level.id})}
+                        >
+                          {level.icon}
+                          {level.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Use Case */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Use Case</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: 'general', label: 'General', icon: <BookOpen className="h-3.5 w-3.5 mr-1" />, color: 'blue' },
+                        { id: 'casual', label: 'Casual', icon: <MessageCircle className="h-3.5 w-3.5 mr-1" />, color: 'green' },
+                        { id: 'professional', label: 'Professional', icon: <Briefcase className="h-3.5 w-3.5 mr-1" />, color: 'purple' },
+                        { id: 'academic', label: 'Academic', icon: <GraduationCap className="h-3.5 w-3.5 mr-1" />, color: 'amber' },
+                        { id: 'travel', label: 'Travel', icon: <Plane className="h-3.5 w-3.5 mr-1" />, color: 'cyan' },
+                        { id: 'creative', label: 'Creative', icon: <Feather className="h-3.5 w-3.5 mr-1" />, color: 'rose' }
+                      ].map((useCase) => (
+                        <Badge
+                          key={useCase.id}
+                          variant={tuningOptions.useCase === useCase.id ? "default" : "outline"}
+                          className={cn(
+                            "cursor-pointer transition-all flex items-center",
+                            tuningOptions.useCase === useCase.id 
+                              ? `bg-${useCase.color}-100 text-${useCase.color}-800 dark:bg-${useCase.color}-900 dark:text-${useCase.color}-200`
+                              : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                          )}
+                          onClick={() => setTuningOptions({...tuningOptions, useCase: useCase.id})}
+                        >
+                          {useCase.icon}
+                          {useCase.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  {/* Parts of Speech */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Parts of Speech</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {partsOfSpeechOptions.map((part) => (
+                        <Badge
+                          key={part.id}
+                          variant={tuningOptions.partsOfSpeech.includes(part.id) ? "default" : "outline"}
+                          className={cn(
+                            "cursor-pointer transition-all",
+                            tuningOptions.partsOfSpeech.includes(part.id) 
+                              ? getPartOfSpeechStyle(part.id)
+                              : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                          )}
+                          onClick={() => {
+                            if (tuningOptions.partsOfSpeech.includes(part.id)) {
+                              setTuningOptions({
+                                ...tuningOptions, 
+                                partsOfSpeech: tuningOptions.partsOfSpeech.filter(pos => pos !== part.id)
+                              });
+                            } else {
+                              setTuningOptions({
+                                ...tuningOptions, 
+                                partsOfSpeech: [...tuningOptions.partsOfSpeech, part.id]
+                              });
+                            }
+                          }}
+                        >
+                          {part.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between mt-4">
+                  <Button
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setTuningOptions({
+                        level: 'auto',
+                        useCase: 'general',
+                        partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
+                      });
+                    }}
+                    className="text-xs"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Reset to Defaults
+                  </Button>
+                  
+                  {/* Re-gen button */}
+                  <Button
+                    onClick={handleRegenerate}
+                    disabled={isRegenerating}
+                    className={cn(
+                      `bg-gradient-to-r ${theme.gradient} hover:${theme.hoverGradient}`,
+                      "text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md",
+                      isRegenerating ? "is-loading-regen" : ""
+                    )}
+                    data-loading-button-regen
+                  >
+                    <>
+                      <Loader2 className="loading-indicator-regen mr-2 h-4 w-4 animate-spin" />
+                      <RefreshCw className="normal-indicator-regen mr-2 h-4 w-4" />
+                    </>
+                    <span className="inline-block align-middle -mt-1">Re-<span className="font-['Pacifico'] text-lg">gen</span>!</span>
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-4"></div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
