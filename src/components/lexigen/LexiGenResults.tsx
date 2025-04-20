@@ -69,6 +69,9 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
       setVocabularyResults(results.vocabulary, 'lexigen');
       setTopicResults(results.topics, 'lexigen');
       
+      // Pass the topic name from API response
+      setShowResults(true, results.topicName || topic);
+      
       // Show success toast
       toast.success(`Generated vocabulary for "${topic}"`, {
         id: toastId,
@@ -396,7 +399,7 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold">
-              {topicName ? `Topic: ${topicName}` : 'Generated Vocabulary'}
+              <span className="text-[#6366f1] dark:text-[#a78bfa]">{topicName || 'Generated Vocabulary'}</span>
             </h3>
             <div className="flex gap-2">
               <Button

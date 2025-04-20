@@ -99,7 +99,8 @@ const LexiGen = () => {
       setVocabularyResults(results.vocabulary, 'lexigen');
       setTopicResults(results.topics, 'lexigen');
       
-      setShowResults(true, 'lexigen');
+      // Pass the topic name to the context state
+      setShowResults(true, 'lexigen', results.topicName);
       
       // After successful generation, switch to results tab
       setActiveTab('results');
