@@ -19,6 +19,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 
 // Import TuningOptions type from LexiGrabInputBox or define it here
 export interface TuningOptions {
@@ -1136,8 +1138,7 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                               Word Insights:
                             </h5>
                           </div>
-                          <div
-                            className="prose prose-sm max-w-none dark:prose-invert 
+                          <div className="prose prose-sm max-w-none dark:prose-invert 
                             prose-headings:text-[#cd4631] dark:prose-headings:text-[#de6950] 
                             prose-a:text-[#cd4631] dark:prose-a:text-[#de6950]
                             prose-h1:text-xl prose-h1:font-bold prose-h1:mt-4 prose-h1:mb-2
@@ -1149,10 +1150,28 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                             prose-li:my-1
                             prose-strong:font-bold prose-strong:text-[#cd4631]
                             prose-em:italic
-                            prose-blockquote:border-l-4 prose-blockquote:border-[#cd4631]/30 prose-blockquote:pl-4 prose-blockquote:italic
-                            "
-                            dangerouslySetInnerHTML={{ __html: wordInsights[index] }}
-                          />
+                            prose-blockquote:border-l-4 prose-blockquote:border-[#cd4631]/30 prose-blockquote:pl-4 prose-blockquote:italic">
+                            <ReactMarkdown
+                              rehypePlugins={[rehypeRaw]}
+                              components={{
+                                h1: ({ node, ...props }) => <h1 className="text-xl font-bold mt-4 mb-2 text-[#cd4631]" {...props} />,
+                                h2: ({ node, ...props }) => <h2 className="text-lg font-semibold mt-3 mb-2 text-[#cd4631]" {...props} />,
+                                h3: ({ node, ...props }) => <h3 className="text-base font-medium mt-3 mb-1 text-[#cd4631]" {...props} />,
+                                p: ({ node, ...props }) => <p className="my-2" {...props} />,
+                                ul: ({ node, ...props }) => <ul className="ml-2 list-disc pl-5" {...props} />,
+                                ol: ({ node, ...props }) => <ol className="ml-2 list-decimal pl-5" {...props} />,
+                                li: ({ node, ...props }) => <li className="my-1" {...props} />,
+                                strong: ({ node, ...props }) => <strong className="font-bold text-[#cd4631]" {...props} />,
+                                em: ({ node, ...props }) => <em className="italic" {...props} />,
+                                blockquote: ({ node, ...props }) => (
+                                  <blockquote className="border-l-4 border-[#cd4631]/30 pl-4 italic" {...props} />
+                                ),
+                                a: ({ node, ...props }) => <a className="text-[#cd4631]" {...props} />,
+                              }}
+                            >
+                              {wordInsights[index]}
+                            </ReactMarkdown>
+                          </div>
                         </div>
                       )}
 
