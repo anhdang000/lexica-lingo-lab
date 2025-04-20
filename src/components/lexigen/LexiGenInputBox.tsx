@@ -365,12 +365,6 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
                         <span>Academic & Educational</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="travel">
-                      <div className="flex items-center">
-                        <Plane className="h-4 w-4 mr-2 text-cyan-500" />
-                        <span>Travel & Tourism</span>
-                      </div>
-                    </SelectItem>
                     <SelectItem value="creative">
                       <div className="flex items-center">
                         <Feather className="h-4 w-4 mr-2 text-rose-500" />

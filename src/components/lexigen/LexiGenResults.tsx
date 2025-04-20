@@ -143,7 +143,10 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
 
   // Function to handle regenerating vocabulary with the current tuning options
   const handleRegenerate = async () => {
-    if (!lexigenInputValue.trim()) {
+    // Use topicName as a fallback if lexigenInputValue is empty
+    const inputTerm = lexigenInputValue.trim() || topicName;
+    
+    if (!inputTerm) {
       toast.error('No topic available to regenerate vocabulary');
       return;
     }
@@ -153,7 +156,7 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
     
     try {
       // Generate vocabulary based on the original topic with new tuning options
-      const results = await generateVocabularyFromTopic(lexigenInputValue, tuningOptions);
+      const results = await generateVocabularyFromTopic(inputTerm, tuningOptions);
       
       // Update the results in the app state
       setVocabularyResults(results.vocabulary, 'lexigen');
@@ -584,7 +587,6 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
                         { id: 'casual', label: 'Casual', icon: <MessageCircle className="h-3.5 w-3.5 mr-1" />, color: 'green' },
                         { id: 'professional', label: 'Professional', icon: <Briefcase className="h-3.5 w-3.5 mr-1" />, color: 'purple' },
                         { id: 'academic', label: 'Academic', icon: <GraduationCap className="h-3.5 w-3.5 mr-1" />, color: 'amber' },
-                        { id: 'travel', label: 'Travel', icon: <Plane className="h-3.5 w-3.5 mr-1" />, color: 'cyan' },
                         { id: 'creative', label: 'Creative', icon: <Feather className="h-3.5 w-3.5 mr-1" />, color: 'rose' }
                       ].map((useCase) => (
                         <Badge
