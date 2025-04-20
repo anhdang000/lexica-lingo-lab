@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Plus, ArrowUpRight, X, Check, Tag, Loader2, Sparkles, RefreshCw, Settings, Sliders } from 'lucide-react';
+import { Volume2, Plus, ArrowUpRight, X, Check, Tag, Loader2, Sparkles, RefreshCw, Settings, Sliders, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { cn, generateVocabularyFromTopic } from '@/lib/utils';
+import { cn, generateVocabularyFromTopic, getWordInsights } from '@/lib/utils';
 import type { WordDefinition } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOrCreateCollection, addWordToCollection } from '@/lib/database';
 import { useAppState } from '@/contexts/AppStateContext';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import ReactMarkdown from 'react-markdown';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -55,6 +62,11 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
     useCase: 'general',
     partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
   });
+
+  // New states for word insights feature
+  const [insightLoading, setInsightLoading] = useState<{ [key: number]: boolean }>({});
+  const [wordInsights, setWordInsights] = useState<{ [key: number]: string }>({});
+  const [showInsights, setShowInsights] = useState<Set<number>>(new Set());
 
   // Define theme specific to LexiGen - same as in LexiGenInputBox
   const theme = {
@@ -517,6 +529,20 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
     }
   };
 
+  const handleFetchInsights = async (index: number, word: string) => {
+    setInsightLoading((prev) => ({ ...prev, [index]: true }));
+    try {
+      const insights = await getWordInsights(word);
+      setWordInsights((prev) => ({ ...prev, [index]: insights }));
+      setShowInsights((prev) => new Set(prev).add(index));
+    } catch (error) {
+      console.error('Error fetching word insights:', error);
+      toast.error('Failed to fetch word insights');
+    } finally {
+      setInsightLoading((prev) => ({ ...prev, [index]: false }));
+    }
+  };
+
   return (
     <div className={cn(
       "mt-8 w-full max-w-4xl mx-auto transition-all duration-300 ease-in-out",
@@ -831,6 +857,33 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
                                   <Plus className="h-4 w-4" />
                                 )}
                               </Button>
+
+                              {/* Fetch Insights Button */}
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 rounded-full hover:bg-[#6366f1]/10 hover:text-[#6366f1]"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleFetchInsights(index, item.word);
+                                      }}
+                                      disabled={insightLoading[index]}
+                                    >
+                                      {insightLoading[index] ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Wand2 className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Explore Insights</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                               
                               {/* Expand/Collapse Button */}
                               <button 
@@ -939,6 +992,34 @@ const LexiGenResults: React.FC<LexiGenResultsProps> = ({
                           </>
                         )}
                       </div>
+
+                      {/* Word Insights section */}
+                      {showInsights.has(index) && wordInsights[index] && (
+                        <div className="mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Wand2 className="h-4 w-4 text-[#6366f1]" />
+                            <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                              Word Insights:
+                            </h5>
+                          </div>
+                          <div className="prose prose-sm max-w-none dark:prose-invert 
+                            prose-headings:text-[#6366f1] dark:prose-headings:text-[#a78bfa] 
+                            prose-a:text-[#6366f1] dark:prose-a:text-[#a78bfa]
+                            prose-h1:text-xl prose-h1:font-bold prose-h1:mt-4 prose-h1:mb-2
+                            prose-h2:text-lg prose-h2:font-semibold prose-h2:mt-3 prose-h2:mb-2
+                            prose-h3:text-base prose-h3:font-medium prose-h3:mt-3 prose-h3:mb-1
+                            prose-p:my-2
+                            prose-ul:ml-2 prose-ul:list-disc prose-ul:pl-5
+                            prose-ol:ml-2 prose-ol:list-decimal prose-ol:pl-5
+                            prose-li:my-1
+                            prose-strong:font-bold prose-strong:text-[#6366f1] dark:prose-strong:text-[#a78bfa]
+                            prose-em:italic
+                            prose-blockquote:border-l-4 prose-blockquote:border-[#6366f1]/30 prose-blockquote:pl-4 prose-blockquote:italic
+                            ">
+                            <ReactMarkdown>{wordInsights[index]}</ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="absolute bottom-2 right-4 text-xs text-gray-400 dark:text-gray-500 transition-opacity duration-200 group-hover:opacity-100 opacity-50">
                         Click to {isExpanded ? 'hide' : 'view'} details

@@ -940,6 +940,63 @@ export interface QuizQuestion {
   correct_option_idx: number;
 }
 
+/**
+ * Get detailed insights for a word with Vietnamese translation and educational content
+ * 
+ * @param wordDefinition - The WordDefinition object to generate insights for
+ * @returns Promise resolving to the detailed insights text
+ */
+export async function getWordInsights(wordDefinition: WordDefinition): Promise<string> {
+  // Get a random API key from the comma-separated list
+  const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');
+  const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
+  
+  if (!apiKey) {
+    throw new Error('Gemini API key not found');
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelName = import.meta.env.VITE_GEMINI_MODEL_NAME || 'gemini-2.0-flash-lite';
+  
+  // Convert the WordDefinition object to a JSON string to include in the prompt
+  const wordInfoJson = JSON.stringify(wordDefinition, null, 2);
+  
+  // Create prompt text for word insights generation
+  const promptText = `
+Generate 200-500 words detail info of below word. Provide explanation and meaning in Vietnamese. The write-up should include meanings, use cases, common phrases, collocation & examples, synonyms & common confusion (if exists). Use friendly tone and be attractive to Vietnamese learners. Use icons in appropriate places
+
+Word info:
+${wordInfoJson}
+
+Just the content, no comment, no greetings, use just the word as title
+`;
+
+  try {
+    // Define the generation config
+    const generationConfig = {
+      temperature: 0.7,
+      topP: 0.95,
+      topK: 40,
+      maxOutputTokens: 8192,
+    };
+    
+    // Create model
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig
+    });
+    
+    // Generate insights for the word
+    const result = await model.generateContent(promptText);
+    
+    // Return the generated text
+    return result.response.text();
+  } catch (error) {
+    console.error('Error generating word insights:', error);
+    throw new Error(`Failed to generate word insights: ${error.message}`);
+  }
+}
+
 export async function getQuizQuestions(wordInfoList: WordInfo[]): Promise<QuizQuestion[]> {
   // Get a random API key from the comma-separated list
   const apiKeys = (import.meta.env.VITE_GEMINI_API_KEY || '').split(',');

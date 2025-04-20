@@ -1,19 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Volume2, Plus, ArrowUpRight, X, Check, Tag, BookOpen, Loader2, RefreshCw, Settings, Sliders } from 'lucide-react';
+import { Volume2, Plus, ArrowUpRight, X, Check, Tag, BookOpen, Loader2, RefreshCw, Settings, Sliders, Sparkles, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { cn, analyzeVocabulary } from '@/lib/utils';
+import { cn, analyzeVocabulary, generateVocabularyFromTopic, getWordInsights } from '@/lib/utils';
 import type { WordDefinition } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOrCreateCollection, addWordToCollection } from '@/lib/database';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '@/contexts/AppStateContext';
-import { generateVocabularyFromTopic } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { GraduationCap, Briefcase, MessageCircle, Feather, Gauge, BadgePlus, BadgeCheck, Award, Layers } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import ReactMarkdown from 'react-markdown';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Import TuningOptions type from LexiGrabInputBox or define it here
 export interface TuningOptions {
@@ -48,6 +54,11 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
   const [expandedWords, setExpandedWords] = useState<Set<number>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
   const [visuallyVisible, setVisuallyVisible] = useState(false);
+  
+  // New states for word insights feature
+  const [insightLoading, setInsightLoading] = useState<{ [key: number]: boolean }>({});
+  const [wordInsights, setWordInsights] = useState<{ [key: number]: string }>({});
+  const [showInsights, setShowInsights] = useState<Set<number>>(new Set());
   
   // New states for tuning options in results view
   const [showTuningOptionsInResults, setShowTuningOptionsInResults] = useState(true);
@@ -552,6 +563,21 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
     }
   };
 
+  // Add function to handle fetching insights for a word
+  const handleFetchInsights = async (index: number, wordDef: WordDefinition) => {
+    setInsightLoading((prev) => ({ ...prev, [index]: true }));
+    try {
+      const insights = await getWordInsights(wordDef);
+      setWordInsights((prev) => ({ ...prev, [index]: insights }));
+      setShowInsights((prev) => new Set(prev).add(index));
+    } catch (error) {
+      console.error('Error fetching word insights:', error);
+      toast.error('Failed to fetch word insights');
+    } finally {
+      setInsightLoading((prev) => ({ ...prev, [index]: false }));
+    }
+  };
+
   // Function to render content with highlighted vocabulary words
   const renderHighlightedContent = (text: string) => {
     if (!text) return null;
@@ -954,6 +980,33 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                                 )}
                               </Button>
                               
+                              {/* Explore Insights Button */}
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 rounded-full hover:bg-[#cd4631]/10 hover:text-[#cd4631]"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleFetchInsights(index, item);
+                                      }}
+                                      disabled={insightLoading[index]}
+                                    >
+                                      {insightLoading[index] ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Wand2 className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Explore Insights
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              
                               {/* Expand/Collapse Button */}
                               <button 
                                 className="text-[#cd4631] transition-transform duration-300 ease-in-out"
@@ -1061,6 +1114,34 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
                           </>
                         )}
                       </div>
+
+                      {/* Word Insights section */}
+                      {showInsights.has(index) && wordInsights[index] && (
+                        <div className="mt-6 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Wand2 className="h-4 w-4 text-[#cd4631]" />
+                            <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                              Word Insights:
+                            </h5>
+                          </div>
+                          <div className="prose prose-sm max-w-none dark:prose-invert 
+                            prose-headings:text-[#cd4631] dark:prose-headings:text-[#de6950] 
+                            prose-a:text-[#cd4631] dark:prose-a:text-[#de6950]
+                            prose-h1:text-xl prose-h1:font-bold prose-h1:mt-4 prose-h1:mb-2
+                            prose-h2:text-lg prose-h2:font-semibold prose-h2:mt-3 prose-h2:mb-2
+                            prose-h3:text-base prose-h3:font-medium prose-h3:mt-3 prose-h3:mb-1
+                            prose-p:my-2
+                            prose-ul:ml-2 prose-ul:list-disc prose-ul:pl-5
+                            prose-ol:ml-2 prose-ol:list-decimal prose-ol:pl-5
+                            prose-li:my-1
+                            prose-strong:font-bold prose-strong:text-[#cd4631]
+                            prose-em:italic
+                            prose-blockquote:border-l-4 prose-blockquote:border-[#cd4631]/30 prose-blockquote:pl-4 prose-blockquote:italic
+                            ">
+                            <ReactMarkdown>{wordInsights[index]}</ReactMarkdown>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="absolute bottom-2 right-4 text-xs text-gray-400 dark:text-gray-500 transition-opacity duration-200 group-hover:opacity-100 opacity-50">
                         Click to {isExpanded ? 'hide' : 'view'} details
