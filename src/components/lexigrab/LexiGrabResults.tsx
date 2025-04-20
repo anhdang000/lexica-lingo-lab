@@ -116,6 +116,10 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
 
   // Helper function to get examples based on definition format
   const getExamples = (def: any): string[] => {
+    // If definition is an object with examples property as string (new format)
+    if (def && typeof def === 'object' && typeof def.examples === 'string') {
+      return def.examples ? [def.examples] : [];
+    }
     // If definition is an object with examples array (old format)
     if (def && typeof def === 'object' && Array.isArray(def.examples)) {
       return def.examples;

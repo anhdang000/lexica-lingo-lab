@@ -363,7 +363,7 @@ const WordDetailModal: React.FC<WordDetailModalProps> = ({ open, onOpenChange, w
                     <p className="text-gray-800 dark:text-gray-200 text-base">
                       {idx + 1}. {renderFormattedDefinition(definition)}
                     </p>
-                    {word.examples && word.examples.length > idx && (
+                    {word.examples && word.examples[idx] && (
                       <div className="pl-6 border-l-2 border-[#cd4631]/30 group-hover/def:border-[#cd4631]
                                     transition-colors duration-300">
                         <p className="text-gray-600 dark:text-gray-400 text-sm">

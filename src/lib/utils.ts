@@ -17,7 +17,7 @@ export interface WordDefinition {
   partOfSpeech: string;
   definitions: Array<{
     meaning: string;
-    examples?: string[];
+    examples: string;
   }>;
   stems?: string[];
   collectionName?: string;
@@ -242,11 +242,11 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
                           });
                         }
 
-                        // Add phrase definition
+                        // Add phrase definition - get at most 1 example (first if multiple)
                         if (meaning) {
                           wordDef.definitions.push({
                             meaning: `${drosEntry.drp || ''} - ${meaning.trim()}`,
-                            examples: examples.length > 0 ? examples : undefined
+                            examples: examples.length > 0 ? examples[0] : ''
                           });
                         }
                       }
@@ -307,10 +307,11 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
                     }
 
                     // Only add definition if we have a meaning
+                    // Get at most 1 example (first if multiple) or empty string
                     if (meaning) {
                       wordDef.definitions.push({
                         meaning: meaning.trim(),
-                        examples: examples.length > 0 ? examples : undefined
+                        examples: examples.length > 0 ? examples[0] : ''
                       });
                     }
                   }
@@ -325,7 +326,7 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
       if (wordDef.definitions.length === 0 && entry.shortdef && Array.isArray(entry.shortdef)) {
         wordDef.definitions = entry.shortdef.map((def: string) => ({
           meaning: cleanFormatting(def),
-          examples: []
+          examples: ''
         }));
       }
       
@@ -335,7 +336,7 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
         if (Array.isArray(appDefs)) {
           wordDef.definitions = appDefs.map((def: string) => ({
             meaning: cleanFormatting(def),
-            examples: []
+            examples: ''
           }));
         }
       }

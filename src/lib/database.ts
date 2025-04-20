@@ -483,7 +483,7 @@ export async function addWordToCollection(
   try {
     // Transform wordDefinition format to the new schema format
     const definitions = wordData.definitions.map(d => d.meaning);
-    const examples = wordData.definitions.flatMap(d => d.examples || []);
+    const examples = wordData.definitions.map(d => d.examples);
     
     // Insert word into words table
     const { data: wordRow, error: insertError } = await supabase
