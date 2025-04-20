@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Volume2, Plus, ArrowUpRight, X, Check, Tag, BookOpen, Loader2, RefreshCw, Settings, Sliders } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -58,6 +58,14 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
     frequency: 'medium',
     partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
   });
+
+  // Check for distinct words in results
+  const hasMultipleDistinctWords = useMemo(() => {
+    if (!results || results.length <= 1) return false;
+    
+    const distinctWords = new Set(results.map(result => result.word.toLowerCase()));
+    return distinctWords.size > 1;
+  }, [results]);
   
   // Define theme specific to LexiGrab
   const theme = {
@@ -590,196 +598,198 @@ const LexiGrabResults: React.FC<LexiGrabResultsProps> = ({
       visuallyVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
     )}>
       {/* Tuning Options Panel at the Top */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <Sliders className="h-4 w-4 mr-2 text-[#cd4631]" />
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Tuning Options
-                </h4>
+      {hasMultipleDistinctWords && (
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <Sliders className="h-4 w-4 mr-2 text-[#cd4631]" />
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Tuning Options
+                  </h4>
+                </div>
+                <Button
+                  onClick={() => setShowTuningOptionsInResults(!showTuningOptionsInResults)}
+                  variant={showTuningOptionsInResults ? "default" : "ghost"}
+                  size="sm"
+                  className={cn(
+                    "text-gray-500 dark:text-gray-400",
+                    "hover:bg-[#cd4631]/10 hover:text-[#cd4631]",
+                    showTuningOptionsInResults && "bg-[#cd4631]/10 text-[#cd4631]"
+                  )}
+                >
+                  {showTuningOptionsInResults ? "Hide Options" : "Show Options"}
+                </Button>
               </div>
-              <Button
-                onClick={() => setShowTuningOptionsInResults(!showTuningOptionsInResults)}
-                variant={showTuningOptionsInResults ? "default" : "ghost"}
-                size="sm"
-                className={cn(
-                  "text-gray-500 dark:text-gray-400",
-                  "hover:bg-[#cd4631]/10 hover:text-[#cd4631]",
-                  showTuningOptionsInResults && "bg-[#cd4631]/10 text-[#cd4631]"
-                )}
-              >
-                {showTuningOptionsInResults ? "Hide Options" : "Show Options"}
-              </Button>
+              
+              {showTuningOptionsInResults && (
+                <div className="animate-fade-in border rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* English Level */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Level</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: 'auto', label: 'Auto-detect', icon: <Gauge className="h-3.5 w-3.5 mr-1" />, color: 'blue' },
+                          { id: 'beginner', label: 'Beginner', icon: <BadgePlus className="h-3.5 w-3.5 mr-1" />, color: 'green' },
+                          { id: 'intermediate', label: 'Intermediate', icon: <BadgeCheck className="h-3.5 w-3.5 mr-1" />, color: 'amber' },
+                          { id: 'advanced', label: 'Advanced', icon: <Award className="h-3.5 w-3.5 mr-1" />, color: 'purple' },
+                          { id: 'all', label: 'All Levels', icon: <Layers className="h-3.5 w-3.5 mr-1" />, color: 'gray' }
+                        ].map((level) => (
+                          <Badge
+                            key={level.id}
+                            variant={tuningOptions.level === level.id ? "default" : "outline"}
+                            className={cn(
+                              "cursor-pointer transition-all flex items-center",
+                              tuningOptions.level === level.id 
+                                ? `bg-${level.color}-100 text-${level.color}-800 dark:bg-${level.color}-900 dark:text-${level.color}-200`
+                                : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                            )}
+                            onClick={() => setTuningOptions({...tuningOptions, level: level.id})}
+                          >
+                            {level.icon}
+                            {level.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Vocabulary Focus - LexiGrab specific */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Focus on</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: 'general', label: 'General', icon: <BookOpen className="h-3.5 w-3.5 mr-1" />, color: 'blue' },
+                          { id: 'academic', label: 'Academic', icon: <GraduationCap className="h-3.5 w-3.5 mr-1" />, color: 'amber' },
+                          { id: 'business', label: 'Business', icon: <Briefcase className="h-3.5 w-3.5 mr-1" />, color: 'purple' },
+                          { id: 'technical', label: 'Technical', icon: <Settings className="h-3.5 w-3.5 mr-1" />, color: 'gray' },
+                          { id: 'spoken', label: 'Conversation', icon: <MessageCircle className="h-3.5 w-3.5 mr-1" />, color: 'green' },
+                          { id: 'idioms', label: 'Idioms', icon: <Feather className="h-3.5 w-3.5 mr-1" />, color: 'rose' }
+                        ].map((focus) => (
+                          <Badge
+                            key={focus.id}
+                            variant={tuningOptions.vocabularyFocus === focus.id ? "default" : "outline"}
+                            className={cn(
+                              "cursor-pointer transition-all flex items-center",
+                              tuningOptions.vocabularyFocus === focus.id 
+                                ? `bg-${focus.color}-100 text-${focus.color}-800 dark:bg-${focus.color}-900 dark:text-${focus.color}-200`
+                                : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                            )}
+                            onClick={() => setTuningOptions({...tuningOptions, vocabularyFocus: focus.id})}
+                          >
+                            {focus.icon}
+                            {focus.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {/* Parts of Speech */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Parts of Speech</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {partsOfSpeechOptions.map((part) => (
+                          <Badge
+                            key={part.id}
+                            variant={tuningOptions.partsOfSpeech.includes(part.id) ? "default" : "outline"}
+                            className={cn(
+                              "cursor-pointer transition-all",
+                              tuningOptions.partsOfSpeech.includes(part.id) 
+                                ? getPartOfSpeechStyle(part.id)
+                                : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                            )}
+                            onClick={() => {
+                              if (tuningOptions.partsOfSpeech.includes(part.id)) {
+                                setTuningOptions({
+                                  ...tuningOptions, 
+                                  partsOfSpeech: tuningOptions.partsOfSpeech.filter(pos => pos !== part.id)
+                                });
+                              } else {
+                                setTuningOptions({
+                                  ...tuningOptions, 
+                                  partsOfSpeech: [...tuningOptions.partsOfSpeech, part.id]
+                                });
+                              }
+                            }}
+                          >
+                            {part.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Word Frequency - LexiGrab specific */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Word Frequency</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: 'low', label: 'Low' },
+                          { id: 'medium', label: 'Medium' },
+                          { id: 'high', label: 'High' }
+                        ].map((freq) => (
+                          <Badge
+                            key={freq.id}
+                            variant={tuningOptions.frequency === freq.id ? "default" : "outline"}
+                            className={cn(
+                              "cursor-pointer transition-all",
+                              tuningOptions.frequency === freq.id 
+                                ? "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300"
+                                : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                            )}
+                            onClick={() => setTuningOptions({...tuningOptions, frequency: freq.id})}
+                          >
+                            {freq.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between mt-4">
+                    <Button
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setTuningOptions({
+                          level: 'auto',
+                          vocabularyFocus: 'general',
+                          frequency: 'medium',
+                          partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
+                        });
+                      }}
+                      className="text-xs"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Reset to Defaults
+                    </Button>
+                    
+                    {/* Re-grab button */}
+                    <Button
+                      onClick={handleRegenerate}
+                      disabled={isRegenerating}
+                      className={cn(
+                        `bg-gradient-to-r ${theme.gradient} hover:${theme.hoverGradient}`,
+                        "text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md",
+                        isRegenerating ? "is-loading-regen" : ""
+                      )}
+                      data-loading-button-regen
+                    >
+                      <>
+                        <Loader2 className="loading-indicator-regen mr-2 h-4 w-4 animate-spin" />
+                        <RefreshCw className="normal-indicator-regen mr-2 h-4 w-4" />
+                      </>
+                      <span className=" inline-block align-middle -mt-1">Re-<span className="font-['Pacifico'] text-lg">grab</span>!</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-            
-            {showTuningOptionsInResults && (
-              <div className="animate-fade-in border rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* English Level */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Level</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { id: 'auto', label: 'Auto-detect', icon: <Gauge className="h-3.5 w-3.5 mr-1" />, color: 'blue' },
-                        { id: 'beginner', label: 'Beginner', icon: <BadgePlus className="h-3.5 w-3.5 mr-1" />, color: 'green' },
-                        { id: 'intermediate', label: 'Intermediate', icon: <BadgeCheck className="h-3.5 w-3.5 mr-1" />, color: 'amber' },
-                        { id: 'advanced', label: 'Advanced', icon: <Award className="h-3.5 w-3.5 mr-1" />, color: 'purple' },
-                        { id: 'all', label: 'All Levels', icon: <Layers className="h-3.5 w-3.5 mr-1" />, color: 'gray' }
-                      ].map((level) => (
-                        <Badge
-                          key={level.id}
-                          variant={tuningOptions.level === level.id ? "default" : "outline"}
-                          className={cn(
-                            "cursor-pointer transition-all flex items-center",
-                            tuningOptions.level === level.id 
-                              ? `bg-${level.color}-100 text-${level.color}-800 dark:bg-${level.color}-900 dark:text-${level.color}-200`
-                              : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                          )}
-                          onClick={() => setTuningOptions({...tuningOptions, level: level.id})}
-                        >
-                          {level.icon}
-                          {level.label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Vocabulary Focus - LexiGrab specific */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Focus on</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { id: 'general', label: 'General', icon: <BookOpen className="h-3.5 w-3.5 mr-1" />, color: 'blue' },
-                        { id: 'academic', label: 'Academic', icon: <GraduationCap className="h-3.5 w-3.5 mr-1" />, color: 'amber' },
-                        { id: 'business', label: 'Business', icon: <Briefcase className="h-3.5 w-3.5 mr-1" />, color: 'purple' },
-                        { id: 'technical', label: 'Technical', icon: <Settings className="h-3.5 w-3.5 mr-1" />, color: 'gray' },
-                        { id: 'spoken', label: 'Conversation', icon: <MessageCircle className="h-3.5 w-3.5 mr-1" />, color: 'green' },
-                        { id: 'idioms', label: 'Idioms', icon: <Feather className="h-3.5 w-3.5 mr-1" />, color: 'rose' }
-                      ].map((focus) => (
-                        <Badge
-                          key={focus.id}
-                          variant={tuningOptions.vocabularyFocus === focus.id ? "default" : "outline"}
-                          className={cn(
-                            "cursor-pointer transition-all flex items-center",
-                            tuningOptions.vocabularyFocus === focus.id 
-                              ? `bg-${focus.color}-100 text-${focus.color}-800 dark:bg-${focus.color}-900 dark:text-${focus.color}-200`
-                              : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                          )}
-                          onClick={() => setTuningOptions({...tuningOptions, vocabularyFocus: focus.id})}
-                        >
-                          {focus.icon}
-                          {focus.label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  {/* Parts of Speech */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Parts of Speech</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {partsOfSpeechOptions.map((part) => (
-                        <Badge
-                          key={part.id}
-                          variant={tuningOptions.partsOfSpeech.includes(part.id) ? "default" : "outline"}
-                          className={cn(
-                            "cursor-pointer transition-all",
-                            tuningOptions.partsOfSpeech.includes(part.id) 
-                              ? getPartOfSpeechStyle(part.id)
-                              : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                          )}
-                          onClick={() => {
-                            if (tuningOptions.partsOfSpeech.includes(part.id)) {
-                              setTuningOptions({
-                                ...tuningOptions, 
-                                partsOfSpeech: tuningOptions.partsOfSpeech.filter(pos => pos !== part.id)
-                              });
-                            } else {
-                              setTuningOptions({
-                                ...tuningOptions, 
-                                partsOfSpeech: [...tuningOptions.partsOfSpeech, part.id]
-                              });
-                            }
-                          }}
-                        >
-                          {part.label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Word Frequency - LexiGrab specific */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300">Word Frequency</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { id: 'low', label: 'Low' },
-                        { id: 'medium', label: 'Medium' },
-                        { id: 'high', label: 'High' }
-                      ].map((freq) => (
-                        <Badge
-                          key={freq.id}
-                          variant={tuningOptions.frequency === freq.id ? "default" : "outline"}
-                          className={cn(
-                            "cursor-pointer transition-all",
-                            tuningOptions.frequency === freq.id 
-                              ? "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300"
-                              : "hover:bg-gray-100 dark:hover:bg-gray-700"
-                          )}
-                          onClick={() => setTuningOptions({...tuningOptions, frequency: freq.id})}
-                        >
-                          {freq.label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between mt-4">
-                  <Button
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setTuningOptions({
-                        level: 'auto',
-                        vocabularyFocus: 'general',
-                        frequency: 'medium',
-                        partsOfSpeech: ['noun', 'verb', 'adjective', 'adverb'],
-                      });
-                    }}
-                    className="text-xs"
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Reset to Defaults
-                  </Button>
-                  
-                  {/* Re-grab button */}
-                  <Button
-                    onClick={handleRegenerate}
-                    disabled={isRegenerating}
-                    className={cn(
-                      `bg-gradient-to-r ${theme.gradient} hover:${theme.hoverGradient}`,
-                      "text-white rounded-full px-6 py-2 text-sm font-medium h-auto flex items-center transition-all duration-200 shadow-sm hover:shadow-md",
-                      isRegenerating ? "is-loading-regen" : ""
-                    )}
-                    data-loading-button-regen
-                  >
-                    <>
-                      <Loader2 className="loading-indicator-regen mr-2 h-4 w-4 animate-spin" />
-                      <RefreshCw className="normal-indicator-regen mr-2 h-4 w-4" />
-                    </>
-                    <span className=" inline-block align-middle -mt-1">Re-<span className="font-['Pacifico'] text-lg">grab</span>!</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Panel */}
       {content && (

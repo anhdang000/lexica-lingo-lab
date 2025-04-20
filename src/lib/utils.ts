@@ -242,11 +242,11 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
                           });
                         }
 
-                        // Add phrase definition - get at most 1 example (first if multiple)
-                        if (meaning) {
+                        // Add phrase definition if it has at least one example
+                        if (meaning && examples.length > 0) {
                           wordDef.definitions.push({
                             meaning: `${drosEntry.drp || ''} - ${meaning.trim()}`,
-                            examples: examples.length > 0 ? examples[0] : ''
+                            examples: examples[0]
                           });
                         }
                       }
@@ -306,12 +306,11 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
                       });
                     }
 
-                    // Only add definition if we have a meaning
-                    // Get at most 1 example (first if multiple) or empty string
-                    if (meaning) {
+                    // Only add definition if we have a meaning AND at least one example
+                    if (meaning && examples.length > 0) {
                       wordDef.definitions.push({
                         meaning: meaning.trim(),
-                        examples: examples.length > 0 ? examples[0] : ''
+                        examples: examples[0]
                       });
                     }
                   }
@@ -322,26 +321,10 @@ export async function lookupWord(word: string): Promise<WordDefinition[] | null>
         });
       } 
       
-      // If no definitions were found or processed, fall back to shortdef
-      if (wordDef.definitions.length === 0 && entry.shortdef && Array.isArray(entry.shortdef)) {
-        wordDef.definitions = entry.shortdef.map((def: string) => ({
-          meaning: cleanFormatting(def),
-          examples: ''
-        }));
-      }
+      // We no longer need the shortdef fallback since we only want definitions with examples
+      // If we still have no definitions with examples, this will be filtered out later
       
-      // If we still have no definitions but have app-shortdef, use that as last resort
-      if (wordDef.definitions.length === 0 && entry.meta?.['app-shortdef']?.def) {
-        const appDefs = entry.meta['app-shortdef'].def;
-        if (Array.isArray(appDefs)) {
-          wordDef.definitions = appDefs.map((def: string) => ({
-            meaning: cleanFormatting(def),
-            examples: ''
-          }));
-        }
-      }
-
-      // Only return if we have at least one definition
+      // Only return if we have at least one definition with an example
       return wordDef.definitions.length > 0 ? wordDef : null;
     };
 
@@ -801,38 +784,41 @@ Return the results in JSON format with three fields: "vocabulary" (array of obje
       maxOutputTokens: 8192,
       responseMimeType: "application/json",
       responseSchema: {
-        type: SchemaType.OBJECT as const,
-        properties: {
-          vocabulary: {
-            type: SchemaType.ARRAY as const,
-            items: {
-              type: SchemaType.OBJECT as const,
-              properties: {
-                word: {
-                  type: SchemaType.STRING as const,
-                  description: "A vocabulary word that would be valuable for a language learner",
+        type: SchemaType.ARRAY as const,
+        items: {
+          type: SchemaType.OBJECT as const,
+          properties: {
+            vocabulary: {
+              type: SchemaType.ARRAY as const,
+              items: {
+                type: SchemaType.OBJECT as const,
+                properties: {
+                  word: {
+                    type: SchemaType.STRING as const,
+                    description: "A vocabulary word that would be valuable for a language learner",
+                  },
+                  collectionName: {
+                    type: SchemaType.STRING as const,
+                    description: "The collection name that categorizes this vocabulary word",
+                  }
                 },
-                collectionName: {
-                  type: SchemaType.STRING as const,
-                  description: "The collection name that categorizes this vocabulary word",
-                }
+                required: ["word", "collectionName"],
               },
-              required: ["word", "collectionName"],
             },
-          },
-          topics: {
-            type: SchemaType.ARRAY as const,
-            items: {
+            topics: {
+              type: SchemaType.ARRAY as const,
+              items: {
+                type: SchemaType.STRING as const,
+                description: "A relevant topic or theme that categorizes the content",
+              },
+            },
+            content: {
               type: SchemaType.STRING as const,
-              description: "A relevant topic or theme that categorizes the content",
+              description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
             },
           },
-          content: {
-            type: SchemaType.STRING as const,
-            description: "A concise paragraph summarizing key points with vocabulary words wrapped in <word> tags",
-          },
+          required: ["vocabulary", "topics", "content"],
         },
-        required: ["vocabulary", "topics", "content"],
       },
     };
     
