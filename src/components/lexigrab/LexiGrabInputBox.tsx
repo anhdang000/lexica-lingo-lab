@@ -573,6 +573,24 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
           "absolute top-0 left-0 right-0 h-[3px] opacity-75 z-10",
           `bg-gradient-to-r ${theme.gradient}`
         )} />
+        
+        {/* Clear button in top right corner */}
+        {(activeFiles.length > 0 || inputValue.trim() !== '' || recognizedUrls.length > 0) && (
+          <Button
+            onClick={() => {
+              setActiveFiles([]);
+              setInputValue('');
+              setRecognizedUrls([]);
+            }}
+            variant="ghost"
+            size="sm"
+            className="absolute top-5 right-5 z-20 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:bg-gray-300 h-8 w-8 p-0"
+            disabled={isLoadingState}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+        
         <div
           className={cn(
             "p-4 relative min-h-[180px]",
@@ -749,8 +767,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
                     )}
                     disabled={isLoadingState}
                   >
-                    <FileUp className="h-4 w-4 mr-2" />
-                    <span>Files</span>
+                    <FileUp className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -759,23 +776,6 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
               </Tooltip>
             </TooltipProvider>
 
-            {(activeFiles.length > 0 || inputValue.trim() !== '' || recognizedUrls.length > 0) && (
-              <Button
-                onClick={() => {
-                  setActiveFiles([]);
-                  setInputValue('');
-                  setRecognizedUrls([]);
-                }}
-                variant="ghost"
-                size="sm"
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:bg-gray-300"
-                disabled={isLoadingState}
-              >
-                <X className="h-4 w-4 mr-2" />
-                <span>Clear</span>
-              </Button>
-            )}
-            
             <Button
               onClick={() => setShowTuningOptions?.(!(showTuningOptions || false))}
               variant={showTuningOptions ? "default" : "ghost"}
@@ -787,8 +787,7 @@ const LexiGrabInputBox: React.FC<LexiGrabInputBoxProps> = ({
               )}
               disabled={isLoadingState}
             >
-              <Sliders className="h-4 w-4 mr-2" />
-              <span>Preferences</span>
+              <Sliders className="h-4 w-4" />
             </Button>
           </div>
 

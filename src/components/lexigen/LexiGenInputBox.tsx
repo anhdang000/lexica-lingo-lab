@@ -246,8 +246,7 @@ const LexiGenInputBox: React.FC<LexiGenInputBoxProps> = ({
               )}
               disabled={isLoadingState}
             >
-              <Sliders className="h-4 w-4 mr-2" />
-              <span>Preferences</span>
+              <Sliders className="h-4 w-4" />
             </Button>
           </div>
 
